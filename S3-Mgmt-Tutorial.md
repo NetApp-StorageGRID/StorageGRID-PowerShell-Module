@@ -60,7 +60,7 @@ Connect-S3MgmtServer -Name $ServerName -Credential $Credential -HTTP
 
 ## Simple workflow for exporting S3 account usage to CSV
 
-In this simple workflow the S3 account usage data will be retrieved and exported as CSV to (C:\tmp\usage.csv).
+In this simple workflow the S3 account usage data will be retrieved and exported as CSV to [C:\tmp\usage.csv](C:\tmp\usage.csv).
 
 ```powershell
 $Accounting = foreach ($Account in Get-S3Accounts) {
