@@ -30,7 +30,7 @@ Show help for Cmdlet to connect to StorageGRID Management Server
 Connect to StorageGRID Management Server (use the `-Insecure` switch to skip checking the certificate of the server)
     
     $Credential = Get-Credential
-    Connect-OciServer -Name myserver.mydomain.tld -Credential $Credential -Insecure
+    Connect-S3MgmtServer -Name myserver.mydomain.tld -Credential $Credential -Insecure
     
 List all S3 Accounts
 
