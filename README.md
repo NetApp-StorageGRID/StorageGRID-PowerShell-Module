@@ -1,42 +1,46 @@
-OnCommand-Insight
-=================
+S3-Mgmt
+=======
 
-OnCommand-Insight PowerShell Module
+StorageGRID S3 Management PowerShell Module
 
 Installation
 ------------
 
-Extract OnCommand-Insight.zip either to your preferred PowerShell Module location (e.g. `$HOME\WindowsPowershell\Documents\WindowsPowerShell\Modules` or `C:\Windows\System32\WindowsPowerShell\v1.0\Modules`).
+Extract S3-Mgmt.zip either to your preferred PowerShell Module location (e.g. `$HOME\WindowsPowershell\Documents\WindowsPowerShell\Modules` or `C:\Windows\System32\WindowsPowerShell\v1.0\Modules`).
 
 Usage
 -----
 
-Check if OnCommand-Insight Module can be found by PowerShell
+Check if S3-Mgmt Module can be found by PowerShell
 
-    Get-Module -ListAvailable OnCommand-Insight
+    Get-Module -ListAvailable S3-Mgmt
     
 Import PowerShell Module
 	
-    Import-Module OnCommand-Insight
+    Import-Module S3-Mgmt
     
-List all Cmdlets included in the OnCommand-Insight Module
+List all Cmdlets included in the S3-Mgmt Module
 	
-    Get-Command -Module OnCommand-Insight
+    Get-Command -Module S3-Mgmt
 	
-Show help for Cmdlet to connect to OnCommand-Insight Server
+Show help for Cmdlet to connect to StorageGRID Management Server
     
-    Get-Help Connect-OciServer -Detailed
+    Get-Help Connect-S3MgmtServer -Detailed
 	
-Connect to OnCommand Insight Server using the `-Insecure` Switch to skip checking the certificate of the server
+Connect to StorageGRID Management Server (use the `-Insecure` switch to skip checking the certificate of the server)
     
     $Credential = Get-Credential
     Connect-OciServer -Name myserver.mydomain.tld -Credential $Credential -Insecure
     
-List all Storage Arrays
+List all S3 Accounts
 
-    Get-OciStorageArrays
+    Get-S3Accounts
+	
+Show Account Usage
 
-Trusting the Publisher of the OnCommand Insight Cmdlets
+    Get-S3Accounts | Get-S3AccountUsage
+
+Trusting the Publisher of the S3-Mgmt Cmdlets
 -------------------------------------------------------
 
 This PowerShell Module is signed with a code signing certificate issued by the *NetApp Corp Issuing CA 1*. If the PowerShell execution policy requires powershell scripts to be signed (see [about_Execution_Policies](technet.microsoft.com/library/hh847748.aspx) for details), two steps are required to run this PowerShell Module
@@ -54,26 +58,4 @@ This PowerShell Module is signed with a code signing certificate issued by the *
   10. Click Finish
   11. A *Security Warning* will be displayed. Click *Yes* to install the certificate. The *Thumbprint (sha1)* should be **9FFB6F1A 06BC0245 27368705 2E7309D3 6FF2CFD0**
   12. Click twice on *OK* to close the dialogs.
-2. When importing the PowerShell module via `Import-Module OnCommand-Insigh` a dialog is displayed asking if the publisher *CN=florianf-Florian-Feldhaus, OU=Users, OU=EMEA, OU=Sites, DC=hq, DC=netapp, DC=com* should be trusted. Select *[A] Always run* to permanently trust this publisher.
-
-	
-Changelog
----------
-
-### Version 0.3
-
-* Module is now signed
-* added instructions to trust the publisher of the Module
-* added ability for most cmdlets to accept pipeline input
-* streamlined usage of the parameter ID. All cmdlets accepting ID parameters now have named parameters like VolumeID or HostID and ID is an alias to these parameters (e.g. ID always works).
-* added formatting of OCI types
-
-### Version 0.2
-
-* improved Help and added Parameter Help
-* solved Namespace issues when changing server and introduced OCI namespace
-* improved build process
-
-### Version 0.1
-
-* First internal release with all Cmdlets implemented
+2. When importing the PowerShell module via `Import-Module S3-Mgmt` a dialog is displayed asking if the publisher *CN=florianf-Florian-Feldhaus, OU=Users, OU=EMEA, OU=Sites, DC=hq, DC=netapp, DC=com* should be trusted. Select *[A] Always run* to permanently trust this publisher.

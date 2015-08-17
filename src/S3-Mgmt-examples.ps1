@@ -4,7 +4,7 @@
 $Credential = Get-Credential
 
 # Connect to StorageGRID NMS
-Connect-S3Mgmt -Name cbc-sg-adm1.muccbc.hq.netapp.com -Credential $credential -Insecure
+Connect-S3MgmtServer -Name cbc-sg-adm1.muccbc.hq.netapp.com -Credential $credential -Insecure
 
 # retrieve all S3 Accounts
 Get-S3Accounts
@@ -20,4 +20,4 @@ $Accounting = foreach ($Account in Get-S3Accounts) {
     Write-Output $Output
 } 
 
-Export-Csv -Path C:\tmp\usage.csv -NoTypeInformation -InputObject $Accounting
+$Accounting | Export-Csv -Path C:\tmp\usage.csv -NoTypeInformation

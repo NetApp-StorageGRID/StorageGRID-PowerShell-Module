@@ -145,21 +145,36 @@ function global:Connect-S3MgmtServer {
 #>
 function Global:Get-S3Accounts {
     [CmdletBinding()]
- 
-    $Uri = $CurrentS3MgmtServer.BaseURI + '/api/v1/service-provider/s3-accounts'
- 
-    try {
-        $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $CurrentS3MgmtServer.Headers
+
+    PARAM ()
+
+    Begin {
+        if (!$CurrentS3MgmtServer) {
+            Write-Error "No S3 management server found. Please run Connect-S3MgtServer to continue."
+        }
+        $Result = $null
     }
-    catch {
-        $Response = $_.Exception.Response
-        $Result = $Response.GetResponseStream()
-        $Reader = New-Object System.IO.StreamReader($Result)
-        $responseBody = $reader.ReadToEnd()
-        Write-Error "GET to $Uri failed with response:`n$responseBody"
-    }
+ 
+    Process {
+        $Uri = $CurrentS3MgmtServer.BaseURI + '/api/v1/service-provider/s3-accounts'
+
+
+ 
+        try {
+            $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $CurrentS3MgmtServer.Headers
+        }
+        catch {
+            $Response = $_.Exception.Response
+            if ($Response) {
+                $Result = $Response.GetResponseStream()
+                $Reader = New-Object System.IO.StreamReader($Result)
+                $responseBody = $reader.ReadToEnd()
+            }
+            Write-Error "GET to $Uri failed with response:`n$responseBody"
+        }
        
-    Write-Output $Result.data
+        Write-Output $Result.data
+    }
 }
 
 <#
@@ -180,6 +195,9 @@ function Global:Get-S3Account {
     )
  
     Begin {
+        if (!$CurrentS3MgmtServer) {
+            Write-Error "No S3 management server found. Please run Connect-S3MgtServer to continue."
+        }
         $Result = $null
     }
    
@@ -193,9 +211,11 @@ function Global:Get-S3Account {
             }
             catch {
                 $Response = $_.Exception.Response
-                $Result = $Response.GetResponseStream()
-                $Reader = New-Object System.IO.StreamReader($Result)
-                $responseBody = $reader.ReadToEnd()
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
                 Write-Error "GET to $Uri failed with response:`n$responseBody"
             }
        
@@ -222,6 +242,9 @@ function Global:Get-S3AccountUsage {
     )
  
     Begin {
+        if (!$CurrentS3MgmtServer) {
+            Write-Error "No S3 management server found. Please run Connect-S3MgtServer to continue."
+        }
         $Result = $null
     }
    
@@ -235,9 +258,11 @@ function Global:Get-S3AccountUsage {
             }
             catch {
                 $Response = $_.Exception.Response
-                $Result = $Response.GetResponseStream()
-                $Reader = New-Object System.IO.StreamReader($Result)
-                $responseBody = $reader.ReadToEnd()
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
                 Write-Error "GET to $Uri failed with response:`n$responseBody"
             }
        

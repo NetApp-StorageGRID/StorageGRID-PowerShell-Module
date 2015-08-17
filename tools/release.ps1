@@ -48,7 +48,7 @@ New-ModuleManifest `
     -Author $Author `
     -CompanyName $Company `
     -Copyright "(c) $((Get-Date).Year) $Company. All rights reserved." `
-    -Description 'OnCommand-Insight Powershell Cmdlet.' `
+    -Description 'StorageGRID S3 Management Powershell Cmdlet.' `
     -PowerShellVersion '3.0' `
     -DotNetFrameworkVersion '4.0' `
     -NestedModules (Get-ChildItem $src\*.psm1 | % { $_.Name }) `
@@ -75,7 +75,7 @@ Write-Host "Creating the release archive..."
 # Requires .NET 4.5
 [Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
 
-$zipFileName = Join-Path ([System.IO.Path]::GetDirectoryName($dst)) "$([System.IO.Path]::GetFileNameWithoutExtension($manifestFileName))-$ModuleVersion.zip"
+$zipFileName = Join-Path ([System.IO.Path]::GetDirectoryName($dst)) "$([System.IO.Path]::GetFileNameWithoutExtension($manifestFileName)).zip"
 
 # Overwrite the ZIP if it already exists.
 if (Test-Path $zipFileName) {
