@@ -270,3 +270,186 @@ function Global:Get-S3AccountUsage {
         }
     }
 }
+
+<#
+    .SYNOPSIS
+    Update an S3 Account
+    .DESCRIPTION
+    Update an S3 Account
+#>
+function Global:Update-S3Account {
+    [CmdletBinding()]
+
+    PARAM (
+    [parameter(Mandatory=$True,
+               Position=0,
+               HelpMessage="ID of S3 Account to update",
+               ValueFromPipeline=$True,
+               ValueFromPipelineByPropertyName=$True)][String[]]$id,
+    [parameter(Mandatory=$True,
+               Position=1,
+               HelpMessage="New name for S3 Account")][String[]]$Name
+
+    )
+ 
+    Begin {
+        $Result = $null
+    }
+   
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $CurrentS3MgmtServer.BaseURI + "/api/v1/service-provider/s3-accounts/$id"
+ 
+            try {
+                $Result = Invoke-RestMethod -Method PATCH -Uri $Uri -Headers $CurrentS3MgmtServer.Headers -Body "{`"name`":`"$Name`"}"
+            }
+            catch {
+                $Response = $_.Exception.Response
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
+                Write-Error "GET to $Uri failed with response:`n$responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Restore S3 Account Secret Key
+    .DESCRIPTION
+    Restore S3 Account Secret Key
+#>
+function Global:Restore-S3AccountSecretKey {
+    [CmdletBinding()]
+
+    PARAM (
+    [parameter(Mandatory=$True,
+               Position=0,
+               HelpMessage="ID of S3 Account to update",
+               ValueFromPipeline=$True,
+               ValueFromPipelineByPropertyName=$True)][String[]]$id
+    )
+ 
+    Begin {
+        $Result = $null
+    }
+   
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $CurrentS3MgmtServer.BaseURI + "/api/v1/service-provider/s3-accounts/$id/regenerate-keys"
+ 
+            try {
+                $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $CurrentS3MgmtServer.Headers
+            }
+            catch {
+                $Response = $_.Exception.Response
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
+                Write-Error "PATCH to $Uri failed with response:`n$responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Create an S3 Account
+    .DESCRIPTION
+    Create an S3 Account
+#>
+function Global:Create-S3Account {
+    [CmdletBinding()]
+
+    PARAM (
+    [parameter(Mandatory=$True,
+               Position=0,
+               HelpMessage="ID of S3 Account to update",
+               ValueFromPipeline=$True,
+               ValueFromPipelineByPropertyName=$True)][String[]]$Name
+    )
+ 
+    Begin {
+        $Result = $null
+    }
+   
+    Process {
+        $Name = @($Name)
+        foreach ($Name in $Name) {
+            $Uri = $CurrentS3MgmtServer.BaseURI + "/api/v1/service-provider/s3-accounts"
+ 
+            try {
+                $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $CurrentS3MgmtServer.Headers -Body "{`"name`":`"$Name`"}"
+            }
+            catch {
+                $Response = $_.Exception.Response
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
+                Write-Error "POST to $Uri failed with response:`n$responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Delete an S3 Account
+    .DESCRIPTION
+    Delete an S3 Account
+#>
+function Global:Delete-S3Account {
+    [CmdletBinding()]
+
+    PARAM (
+    [parameter(Mandatory=$True,
+                Position=0,
+                HelpMessage="ID of S3 Account to delete",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String[]]$id
+    )
+ 
+    Begin {
+        if (!$CurrentS3MgmtServer) {
+            Write-Error "No S3 management server found. Please run Connect-S3MgtServer to continue."
+        }
+        $Result = $null
+    }
+   
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $CurrentS3MgmtServer.BaseURI + "/api/v1/service-provider/s3-accounts/$id"
+ 
+            try {
+                $Result = Invoke-RestMethod -Method DELETE -Uri $Uri -Headers $CurrentS3MgmtServer.Headers
+            }
+            catch {
+                $Response = $_.Exception.Response
+                if ($Response) {
+                    $Result = $Response.GetResponseStream()
+                    $Reader = New-Object System.IO.StreamReader($Result)
+                    $responseBody = $reader.ReadToEnd()
+                }
+                Write-Error "GET to $Uri failed with response:`n$responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
