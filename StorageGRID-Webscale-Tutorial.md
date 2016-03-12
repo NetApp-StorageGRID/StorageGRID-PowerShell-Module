@@ -1,39 +1,39 @@
-# StorageGRID S3 Management PowerShell Cmdlet Tutorial
+# StorageGRID Webscale PowerShell Cmdlet Tutorial
 
-This tutorial will give an introduction to the StorageGRID S3 Management PowerShell Cmdlets
+This tutorial will give an introduction to the StorageGRID Webscale PowerShell Cmdlets
 
 ## Discovering the available Cmdlets
 
-Load the S3-Mgmt Module
+Load the StorageGRID-Webscale Module
 
 ```powershell
-Import-Module S3-Mgmt
+Import-Module StorageGRID-Webscale
 ```
 
-Show all available Cmdlets from the S3-Mgmt Module
+Show all available Cmdlets from the StorageGRID-Webscale Module
 
 ```powershell
-Get-Command -Module S3-Mgmt
+Get-Command -Module StorageGRID-Webscale
 ```
 
-Show the syntax of all Cmdlets from the S3-Mgmt Module
+Show the syntax of all Cmdlets from the StorageGRID-Webscale Module
 
 ```powershell
-Get-Command -Module S3-Mgmt
+Get-Command -Module StorageGRID-Webscale -Syntax
 ```
 
-To get detailed help including examples for a specific Cmdlet (e.g. for Connect-S3MgmtServer) run
+To get detailed help including examples for a specific Cmdlet (e.g. for Connect-SGWServer) run
 
 ```powershell
-Get-Help Connect-S3MgmtServer -Detailed
+Get-Help Connect-SGWServer -Detailed
 ```
 
 ## Connecting to a StorageGRID Management Server
 
-For data retrieval a connection to the StorageGRID Management Server is required. The Connect-S3MgmtServer Cmdlet expects the hostname or IP and the credentials for authentication
+For data retrieval a connection to the StorageGRID Management Server is required. The Connect-SGWServer Cmdlet expects the hostname or IP and the credentials for authentication
 
 ```powershell
-$ServerName = 'nms.stroagegrid.example.com'
+$Server = "nms.mydomain.tld"
 $Credential = Get-Credential
 Connect-S3MgmtServer -Name $ServerName -Credential $Credential
 ```

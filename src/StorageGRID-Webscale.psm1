@@ -41,13 +41,6 @@ function global:Connect-SGWServer {
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient
     )
 
-    $body = @"
-{
-    "username": "$($Credential.UserName)", 
-    "password": "$($Credential.GetNetworkCredential().Password)"
-}
-"@
-
     # check if untrusted SSL certificates should be ignored
     if ($Insecure) {
         [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
@@ -66,58 +59,88 @@ function global:Connect-SGWServer {
     $Server = New-Object -TypeName PSCustomObject
     $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
     $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
+
+    $Body = @"
+{
+    "username": "$($Credential.UserName)", 
+    "password": "$($Credential.GetNetworkCredential().Password)"
+}
+"@
  
     if ($HTTPS -or !$HTTP) {
         Try {
             $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value "https://$Name"
-            $Response = Invoke-RestMethod -Method POST -Uri "$BaseURI/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
+            $Response = Invoke-RestMethod -Method POST -Uri "$($Server.BaseURI)/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
             if ($Response.status -eq "success") {
                 $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
                 $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
             }
+            if (!$Transient) {
+                Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
+            }
+ 
+            return $Server
         }
         Catch {
             if ($_.Exception.Message -match "Unauthorized") {
-                Write-Error "Authorization for $BaseURI/api/v1/authorize with user $($Credential.UserName) failed"
+                Write-Error "Authorization for $($Server.BaseURI)/api/v1/authorize with user $($Credential.UserName) failed"
                 return
             }
             else {
                 if ($HTTPS) {
-                    Write-Error "Login to $BaseURI/api/v1/authorize failed via HTTPS protocol, but HTTPS was enforced"
+                    $result = $_.Exception.Response.GetResponseStream()
+                    $reader = New-Object System.IO.StreamReader($result)
+                    $reader.BaseStream.Position = 0
+                    $reader.DiscardBufferedData()
+                    $responseBody = $reader.ReadToEnd()
+                    if ($responseBody.StartsWith('{')) {
+                        $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
+                    }
+                    Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
                     return
                 }
                 else {
+                    Write-Warning "Login to $BaseURI/api/v1/authorize failed via HTTPS protocol"
                     $HTTP = $True
                 }
             }
         }
     }
-    else {
+
+    if ($HTTP) {
         Try {
-            $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value "http://$Name"
-            $Response = Invoke-RestMethod -Method POST -Uri "$BaseURI/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
+            $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value "http://$Name" -Force
+            $Response = Invoke-RestMethod -Method POST -Uri "$($Server.BaseURI)/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
             if ($Response.status -eq "success") {
                 $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
                 $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
             }
+            
+            if (!$Transient) {
+                Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
+            }
+ 
+            return $Server
         }
         Catch {
             if ($_.Exception.Message -match "Unauthorized") {
-                Write-Error "Authorization for $BaseURI/api/v1/authorize with user $($Credential.UserName) failed"
+                Write-Error "Authorization for $($Server.BaseURI)/api/v1/authorize with user $($Credential.UserName) failed"
                 return
             }
             else {
-                Write-Error "Login to $BaseURI/api/v1/authorize failed via HTTP protocol, but HTTP was enforced"
+                $result = $_.Exception.Response.GetResponseStream()
+                $reader = New-Object System.IO.StreamReader($result)
+                $reader.BaseStream.Position = 0
+                $reader.DiscardBufferedData()
+                $responseBody = $reader.ReadToEnd()
+                if ($responseBody.StartsWith('{')) {
+                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
+                }
+                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
                 return
             }
         }
     }
- 
-    if (!$Transient) {
-        Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
-    }
- 
-    return $Server
 }
 
 <#
@@ -1059,7 +1082,7 @@ function Global:Update-SGWIdentitySources {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Identity Source Port")][Integer]$Port,
+            HelpMessage="Identity Source Port")][Int]$Port,
         [parameter(
             Mandatory=$False,
             Position=4,
