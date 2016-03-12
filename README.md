@@ -1,47 +1,47 @@
-S3-Mgmt
-=======
-
-StorageGRID S3 Management PowerShell Module
+StorageGRID Webscale PowerShell Module
+======================================
 
 Installation
 ------------
 
-Extract S3-Mgmt.zip either to your preferred PowerShell Module location (e.g. `$HOME\WindowsPowershell\Documents\WindowsPowerShell\Modules` or `C:\Windows\System32\WindowsPowerShell\v1.0\Modules`).
+Download latest release from https://github.com/ffeldhaus/StorageGRID-Webscale/releases/latest.
+
+Extract StorageGRID-Webscale.zip to your preferred PowerShell Module location (e.g. `$HOME\WindowsPowershell\Documents\WindowsPowerShell\Modules` or `C:\Windows\System32\WindowsPowerShell\v1.0\Modules`).
 
 Usage
 -----
 
-Check if S3-Mgmt Module can be found by PowerShell
+Check if StorageGRID-Webscale Module can be found by PowerShell
 
-    Get-Module -ListAvailable S3-Mgmt
+    Get-Module -ListAvailable StorageGRID-Webscale
     
 Import PowerShell Module
 	
-    Import-Module S3-Mgmt
+    Import-Module StorageGRID-Webscale
     
-List all Cmdlets included in the S3-Mgmt Module
+List all Cmdlets included in the StorageGRID-Webscale Module
 	
-    Get-Command -Module S3-Mgmt
+    Get-Command -Module StorageGRID-Webscale
 	
 Show help for Cmdlet to connect to StorageGRID Management Server
     
-    Get-Help Connect-S3MgmtServer -Detailed
+    Get-Help Connect-SGWServer -Detailed
 	
 Connect to StorageGRID Management Server (use the `-Insecure` switch to skip checking the certificate of the server)
     
     $Credential = Get-Credential
-    Connect-S3MgmtServer -Name myserver.mydomain.tld -Credential $Credential -Insecure
+    Connect-SGWMgmtServer -Name myserver.mydomain.tld -Credential $Credential -Insecure
     
-List all S3 Accounts
+List all StorageGRID-Webscale Accounts
 
-    Get-S3Accounts
+    Get-SGWAccounts
 	
-Show Account Usage
+Show StorageGRID-Webscale Account Usage
 
-    Get-S3Accounts | Get-S3AccountUsage
+    Get-SGWAccounts | Get-SGWAccountUsage
 
-Trusting the Publisher of the S3-Mgmt Cmdlets
--------------------------------------------------------
+Trusting the Publisher of the StorageGRID-Webscale Cmdlets
+----------------------------------------------------------
 
 This PowerShell Module is signed with a code signing certificate issued by the *NetApp Corp Issuing CA 1*. If the PowerShell execution policy requires powershell scripts to be signed (see [about_Execution_Policies](technet.microsoft.com/library/hh847748.aspx) for details), two steps are required to run this PowerShell Module
 
