@@ -27,16 +27,19 @@ function global:Connect-SGWServer {
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                    Position=2,
-                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTP to skip the HTTPS connection attempt and only try HTTP.")][Switch]$HTTP,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTPS to fail the connection attempt in that case rather than fall back to HTTP.")][Switch]$HTTPS,
+                   HelpMessage="Account ID for Tenenant Login")][System.Management.Automation.PSCredential]$AccountID,
         [parameter(Mandatory=$False,
                    Position=3,
+                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTP to skip the HTTPS connection attempt and only try HTTP.")][Switch]$HTTP,
+        [parameter(Mandatory=$False,
+                   Position=4,
+                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTPS to fail the connection attempt in that case rather than fall back to HTTP.")][Switch]$HTTPS,
+        [parameter(Mandatory=$False,
+                   Position=5,
                    HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
-        [parameter(Position=4,
+        [parameter(Position=6,
                    Mandatory=$False,
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient
     )
@@ -60,12 +63,23 @@ function global:Connect-SGWServer {
     $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
     $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
 
-    $Body = @"
+    if ($AccountID) {
+        $Body = @"
+{
+    "accountId": "$AccountID",
+    "username": "$($Credential.UserName)", 
+    "password": "$($Credential.GetNetworkCredential().Password)"
+}
+"@
+    }
+    else {
+        $Body = @"
 {
     "username": "$($Credential.UserName)", 
     "password": "$($Credential.GetNetworkCredential().Password)"
 }
 "@
+    }
  
     if ($HTTPS -or !$HTTP) {
         Try {

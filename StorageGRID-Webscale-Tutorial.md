@@ -35,27 +35,27 @@ For data retrieval a connection to the StorageGRID Management Server is required
 ```powershell
 $Server = "nms.mydomain.tld"
 $Credential = Get-Credential
-Connect-S3MgmtServer -Name $ServerName -Credential $Credential
+Connect-SGWServer -Name $Server -Credential $Credential
 ```
 
 If the login fails, it is often due to an untrusted certificate of the StorageGRID Management Server. You can ignore the certificate check with the `-Insecure` option
 
 ```powershell
-Connect-S3MgmtServer -Name $ServerName -Credential $Credential -Insecure
+Connect-SGWServer -Name $Server -Credential $Credential -Insecure
 ```
 
-By default the connection to the S3Mgmt server is established through HTTPS. If that doesn't work, HTTP will be tried. 
+By default the connection to the StorageGRID Webscale Server is established through HTTPS. If that doesn't work, HTTP will be tried. 
 
 To force connections via HTTPS use the `-HTTPS` switch
 
 ```powershell
-Connect-S3MgmtServer -Name $ServerName -Credential $Credential -HTTPS
+Connect-SGWServer -Name $Server -Credential $Credential -HTTPS
 ```
 
 To force connections via HTTP use the `-HTTP` switch
 
 ```powershell
-Connect-S3MgmtServer -Name $ServerName -Credential $Credential -HTTP
+Connect-SGWServer -Name $Server -Credential $Credential -HTTP
 ```
 
 ## Simple workflow for exporting S3 account usage to CSV
@@ -63,11 +63,11 @@ Connect-S3MgmtServer -Name $ServerName -Credential $Credential -HTTP
 In this simple workflow the S3 account usage data will be retrieved and exported as CSV to [C:\tmp\usage.csv](C:\tmp\usage.csv).
 
 ```powershell
-$Accounting = foreach ($Account in Get-S3Accounts) {
-    $Usage = Get-S3AccountUsage -id $Account.id
+$Accounting = foreach ($Account in (Get-SGWAccounts | Where-Object { $_.capabilities -match "s3" })) {
+    $Usage = $Account | Get-SGWAccountUsage
     $Output = New-Object -TypeName PSCustomObject -Property @{Name=$Account.name;ID=$Account.id;"Calculation Time"=$Usage.calculationTime;"Object Count"=$Usage.objectCount;"Data Bytes used"=$Usage.dataBytes}
     Write-Output $Output
-} 
+}
 
 $Accounting | Export-Csv -Path C:\tmp\usage.csv -NoTypeInformation
 ```
