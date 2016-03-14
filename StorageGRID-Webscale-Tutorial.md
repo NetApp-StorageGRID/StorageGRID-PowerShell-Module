@@ -60,14 +60,28 @@ Connect-SGWServer -Name $Server -Credential $Credential -HTTP
 
 ## Simple workflow for exporting S3 account usage to CSV
 
-In this simple workflow the S3 account usage data will be retrieved and exported as CSV to [C:\tmp\usage.csv](C:\tmp\usage.csv).
+In this simple workflow the S3 account usage data will be retrieved and exported as CSV to [$HOME\Downloads\TenantAccounting.csv]($HOME\Downloads\TenantAccounting.csv).
 
 ```powershell
-$Accounting = foreach ($Account in (Get-SGWAccounts | Where-Object { $_.capabilities -match "s3" })) {
+$TenantAccounting = foreach ($Account in (Get-SGWAccounts | Where-Object { $_.capabilities -match "s3" })) {
     $Usage = $Account | Get-SGWAccountUsage
     $Output = New-Object -TypeName PSCustomObject -Property @{Name=$Account.name;ID=$Account.id;"Calculation Time"=$Usage.calculationTime;"Object Count"=$Usage.objectCount;"Data Bytes used"=$Usage.dataBytes}
     Write-Output $Output
 }
 
-$Accounting | Export-Csv -Path C:\tmp\usage.csv -NoTypeInformation
+$TenantAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
+```
+
+The next workflow will retrieve the S3 Account usage per Bucket and export it as CSV to [$HOME\Downloads\BucketAccounting.csv]($HOME\Downloads\BucketAccounting.csv)
+
+```powershell
+$BucketAccounting = foreach ($Account in (Get-SGWAccounts | Where-Object { $_.capabilities -match "s3" })) {
+    $Usage = $Account | Get-SGWAccountUsage
+	foreach ($Bucket in $Usage.Buckets) {
+		$Output = New-Object -TypeName PSCustomObject -Property @{Name=$Account.name;ID=$Account.id;"Calculation Time"=$Usage.calculationTime;Bucket=$Bucket.Name;"Object Count"=$Bucket.objectCount;"Data Bytes used"=$Bucket.dataBytes}
+		Write-Output $Output
+	}
+}
+
+$BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
 ```
