@@ -231,20 +231,14 @@ function Global:Get-SGWAccounts {
  
     Process {
         $Uri = $Server.BaseURI + '/api/v1/grid/accounts'
+        $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $result = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($result)
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $responseBody = $reader.ReadToEnd()
-            if ($responseBody.StartsWith('{')) {
-                $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-            }
-            Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
         Write-Output $Result.data
@@ -286,20 +280,14 @@ function Global:Get-SGWAccount {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -348,6 +336,7 @@ function Global:New-SGWAccount {
         $Name = @($Name)
         foreach ($Name in $Name) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts"
+            $Method = "POST"
 
             $Body = @"
 {
@@ -357,18 +346,11 @@ function Global:New-SGWAccount {
 "@
 
             try {
-                $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -411,21 +393,15 @@ function Global:Delete-SGWAccount {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+            $Method = "DELETE"
 
             try {
-                $Result = Invoke-RestMethod -Method DELETE -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
                 Write-Host "Successfully deleted account with ID $id"
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
         }
     }
@@ -478,6 +454,7 @@ function Global:Update-SGWAccount {
         $Id = @($Id)
         foreach ($Id in $Id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+            $Method = "PUT"
 
             $Body = ""
 
@@ -506,18 +483,11 @@ function Global:Update-SGWAccount {
             }
 
             try {
-                $Result = Invoke-RestMethod -Method PUT -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -568,6 +538,7 @@ function Global:Update-SGWSwiftAdminPassword {
         $Id = @($Id)
         foreach ($Id in $Id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/swift-admin-password"
+            $Method = "POST"
 
             $Body = @"
 {
@@ -576,18 +547,11 @@ function Global:Update-SGWSwiftAdminPassword {
 }
 "@
             try {
-                $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -630,20 +594,14 @@ function Global:Get-SGWAccountUsage {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/usage"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
             Write-Output $Result.data
         }
@@ -685,20 +643,14 @@ function Global:Get-SGWAccountGroups {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/groups"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -741,20 +693,14 @@ function Global:Get-SGWAccountUsage {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/usage"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
             Write-Output $Result.data
         }
@@ -796,20 +742,14 @@ function Global:Get-SGWAccountS3AccessKeys {
         $id = @($id)
         foreach ($id in $id) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
             Write-Output $Result.data
         }
@@ -859,20 +799,14 @@ function Global:Get-SGWAccountS3AccessKey {
 
         foreach ($Index in 0..($Id.Count-1)) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
+            $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -921,6 +855,7 @@ function Global:New-SGWAccountS3AccessKey {
  
     Process {
         $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
+        $Method = "POST"
 
         if ($Expires) { 
             $Body = @"
@@ -935,18 +870,11 @@ function Global:New-SGWAccountS3AccessKey {
 
         try {
             $Body
-            $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $result = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($result)
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $responseBody = $reader.ReadToEnd()
-            if ($responseBody.StartsWith('{')) {
-                $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-            }
-            Write-Error "POST to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
         Write-Output $Result.data
@@ -995,21 +923,15 @@ function Global:Delete-SGWAccountS3AccessKey {
         $AccountId = @($AccountId)
         foreach ($Index in 0..($Id.Count-1)) {
             $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
+            $Method = "DELETE"
 
             try {
-                $Result = Invoke-RestMethod -Method DELETE -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
                 Write-Host "Successfully deleted S3 Access Key $AccessKey for ID $Id"
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
         }
     }
@@ -1042,20 +964,14 @@ function Global:Get-SGWIdentitySources {
  
     Process {
         $Uri = $Server.BaseURI + "/api/v1/grid/identity-source"
+        $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method GET -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $result = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($result)
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $responseBody = $reader.ReadToEnd()
-            if ($responseBody.StartsWith('{')) {
-                $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-            }
-            Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
         Write-Output $Result.data
@@ -1176,20 +1092,14 @@ function Global:Update-SGWIdentitySources {
 }
 "@
             $Uri = $Server.BaseURI + "/api/v1/grid/identity-source"
+            $Method = "PUT"
 
             try {
-                $Result = Invoke-RestMethod -Method PUT -Uri $Uri -Headers $Server.Headers -Body $Body
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
             }
             catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
             Write-Output $Result.data
@@ -1224,21 +1134,15 @@ function Global:Sync-SGWIdentitySources {
  
     Process {
         $Uri = $Server.BaseURI + "/api/v1/grid/identity-source/synchronize"
+        $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body ""
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
             Write-Host "Successfully synchronized users and groups of identity sources"
         }
         catch {
-            $result = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($result)
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $responseBody = $reader.ReadToEnd()
-            if ($responseBody.StartsWith('{')) {
-                $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-            }
-            Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
         Write-Output $Result.data
