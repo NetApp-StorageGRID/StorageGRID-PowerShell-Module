@@ -166,11 +166,11 @@ function global:Connect-SGWServer {
         Catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             if ($_.Exception.Message -match "Unauthorized") {                
-                Write-Error "Authorization for $BaseURI/rest/v1/login with user $($Credential.UserName) failed"
+                Write-Error "Authorization for $BaseURI/api/v1/login with user $($Credential.UserName) failed"
                 return
             }
             else {
-                Write-Error "Login to $BaseURI/rest/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
+                Write-Error "Login to $BaseURI/api/v1/login failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
                 return
             }
         }
@@ -188,11 +188,11 @@ function global:Connect-SGWServer {
         Catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             if ($_.Exception.Message -match "Unauthorized") {                
-                Write-Error "Authorization for $BaseURI/rest/v1/login with user $($Credential.UserName) failed"
+                Write-Error "Authorization for $BaseURI/api/v1/login with user $($Credential.UserName) failed"
                 return
             }
             else {
-                Write-Error "Login to $BaseURI/rest/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
+                Write-Error "Login to $BaseURI/api/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
                 return
             }
         }
@@ -203,57 +203,6 @@ function global:Connect-SGWServer {
     }
 
     return $Server
-}
-
-<#
-    .SYNOPSIS
-    Disconnect from StorageGRID Webscale Management Server
-    .DESCRIPTION
-    Disconnect from StorageGRID Webscale Management Server
-#>
-function Global:Disconnect-SGWServer {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject[]]$Server
-    )
- 
-    Process {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-            $DeleteCurrentSGWServer = $true
-        }
-        if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server found. Please run Connect-SGWServer to continue."
-        }
-
-        foreach ($Server in $Server) {
-            $Uri = $Server.BaseURI + '/api/v1/authorize'
-
-            try {
-                $Result = Invoke-RestMethod -Method DELETE -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
-            }
-
-            if ($DeleteCurrentSGWServer) {
-                $Global:CurrentSGWServer = $null
-            }
-       
-            Write-Host "Succesfully disconnected from StorageGRID Management Server $($Server.Name)"
-        }
-    }
 }
 
 <#
