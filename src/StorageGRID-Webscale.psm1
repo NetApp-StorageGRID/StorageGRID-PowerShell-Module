@@ -1,15 +1,91 @@
-﻿# Workaround to allow Powershell to accept untrusted certificates
-add-type @"
-    using System.Net;
-    using System.Security.Cryptography.X509Certificates;
-    public class TrustAllCertsPolicy : ICertificatePolicy {
-       public bool CheckValidationResult(
-            ServicePoint srvPoint, X509Certificate certificate,
-            WebRequest request, int certificateProblem) {
-            return true;
+﻿# workarounds for PowerShell issues
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+    Add-Type @"
+        using System.Net;
+        using System.Security.Cryptography.X509Certificates;
+        public class TrustAllCertsPolicy : ICertificatePolicy {
+           public bool CheckValidationResult(
+                ServicePoint srvPoint, X509Certificate certificate,
+                WebRequest request, int certificateProblem) {
+                return true;
+            }
+        }
+"@
+
+    # OCI 7.2 only supports TLS 1.2 and PowerShell does not auto negotiate it, thus enforcing TLS 1.2 which works for older OCI Versions as well
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    # Using .NET JSON Serializer as JSON serialization included in Invoke-RestMethod has a length restriction for JSON content
+    Add-Type -AssemblyName System.Web.Extensions
+    $global:javaScriptSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $global:javaScriptSerializer.MaxJsonLength = [System.Int32]::MaxValue
+    $global:javaScriptSerializer.RecursionLimit = 99
+
+    # Functions necessary to parse JSON output from .NET serializer to PowerShell Objects
+    function ParseItem($jsonItem) {
+        if($jsonItem.PSObject.TypeNames -match "Array") {
+            return ParseJsonArray($jsonItem)
+        }
+        elseif($jsonItem.PSObject.TypeNames -match "Dictionary") {
+            return ParseJsonObject([HashTable]$jsonItem)
+        }
+        else {
+            return $jsonItem
         }
     }
-"@
+ 
+    function ParseJsonObject($jsonObj) {
+        $result = New-Object -TypeName PSCustomObject
+        foreach ($key in $jsonObj.Keys) {
+            $item = $jsonObj[$key]
+            if ($item) {
+                $parsedItem = ParseItem $item
+            } else {
+                $parsedItem = $null
+            }
+            $result | Add-Member -MemberType NoteProperty -Name $key -Value $parsedItem
+        }
+        return $result
+    }
+ 
+    function ParseJsonArray($jsonArray) {
+        $result = @()
+        $jsonArray | ForEach-Object {
+            $result += ,(ParseItem $_)
+        }
+        return $result
+    }
+ 
+    function ParseJsonString($json) {
+        $config = $javaScriptSerializer.DeserializeObject($json)
+        if ($config -is [Array]) {
+            return ParseJsonArray($config)       
+        }
+        else {
+            return ParseJsonObject($config)
+        }
+    }
+}
+
+### Helper Functions ###
+
+function ParseExceptionBody($Response) {
+    if ($Response) {
+        $Reader = New-Object System.IO.StreamReader($Response.GetResponseStream())
+        $Reader.BaseStream.Position = 0
+        $Reader.DiscardBufferedData()
+        $ResponseBody = $reader.ReadToEnd()
+        if ($ResponseBody.StartsWith('{')) {
+            $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
+        }
+        return $ResponseBody
+    }
+    else {
+        return $Response
+    }
+}
+
+### Cmdlets ###
 
 <#
     .SYNOPSIS
@@ -27,19 +103,16 @@ function global:Connect-SGWServer {
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
-        [parameter(Mandatory=$True,
-                   Position=2,
-                   HelpMessage="Account ID for Tenenant Login")][System.Management.Automation.PSCredential]$AccountID,
         [parameter(Mandatory=$False,
-                   Position=3,
+                   Position=2,
                    HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTP to skip the HTTPS connection attempt and only try HTTP.")][Switch]$HTTP,
         [parameter(Mandatory=$False,
-                   Position=4,
+                   Position=2,
                    HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTPS to fail the connection attempt in that case rather than fall back to HTTP.")][Switch]$HTTPS,
         [parameter(Mandatory=$False,
-                   Position=5,
+                   Position=3,
                    HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
-        [parameter(Position=6,
+        [parameter(Position=4,
                    Mandatory=$False,
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient
     )
@@ -63,23 +136,12 @@ function global:Connect-SGWServer {
     $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
     $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
 
-    if ($AccountID) {
-        $Body = @"
-{
-    "accountId": "$AccountID",
-    "username": "$($Credential.UserName)", 
-    "password": "$($Credential.GetNetworkCredential().Password)"
-}
-"@
-    }
-    else {
-        $Body = @"
+    $Body = @"
 {
     "username": "$($Credential.UserName)", 
     "password": "$($Credential.GetNetworkCredential().Password)"
 }
 "@
-    }
  
     if ($HTTPS -or !$HTTP) {
         Try {
@@ -360,7 +422,6 @@ function Global:New-SGWAccount {
 "@
 
             try {
-                $Body
                 $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
@@ -924,39 +985,36 @@ function Global:New-SGWAccountS3AccessKey {
     }
  
     Process {
-        $Id = @($Id)
-        foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
+        $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
 
-            if ($Expires) { 
-                $Body = @"
+        if ($Expires) { 
+            $Body = @"
 {
     "expires": "$ExpirationDate"
 }
 "@
-            }
-            else {
-                $Body = "{}"
-            }
-
-            try {
-                $Body
-                $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
-            }
-            catch {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
-            }
-       
-            Write-Output $Result.data
         }
+        else {
+            $Body = "{}"
+        }
+
+        try {
+            $Body
+            $Result = Invoke-RestMethod -Method POST -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+        }
+        catch {
+            $result = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($result)
+            $reader.BaseStream.Position = 0
+            $reader.DiscardBufferedData()
+            $responseBody = $reader.ReadToEnd()
+            if ($responseBody.StartsWith('{')) {
+                $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
+            }
+            Write-Error "POST to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
