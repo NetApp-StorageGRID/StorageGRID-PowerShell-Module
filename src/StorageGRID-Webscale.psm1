@@ -119,18 +119,29 @@ function global:Connect-SGWServer {
 
     # check if untrusted SSL certificates should be ignored
     if ($Insecure) {
-        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
+            [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+        }
+        else {
+            $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
+        }
     }
 
-    # check if proxy is used
-    $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-    $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
-    if ($ProxySettings.ProxyEnable) {
-        Write-Warning "Proxy Server $($ProxySettings.ProxyServer) configured in Internet Explorer may be used to connect to the OCI server!"
+    # TODO: Remove try/catch as soon as PowerShell 6 fixes OSVersion implementation
+    try {
+        if ([environment]::OSVersion.Platform -match "Win") {
+            # check if proxy is used
+            $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+            $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
+            if ($ProxySettings.ProxyEnable) {
+                Write-Warning "Proxy Server $($ProxySettings.ProxyServer) configured in Internet Explorer may be used to connect to the OCI server!"
+            }
+            if ($ProxySettings.AutoConfigURL) {
+                Write-Warning "Proxy Server defined in automatic proxy configuration script $($ProxySettings.AutoConfigURL) configured in Internet Explorer may be used to connect to the OCI server!"
+            }
+        }
     }
-    if ($ProxySettings.AutoConfigURL) {
-        Write-Warning "Proxy Server defined in automatic proxy configuration script $($ProxySettings.AutoConfigURL) configured in Internet Explorer may be used to connect to the OCI server!"
-    }
+    catch {}
 
     $Server = New-Object -TypeName PSCustomObject
     $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
@@ -151,34 +162,16 @@ function global:Connect-SGWServer {
                 $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
                 $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
             }
-            if (!$Transient) {
-                Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
-            }
- 
-            return $Server
         }
         Catch {
-            if ($_.Exception.Message -match "Unauthorized") {
-                Write-Error "Authorization for $($Server.BaseURI)/api/v1/authorize with user $($Credential.UserName) failed"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            if ($_.Exception.Message -match "Unauthorized") {                
+                Write-Error "Authorization for $BaseURI/rest/v1/login with user $($Credential.UserName) failed"
                 return
             }
             else {
-                if ($HTTPS) {
-                    $result = $_.Exception.Response.GetResponseStream()
-                    $reader = New-Object System.IO.StreamReader($result)
-                    $reader.BaseStream.Position = 0
-                    $reader.DiscardBufferedData()
-                    $responseBody = $reader.ReadToEnd()
-                    if ($responseBody.StartsWith('{')) {
-                        $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                    }
-                    Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
-                    return
-                }
-                else {
-                    Write-Warning "Login to $BaseURI/api/v1/authorize failed via HTTPS protocol"
-                    $HTTP = $True
-                }
+                Write-Error "Login to $BaseURI/rest/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
+                return
             }
         }
     }
@@ -191,32 +184,25 @@ function global:Connect-SGWServer {
                 $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
                 $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
             }
-            
-            if (!$Transient) {
-                Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
-            }
- 
-            return $Server
         }
         Catch {
-            if ($_.Exception.Message -match "Unauthorized") {
-                Write-Error "Authorization for $($Server.BaseURI)/api/v1/authorize with user $($Credential.UserName) failed"
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            if ($_.Exception.Message -match "Unauthorized") {                
+                Write-Error "Authorization for $BaseURI/rest/v1/login with user $($Credential.UserName) failed"
                 return
             }
             else {
-                $result = $_.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd()
-                if ($responseBody.StartsWith('{')) {
-                    $responseBody = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                }
-                Write-Error "GET to $Uri failed with status code $($_.Exception.Response.StatusCode) and response body:`n$responseBody"
+                Write-Error "Login to $BaseURI/rest/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
                 return
             }
         }
     }
+
+    if (!$Transient) {
+        Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
+    }
+
+    return $Server
 }
 
 <#
