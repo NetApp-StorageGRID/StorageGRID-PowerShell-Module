@@ -390,19 +390,16 @@ function Global:Remove-SGWAccount {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
-            $Method = "DELETE"
+        $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+        $Method = "DELETE"
 
-            try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
-                Write-Host "Successfully deleted account with ID $id"
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            Write-Host "Successfully deleted account with ID $id"
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
     }
 }
@@ -869,7 +866,6 @@ function Global:New-SGWAccountS3AccessKey {
         }
 
         try {
-            $Body
             $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
@@ -887,7 +883,7 @@ function Global:New-SGWAccountS3AccessKey {
     .DESCRIPTION
     Delete a StorageGRID Webscale Account S3 Access Key
 #>
-function Global:Delete-SGWAccountS3AccessKey {
+function Global:Remove-SGWAccountS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
