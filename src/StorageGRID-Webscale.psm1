@@ -123,7 +123,7 @@ function global:Connect-SGWServer {
             [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
         }
         else {
-            $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
+            Write-Warning "PowerShell 6 does not yet support skipping of certificate checks"
         }
     }
 
@@ -364,7 +364,7 @@ function Global:New-SGWAccount {
     .DESCRIPTION
     Delete a StorageGRID Webscale Account
 #>
-function Global:Delete-SGWAccount {
+function Global:Remove-SGWAccount {
     [CmdletBinding()]
 
     PARAM (
