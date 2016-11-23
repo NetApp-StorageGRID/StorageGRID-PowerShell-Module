@@ -58,6 +58,17 @@ To force connections via HTTP use the `-HTTP` switch
 Connect-SGWServer -Name $Server -Credential $Credential -HTTP
 ```
 
+## Create Tenant
+
+To create a new S3 tenant use
+```powershell
+$Account = New-SGWAccount -Name Test -Capabilities s3
+```
+Then create S3 credentials with
+```powershell
+New-SGWAccountS3AccessKey -id $Account.id
+```
+
 ## Simple workflow for exporting S3 account usage to CSV
 
 In this simple workflow the S3 account usage data will be retrieved and exported as CSV to [$HOME\Downloads\TenantAccounting.csv]($HOME\Downloads\TenantAccounting.csv).
