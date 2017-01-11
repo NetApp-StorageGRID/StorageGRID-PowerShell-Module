@@ -123,7 +123,12 @@ function global:Connect-SGWServer {
             [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
         }
         else {
-            Write-Warning "PowerShell 6 does not yet support skipping of certificate checks"
+            if (!"Invoke-RestMethod:SkipCertificateCheck") {
+                $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
+            }
+            else {
+                $PSDefaultParameterValues.'Invoke-RestMethod:SkipCertificateCheck'=$true
+            }
         }
     }
 
