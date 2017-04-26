@@ -12,7 +12,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
         }
 "@
 
-    # OCI 7.2 only supports TLS 1.2 and PowerShell does not auto negotiate it, thus enforcing TLS 1.2 which works for older OCI Versions as well
+    # StorageGRID supports TLS 1.2 and PowerShell does not auto negotiate it, thus enforcing TLS 1.2
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
     # Using .NET JSON Serializer as JSON serialization included in Invoke-RestMethod has a length restriction for JSON content
@@ -105,14 +105,8 @@ function global:Connect-SGWServer {
                    HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory=$False,
                    Position=2,
-                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTP to skip the HTTPS connection attempt and only try HTTP.")][Switch]$HTTP,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="This cmdlet always tries to establish a secure HTTPS connection to the StorageGRID Webscale Management Server, but it will fall back to HTTP if necessary. Specify -HTTPS to fail the connection attempt in that case rather than fall back to HTTP.")][Switch]$HTTPS,
-        [parameter(Mandatory=$False,
-                   Position=3,
                    HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
-        [parameter(Position=4,
+        [parameter(Position=3,
                    Mandatory=$False,
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient
     )
@@ -159,49 +153,48 @@ function global:Connect-SGWServer {
 }
 "@
  
-    if ($HTTPS -or !$HTTP) {
-        Try {
-            $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value "https://$Name"
-            $Response = Invoke-RestMethod -Method POST -Uri "$($Server.BaseURI)/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
-            if ($Response.status -eq "success") {
-                $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
-                $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
-            }
-        }
-        Catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            if ($_.Exception.Message -match "Unauthorized") {                
-                Write-Error "Authorization for $BaseURI/api/v1/login with user $($Credential.UserName) failed"
-                return
-            }
-            else {
-                Write-Error "Login to $BaseURI/api/v1/login failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
-                return
-            }
+    # determine StorageGRID Version
+    Try {
+        $Response = Invoke-RestMethod -Method GET -Uri "https://$Name/api/versions" -TimeoutSec 10 -ContentType "application/json"
+        $APIVersion = $Response.APIVersion -split "\." | select -first 1
+    }
+    Catch {
+        $ResponseBody = ParseExceptionBody $_.Exception.Response
+        if ($ResponseBody -match "apiVersion") {
+            $APIVersion = ($ResponseBody | ConvertFrom-Json).APIVersion -split "\." | select -first 1
         }
     }
 
-    if ($HTTP) {
-        Try {
-            $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value "http://$Name" -Force
-            $Response = Invoke-RestMethod -Method POST -Uri "$($Server.BaseURI)/api/v1/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
-            if ($Response.status -eq "success") {
-                $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
-                $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
-            }
-        }
-        Catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            if ($_.Exception.Message -match "Unauthorized") {                
-                Write-Error "Authorization for $BaseURI/api/v1/login with user $($Credential.UserName) failed"
-                return
-            }
-            else {
-                Write-Error "Login to $BaseURI/api/v1/login failed via HTTP protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
-                return
-            }
+    if (!$APIVersion) {
+        Write-Error "API Version could not be retrieved via https://$Name/api/versions"
+        return
+    }
+
+    $BaseURI = "https://$Name/api/v$APIVersion"
+
+    Try {
+        $Response = Invoke-RestMethod -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
+        if ($Response.status -eq "success") {
+            $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
+            $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
         }
     }
+    Catch {
+        $ResponseBody = ParseExceptionBody $_.Exception.Response
+        if ($_.Exception.Message -match "Unauthorized") {                
+            Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
+            return
+        }
+        elseif ($ResponseBody -match "API version 1 is not supported") {
+            $VersionTwo = $True
+        }
+        else {
+            Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
+            return
+        }
+    }
+
+    $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value $BaseURI
 
     if (!$Transient) {
         Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
@@ -235,7 +228,7 @@ function Global:Get-SGWAccounts {
     }
  
     Process {
-        $Uri = $Server.BaseURI + '/api/v1/grid/accounts'
+        $Uri = $Server.BaseURI + '/grid/accounts'
         $Method = "GET"
 
         try {
@@ -284,7 +277,7 @@ function Global:Get-SGWAccount {
     Process {
         $id = @($id)
         foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id"
             $Method = "GET"
 
             try {
@@ -340,7 +333,7 @@ function Global:New-SGWAccount {
     Process {
         $Name = @($Name)
         foreach ($Name in $Name) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts"
+            $Uri = $Server.BaseURI + "/grid/accounts"
             $Method = "POST"
 
             $Body = @"
@@ -395,7 +388,7 @@ function Global:Remove-SGWAccount {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id"
         $Method = "DELETE"
 
         try {
@@ -428,7 +421,7 @@ function Global:Update-SGWAccount {
         [parameter(
             Mandatory=$True,
             Position=1,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String]$Capabilities,
+            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -455,10 +448,8 @@ function Global:Update-SGWAccount {
     Process {
         $Id = @($Id)
         foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id"
             $Method = "PUT"
-
-            $Body = ""
 
             if ($Name -and -not $Capabilities) {
                 $Body = @"
@@ -483,6 +474,8 @@ function Global:Update-SGWAccount {
 }
 "@
             }
+
+            Write-Verbose $Body
 
             try {
                 $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
@@ -539,7 +532,7 @@ function Global:Update-SGWSwiftAdminPassword {
     Process {
         $Id = @($Id)
         foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/swift-admin-password"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/swift-admin-password"
             $Method = "POST"
 
             $Body = @"
@@ -595,7 +588,7 @@ function Global:Get-SGWAccountUsage {
     Process {
         $id = @($id)
         foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/usage"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/usage"
             $Method = "GET"
 
             try {
@@ -644,7 +637,7 @@ function Global:Get-SGWAccountGroups {
     Process {
         $id = @($id)
         foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/groups"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/groups"
             $Method = "GET"
 
             try {
@@ -694,7 +687,7 @@ function Global:Get-SGWAccountUsage {
     Process {
         $id = @($id)
         foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/usage"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/usage"
             $Method = "GET"
 
             try {
@@ -743,7 +736,7 @@ function Global:Get-SGWAccountS3AccessKeys {
     Process {
         $id = @($id)
         foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/s3-access-keys"
             $Method = "GET"
 
             try {
@@ -800,7 +793,7 @@ function Global:Get-SGWAccountS3AccessKey {
         $AccountId = @($AccountId)
 
         foreach ($Index in 0..($Id.Count-1)) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
+            $Uri = $Server.BaseURI + "/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
             $Method = "GET"
 
             try {
@@ -856,7 +849,7 @@ function Global:New-SGWAccountS3AccessKey {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$id/s3-access-keys"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id/s3-access-keys"
         $Method = "POST"
 
         if ($Expires) { 
@@ -923,7 +916,7 @@ function Global:Remove-SGWAccountS3AccessKey {
         $Id = @($Id)
         $AccountId = @($AccountId)
         foreach ($Index in 0..($Id.Count-1)) {
-            $Uri = $Server.BaseURI + "/api/v1/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
+            $Uri = $Server.BaseURI + "/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
             $Method = "DELETE"
 
             try {
@@ -964,7 +957,7 @@ function Global:Get-SGWIdentitySources {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/api/v1/grid/identity-source"
+        $Uri = $Server.BaseURI + "/grid/identity-source"
         $Method = "GET"
 
         try {
@@ -1092,7 +1085,7 @@ function Global:Update-SGWIdentitySources {
     "caCert": "$CACertificate\n"
 }
 "@
-            $Uri = $Server.BaseURI + "/api/v1/grid/identity-source"
+            $Uri = $Server.BaseURI + "/grid/identity-source"
             $Method = "PUT"
 
             try {
@@ -1134,7 +1127,7 @@ function Global:Sync-SGWIdentitySources {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/api/v1/grid/identity-source/synchronize"
+        $Uri = $Server.BaseURI + "/grid/identity-source/synchronize"
         $Method = "POST"
 
         try {
@@ -1146,6 +1139,168 @@ function Global:Sync-SGWIdentitySources {
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get used capacity
+    .DESCRIPTION
+    Get used capacity
+#>
+function Global:Get-SGWCapacityUsed {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/private/attributes/XUSC"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get total capacity
+    .DESCRIPTION
+    Get total capacity
+#>
+function Global:Get-SGWCapacityTotal {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/private/attributes/XISC"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    .DESCRIPTION
+#>
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/private/attributes/SRRT"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    .DESCRIPTION
+#>
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/private/attributes/SIRT"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
         Write-Output $Result.data
     }
 }
