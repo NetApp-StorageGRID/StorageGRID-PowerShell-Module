@@ -87,6 +87,8 @@ function ParseExceptionBody($Response) {
 
 ### Cmdlets ###
 
+## accounts ##
+
 <#
     .SYNOPSIS
     Connect to StorageGRID Webscale Management Server
@@ -245,56 +247,6 @@ function Global:Get-SGWAccounts {
 
 <#
     .SYNOPSIS
-    Retrieve a StorageGRID Webscale Account
-    .DESCRIPTION
-    Retrieve a StorageGRID Webscale Account
-#>
-function Global:Get-SGWAccount {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
-        [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id"
-            $Method = "GET"
-
-            try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
-        }
-    }
-}
-
-<#
-    .SYNOPSIS
     Create a StorageGRID Webscale Account
     .DESCRIPTION
     Create a StorageGRID Webscale Account
@@ -404,6 +356,56 @@ function Global:Remove-SGWAccount {
 
 <#
     .SYNOPSIS
+    Retrieve a StorageGRID Webscale Account
+    .DESCRIPTION
+    Retrieve a StorageGRID Webscale Account
+#>
+function Global:Get-SGWAccount {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Account to get information for.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $Server.BaseURI + "/grid/accounts/$id"
+            $Method = "GET"
+
+            try {
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
     Update a StorageGRID Webscale Account
     .DESCRIPTION
     Update a StorageGRID Webscale Account
@@ -419,7 +421,7 @@ function Global:Update-SGWAccount {
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)][String[]]$Id,
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=1,
             HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
@@ -449,7 +451,7 @@ function Global:Update-SGWAccount {
         $Id = @($Id)
         foreach ($Id in $Id) {
             $Uri = $Server.BaseURI + "/grid/accounts/$id"
-            $Method = "PUT"
+            $Method = "PATCH"
 
             if ($Name -and -not $Capabilities) {
                 $Body = @"
@@ -465,15 +467,89 @@ function Global:Update-SGWAccount {
 }
 "@
             }
-            else {
+            elseif ($Capabilities -and $Name) {
                 $Body = @"
+{
+    "name": "$Name",
+    "capabilities": [ $Capabilities ]
+}
+"@
+            }
+            else {
+                Write-Error "Name or Capability or both required"
+            }
+
+            Write-Verbose $Body
+
+            try {
+                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replace a StorageGRID Webscale Account
+    .DESCRIPTION
+    Replace a StorageGRID Webscale Account
+#>
+function Global:Replace-SGWAccount {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Account to update.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+
+        if ($Capabilities) {
+            $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
+        }
+    }
+ 
+    Process {
+        $Id = @($Id)
+        foreach ($Id in $Id) {
+            $Uri = $Server.BaseURI + "/grid/accounts/$id"
+            $Method = "PUT"
+
+            $Body = @"
 {
     "id": "$id",
     "name": "$Name",
     "capabilities": [ $Capabilities ]
 }
 "@
-            }
 
             Write-Verbose $Body
 
@@ -600,6 +676,277 @@ function Global:Get-SGWAccountUsage {
             }
             Write-Output $Result.data
         }
+    }
+}
+
+## alarms ##
+
+<#
+    .SYNOPSIS
+    Retrieve all StorageGRID Webscale Alarms
+    .DESCRIPTION
+    Retrieve all StorageGRID Webscale Alarms
+#>
+function Global:Get-SGWAlarms {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Maximum number of results")][int]$limit
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + '/grid/alarms'
+        $Method = "GET"
+
+        $Separator = "?"
+        if ($includeAcknowledged) {
+            $Uri += "$($Separator)includeAcknowledged=true"
+            $Separator = "&"
+        }
+        if ($limit) {
+            $Uri += "$($Separator)limit=$limit"
+        }
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID Health Status
+    .DESCRIPTION
+    Retrieve StorageGRID Health Status
+#>
+function Global:Get-SGWHealth {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + '/grid/health'
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID Topology with Health Status
+    .DESCRIPTION
+    Retrieve StorageGRID Topology with Health Status
+#>
+function Global:Get-SGWTopologyHealth {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="Topology depth level to provide (default=node).")][String][ValidateSet("grid","site","node","component","subcomponent")]$Depth="node"
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/health/topology?depth=$depth"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## config ##
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID Product Version
+    .DESCRIPTION
+    Retrieve StorageGRID Product Version
+#>
+function Global:Get-SGWProductVersion {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/config/product-version"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data.productVersion
+    }
+}
+
+## dns-servers ##
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID DNS Servers
+    .DESCRIPTION
+    Retrieve StorageGRID DNS Servers
+#>
+function Global:Get-SGWDNSServers {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/dns-servers"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID DNS Servers
+    .DESCRIPTION
+    Retrieve StorageGRID DNS Servers
+#>
+function Global:Replace-SGWDNSServers {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                   Position=1,
+                   HelpMessage="List of IP addresses of the external DNS servers.")][String[]]$DNSServers
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/dns-servers"
+        $Method = "PUT"
+
+        $Body = '["' + ($DNSServers -join '","') + '"]'
+
+        Write-Verbose $Body
+
+        try {
+            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
@@ -1229,8 +1576,11 @@ function Global:Get-SGWCapacityTotal {
 
 <#
     .SYNOPSIS
+    Get average S3 retrieval rate of the last 2 minutes
     .DESCRIPTION
+    Get average S3 retrieval rate of the last 2 minutes
 #>
+function Global:Get-SGWPerformanceS3Retrieval {
     [CmdletBinding()]
 
     PARAM (
@@ -1268,8 +1618,11 @@ function Global:Get-SGWCapacityTotal {
 
 <#
     .SYNOPSIS
+    Get average S3 ingest rate of the last 2 minutes
     .DESCRIPTION
+    Get average S3 ingest rate of the last 2 minutes
 #>
+function Global:Get-SGWPerformanceS3Ingest {
     [CmdletBinding()]
 
     PARAM (
