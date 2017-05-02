@@ -303,8 +303,6 @@ function Global:New-SGWAccount {
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
         }
-
-        $Capabilities = @($Capabilities -split ',')
     }
  
     Process {
@@ -483,10 +481,6 @@ function Global:Update-SGWAccount {
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
-        }
-
-        if ($Capabilities) {
-            $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
         }
     }
  
