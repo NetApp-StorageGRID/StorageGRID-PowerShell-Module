@@ -96,3 +96,5 @@ $BucketAccounting = foreach ($Account in (Get-SGWAccounts | Where-Object { $_.ca
 
 $BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
 ```
+
+## Report creation
