@@ -610,12 +610,82 @@ function Global:Update-SGWSwiftAdminPassword {
         if (!$Server) {
             Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.APIVersion -gt 1) {
+            Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SGWPassword Cmdlet instead!"
+        }
     }
  
     Process {
         $Id = @($Id)
         foreach ($Id in $Id) {
             $Uri = $Server.BaseURI + "/grid/accounts/$id/swift-admin-password"
+            $Method = "POST"
+
+            $Body = @"
+{
+  "password": "$NewPassword",
+  "currentPassword": "$OldPassword"
+}
+"@
+            try {
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Changes the root user password for the Storage Tenant Account
+    .DESCRIPTION
+    Changes the root user password for the Storage Tenant Account
+#>
+function Global:Update-SGWPassword {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Account to update.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Old Password.")][String]$OldPassword,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="New Password.")][String]$NewPassword,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SGWSwiftAdminPassword Cmdlet instead!"
+        }
+    }
+ 
+    Process {
+        $Id = @($Id)
+        foreach ($Id in $Id) {
+            $Uri = $Server.BaseURI + "/grid/accounts/$id/change-password"
             $Method = "POST"
 
             $Body = @"
