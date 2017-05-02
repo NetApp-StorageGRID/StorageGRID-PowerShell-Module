@@ -232,7 +232,7 @@ function Global:Get-SGWAccounts {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -295,10 +295,10 @@ function Global:New-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
         if ($Server.APIVersion -ge 2 -and !$Password) {
-            Write-Error "Password required"
+            Throw "Password required"
         }
 
         $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
@@ -315,6 +315,7 @@ function Global:New-SGWAccount {
     "capabilities": [ $Capabilities ]
 }
 "@
+        }
         else {
             if ($Quota) {
                 $Body = @"
@@ -328,6 +329,7 @@ function Global:New-SGWAccount {
     "password": "$Password"
 }
 "@
+            }
             else {
                 $Body = @"
 {
@@ -381,7 +383,7 @@ function Global:Remove-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -427,7 +429,7 @@ function Global:Get-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -485,7 +487,7 @@ function Global:Update-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
 
         if ($Capabilities) {
@@ -575,7 +577,7 @@ function Global:Replace-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
 
         if ($Capabilities) {
@@ -647,7 +649,7 @@ function Global:Update-SGWSwiftAdminPassword {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
             Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SGWPassword Cmdlet instead!"
@@ -714,7 +716,7 @@ function Global:Update-SGWPassword {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SGWSwiftAdminPassword Cmdlet instead!"
@@ -773,7 +775,7 @@ function Global:Get-SGWAccountUsage {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -823,7 +825,7 @@ function Global:Get-SGWAlarms {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -872,7 +874,7 @@ function Global:Get-SGWHealth {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -915,7 +917,7 @@ function Global:Get-SGWTopologyHealth {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -957,7 +959,7 @@ function Global:Get-SGWProductVersion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -999,7 +1001,7 @@ function Global:Get-SGWDNSServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1042,7 +1044,7 @@ function Global:Replace-SGWDNSServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1093,7 +1095,7 @@ function Global:Get-SGWAccountGroups {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1143,7 +1145,7 @@ function Global:Get-SGWAccountUsage {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1192,7 +1194,7 @@ function Global:Get-SGWAccountS3AccessKeys {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1247,7 +1249,7 @@ function Global:Get-SGWAccountS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1303,7 +1305,7 @@ function Global:New-SGWAccountS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
 
         if ($Expires) {
@@ -1371,7 +1373,7 @@ function Global:Remove-SGWAccountS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1415,7 +1417,7 @@ function Global:Get-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1518,7 +1520,7 @@ function Global:Update-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1585,7 +1587,7 @@ function Global:Sync-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
@@ -1645,7 +1647,7 @@ function Global:Get-SGWReport {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
     }
  
