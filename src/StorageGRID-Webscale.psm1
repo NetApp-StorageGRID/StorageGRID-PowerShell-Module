@@ -275,6 +275,18 @@ function Global:New-SGWAccount {
         [parameter(
             Mandatory=$False,
             Position=2,
+            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Quota for tenant in bytes.")][Int]$Quota,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Tenant root password.")][String]$Password,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -285,33 +297,60 @@ function Global:New-SGWAccount {
         if (!$Server) {
             Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.APIVersion -ge 2 -and !$Password) {
+            Write-Error "Password required"
+        }
 
         $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
     }
  
     Process {
-        $Name = @($Name)
-        foreach ($Name in $Name) {
-            $Uri = $Server.BaseURI + "/grid/accounts"
-            $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/accounts"
+        $Method = "POST"
 
+        if ($Server.APIVersion -lt 2) {
             $Body = @"
 {
     "name": "$Name",
     "capabilities": [ $Capabilities ]
 }
 "@
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+        else {
+            if ($Quota) {
+                $Body = @"
+{
+    "name": "$Name",
+    "capabilities": [ $Capabilities ]
+    "policy": {
+        "useAccountIdentitySource": $UseAccountIdentitySource,
+        "quotaObjectBytes": $Quota
+    },
+    "password": "$Password"
+}
+"@
+            else {
+                $Body = @"
+{
+    "name": "$Name",
+    "capabilities": [ $Capabilities ]
+    "policy": {
+        "useAccountIdentitySource": $UseAccountIdentitySource
+    },
+    "password": "$Password"
+}
+"@
             }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
         }
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
