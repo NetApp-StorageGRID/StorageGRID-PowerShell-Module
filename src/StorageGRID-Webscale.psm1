@@ -151,7 +151,8 @@ function global:Connect-SGWServer {
     $Body = @"
 {
     "username": "$($Credential.UserName)", 
-    "password": "$($Credential.GetNetworkCredential().Password)"
+    "password": "$($Credential.GetNetworkCredential().Password)",
+    "cookie": true
 }
 "@
  
@@ -165,6 +166,10 @@ function global:Connect-SGWServer {
         if ($ResponseBody -match "apiVersion") {
             $APIVersion = ($ResponseBody | ConvertFrom-Json).APIVersion -split "\." | select -first 1
         }
+        elseif ($_.Exception.Message -match "trust relationship") {
+            Write-Error $_.Exception.Message
+            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
+        }
     }
 
     if (!$APIVersion) {
@@ -175,7 +180,7 @@ function global:Connect-SGWServer {
     $BaseURI = "https://$Name/api/v$APIVersion"
 
     Try {
-        $Response = Invoke-RestMethod -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
+        $Response = Invoke-RestMethod -Session Session -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
         if ($Response.status -eq "success") {
             $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
             $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
@@ -187,8 +192,9 @@ function global:Connect-SGWServer {
             Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
             return
         }
-        elseif ($ResponseBody -match "API version 1 is not supported") {
-            $VersionTwo = $True
+        elseif ($_.Exception.Message -match "trust relationship") {
+            Write-Error $_.Exception.Message
+            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
         }
         else {
             Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
@@ -197,6 +203,7 @@ function global:Connect-SGWServer {
     }
 
     $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value $BaseURI
+    $Server | Add-Member -MemberType NoteProperty -Name Session -Value $Session
 
     if (!$Transient) {
         Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
@@ -234,7 +241,7 @@ function Global:Get-SGWAccounts {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -296,7 +303,7 @@ function Global:New-SGWAccount {
 "@
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -344,7 +351,7 @@ function Global:Remove-SGWAccount {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             Write-Host "Successfully deleted account with ID $id"
         }
         catch {
@@ -392,7 +399,7 @@ function Global:Get-SGWAccount {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -482,7 +489,7 @@ function Global:Update-SGWAccount {
             Write-Verbose $Body
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -554,7 +561,7 @@ function Global:Replace-SGWAccount {
             Write-Verbose $Body
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -618,7 +625,7 @@ function Global:Update-SGWSwiftAdminPassword {
 }
 "@
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -668,7 +675,7 @@ function Global:Get-SGWAccountUsage {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -725,7 +732,7 @@ function Global:Get-SGWAlarms {
         }
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -765,7 +772,7 @@ function Global:Get-SGWHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -808,7 +815,7 @@ function Global:Get-SGWTopologyHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -850,7 +857,7 @@ function Global:Get-SGWProductVersion {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -892,7 +899,7 @@ function Global:Get-SGWDNSServers {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -939,7 +946,7 @@ function Global:Replace-SGWDNSServers {
         Write-Verbose $Body
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -988,7 +995,7 @@ function Global:Get-SGWAccountGroups {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1038,7 +1045,7 @@ function Global:Get-SGWAccountUsage {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1087,7 +1094,7 @@ function Global:Get-SGWAccountS3AccessKeys {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1144,7 +1151,7 @@ function Global:Get-SGWAccountS3AccessKey {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1211,7 +1218,7 @@ function Global:New-SGWAccountS3AccessKey {
         }
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1267,7 +1274,7 @@ function Global:Remove-SGWAccountS3AccessKey {
             $Method = "DELETE"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
                 Write-Host "Successfully deleted S3 Access Key $AccessKey for ID $Id"
             }
             catch {
@@ -1308,7 +1315,7 @@ function Global:Get-SGWIdentitySources {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1436,7 +1443,7 @@ function Global:Update-SGWIdentitySources {
             $Method = "PUT"
 
             try {
-                $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
@@ -1478,7 +1485,7 @@ function Global:Sync-SGWIdentitySources {
         $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
             Write-Host "Successfully synchronized users and groups of identity sources"
         }
         catch {
@@ -1490,24 +1497,41 @@ function Global:Sync-SGWIdentitySources {
     }
 }
 
+### reporting ###
+
 <#
     .SYNOPSIS
-    Get used capacity
+    Get StorageGRID Report
     .DESCRIPTION
-    Get used capacity
+    Get StorageGRID Report
 #>
-function Global:Get-SGWCapacityUsed {
+function Global:Get-SGWReport {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Attribut to report")][String][ValidateSet("Archive Nodes Installed (XANI)","Archive Nodes Readable (XANR)","Archive Nodes Writable (XANW)","Awaiting - All (XQUZ)","Awaiting - Client (XCQZ)","Awaiting - Evaluation Rate (XEVT)","CDMI - Ingested Bytes (XCRX) [Bytes]","CDMI - Retrieved Bytes (XCTX) [Bytes]","CDMI Ingest - Rate (XCIR) [MB/s]","CDMI Operations - Failed (XCFA)","CDMI Operations - Rate (XCRA) [Objects/s]","CDMI Operations - Successful (XCSU)","CDMI Retrieval - Rate (XCRR) [MB/s]","Current ILM Activity (IQSZ)","Installed Storage Capacity (XISC) [Bytes]","Percentage Storage Capacity Used (PSCU)","Percentage Usable Storage Capacity (PSCA)","S3 - Ingested Bytes (XSRX) [Bytes]","S3 - Retrieved Bytes (XSTX) [Bytes]","S3 Ingest - Rate (XSIR) [MB/s]","S3 Operations - Failed (XSFA)","S3 Operations - Rate (XSRA) [Objects/s]","S3 Operations - Successful (XSSU)","S3 Operations - Unauthorized (XSUA)","S3 Retrieval - Rate (XSRR) [MB/s]","Scan Period - Estimated (XSCM) [us]","Scan Rate (XSCT) [Objects/s]","Storage Nodes Installed (XSNI)","Storage Nodes Readable (XSNR)","Storage Nodes Writable (XSNW)","Swift - Ingested Bytes (XWRX) [Bytes]","Swift - Retrieved Bytes (XWTX) [Bytes]","Swift Ingest - Rate (XWIR) [MB/s]","Swift Operations - Failed (XWFA)","Swift Operations - Rate (XWRA) [Objects/s]","Swift Operations - Successful (XWSU)","Swift Operations - Unauthorized (XWUA)","Swift Retrieval - Rate (XWRR) [MB/s]","Total EC Objects (XECT)","Total EC Reads - Failed (XERF)","Total EC Reads - Successful (XERC)","Total EC Writes - Failed (XEWF)","Total EC Writes - Successful (XEWC)","Total Objects Archived (XANO)","Total Objects Deleted (XANP)","Total Size of Archived Objects (XSAO)","Total Size of Deleted Objects (XSAP)","Usable Storage Capacity (XASC) [Bytes]","Used Storage Capacity (XUSC) [Bytes]","Used Storage Capacity for Data (XUSD) [Bytes]","Used Storage Capacity for Metadata (XUDC) [Bytes]")]$Attribute,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="Topology OID to create report for")][String]$OID,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="Start Time")][DateTime]$StartTime=(Get-Date).AddHours(-1),
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="End Time")][DateTime]$EndTime=(Get-Date)
     )
  
     Begin {
-        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
         if (!$Server) {
             $Server = $Global:CurrentSGWServer
         }
@@ -1517,143 +1541,49 @@ function Global:Get-SGWCapacityUsed {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/private/attributes/XUSC"
+        $StartTimeString = $StartTime.ToUniversalTime() | Get-Date -UFormat "%Y%m%d%H%M%S"
+        $EndTimeString = $EndTime.ToUniversalTime() | Get-Date -UFormat "%Y%m%d%H%M%S"
+
+        $AttributeCode = $Attribute -replace ".*\((.+)\).*",'$1'
+
+        if (!$OID) {
+            $OID = (Get-SGWTopologyHealth).oid
+        }
+
         $Method = "GET"
+        $Uri = "https://florianf-sgw-admin.muccbc.hq.netapp.com/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-RestMethod -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
-        Write-Output $Result.data
-    }
-}
+        $Body = ($Result -split "`n" | ? { $_ -match "<body" })
+        Write-Verbose "Body: $Body"
 
-<#
-    .SYNOPSIS
-    Get total capacity
-    .DESCRIPTION
-    Get total capacity
-#>
-function Global:Get-SGWCapacityTotal {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+        if ($Result -match "Aggregate Time") {
+            $Report = $Body -replace "<body.*Aggregate Time.*Type<br>","" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+",'$1;$2;$4;$6' | ? { $_ }
+            foreach ($Line in $Report) {
+                $Time,$Average,$Minimum,$Maximum = $Line -split ';'
+                $Average=$Average -replace ",","" -replace " ",""
+                $Minimum=$Minimum -replace ",","" -replace " ",""
+                $Maximum=$Maximum -replace ",","" -replace " ",""
+                [PSCustomObject]@{"Time Received"= [DateTime]$time;"Average $Attribute"=$Average;"Minimum $Attribute"=$Minimum;"Maximum $Attribute"=$Maximum}
+            }
         }
-        if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        elseif ($Result -match "Time Received") {
+            $Report = $Body -replace "<body.*Time Received.*Type<br>","" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+",'$1;$2' | ? { $_ }
+            foreach ($Line in $Report) {
+                $Time,$Value = $Line -split ';'
+                $Value=$Value -replace ",","" -replace " ",""
+                [PSCustomObject]@{"Time Received"= [DateTime]$time;$Attribute=$value}
+            }
         }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/private/attributes/XISC"
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
+        else {
+            Write-Error "Cannot parse report output"
         }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-
-        Write-Output $Result.data
-    }
-}
-
-<#
-    .SYNOPSIS
-    Get average S3 retrieval rate of the last 2 minutes
-    .DESCRIPTION
-    Get average S3 retrieval rate of the last 2 minutes
-#>
-function Global:Get-SGWPerformanceS3Retrieval {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/private/attributes/SRRT"
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-
-        Write-Output $Result.data
-    }
-}
-
-<#
-    .SYNOPSIS
-    Get average S3 ingest rate of the last 2 minutes
-    .DESCRIPTION
-    Get average S3 ingest rate of the last 2 minutes
-#>
-function Global:Get-SGWPerformanceS3Ingest {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        Write-Warning "This Cmdlet uses an undocumented API call which may change in the future. Thus this Cmdlet is marked as experimental!"
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Write-Error "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/private/attributes/SIRT"
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-
-        Write-Output $Result.data
     }
 }
