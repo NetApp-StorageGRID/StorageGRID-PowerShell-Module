@@ -271,7 +271,7 @@ function Global:New-SGWAccount {
         [parameter(
             Mandatory=$True,
             Position=1,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String]$Capabilities,
+            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -279,14 +279,14 @@ function Global:New-SGWAccount {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Quota for tenant in bytes.")][Int]$Quota,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
         [parameter(
             Mandatory=$False,
             Position=4,
             HelpMessage="Tenant root password.")][String]$Password,
         [parameter(
             Mandatory=$False,
-            Position=4,
+            Position=5,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -300,49 +300,32 @@ function Global:New-SGWAccount {
         if ($Server.APIVersion -ge 2 -and !$Password) {
             Throw "Password required"
         }
+        if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
+            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
 
-        $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
+        $Capabilities = @($Capabilities -split ',')
     }
  
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts"
         $Method = "POST"
 
-        if ($Server.APIVersion -lt 2) {
-            $Body = @"
-{
-    "name": "$Name",
-    "capabilities": [ $Capabilities ]
-}
-"@
-        }
-        else {
+        $Body = @{}
+        $Body.name = $Name[0]
+        $Body.capabilities = $Capabilities
+
+        if ($Server.APIVersion -ge 2) {
+            $Body.password = $Password
+            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
             if ($Quota) {
-                $Body = @"
-{
-    "name": "$Name",
-    "capabilities": [ $Capabilities ]
-    "policy": {
-        "useAccountIdentitySource": $UseAccountIdentitySource,
-        "quotaObjectBytes": $Quota
-    },
-    "password": "$Password"
-}
-"@
-            }
-            else {
-                $Body = @"
-{
-    "name": "$Name",
-    "capabilities": [ $Capabilities ]
-    "policy": {
-        "useAccountIdentitySource": $UseAccountIdentitySource
-    },
-    "password": "$Password"
-}
-"@
+                $Body.policy.quotaObjectBytes = $Quota
             }
         }
+
+        $Body = $Body | ConvertTo-Json
+
+        Write-Verbose "Body: $Body"
 
         try {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
@@ -479,6 +462,14 @@ function Global:Update-SGWAccount {
         [parameter(
             Mandatory=$False,
             Position=3,
+            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -489,6 +480,10 @@ function Global:Update-SGWAccount {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        
+        if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
+            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
 
         if ($Capabilities) {
             $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
@@ -496,49 +491,37 @@ function Global:Update-SGWAccount {
     }
  
     Process {
-        $Id = @($Id)
-        foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id"
-            $Method = "PATCH"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id"
+        $Method = "PATCH"
 
-            if ($Name -and -not $Capabilities) {
-                $Body = @"
-{
-    "name": "$Name"
-}
-"@
-            }
-            elseif ($Capabilities -and -not $Name) {
-                $Body = @"
-{
-    "capabilities": [ $Capabilities ]
-}
-"@
-            }
-            elseif ($Capabilities -and $Name) {
-                $Body = @"
-{
-    "name": "$Name",
-    "capabilities": [ $Capabilities ]
-}
-"@
-            }
-            else {
-                Write-Error "Name or Capability or both required"
-            }
-
-            Write-Verbose $Body
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        $Body = @{}
+        if ($Name) {
+            $Body.name = $Name
         }
+        if ($Capabilities) {
+            $Body.capabilities = $Capabilities
+        }
+
+        if ($Server.APIVersion -ge 2) {
+            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            if ($Quota) {
+                $Body.policy.quotaObjectBytes = $Quota
+            }
+        }
+
+        $Body = $Body | ConvertTo-Json
+
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
