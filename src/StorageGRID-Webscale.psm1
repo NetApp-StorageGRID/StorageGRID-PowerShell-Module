@@ -536,16 +536,24 @@ function Global:Replace-SGWAccount {
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)][String[]]$Id,
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=1,
             HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=2,
             HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
         [parameter(
             Mandatory=$False,
             Position=3,
+            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -556,38 +564,41 @@ function Global:Replace-SGWAccount {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
-
-        if ($Capabilities) {
-            $Capabilities = '"' + ($Capabilities -split ',' -join '","') + '"'
+        
+        if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
+            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
         }
     }
  
     Process {
-        $Id = @($Id)
-        foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id"
-            $Method = "PUT"
-
-            $Body = @"
-{
-    "id": "$id",
-    "name": "$Name",
-    "capabilities": [ $Capabilities ]
-}
-"@
-
-            Write-Verbose $Body
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+                $Body = @{}
+        if ($Name) {
+            $Body.name = $Name
         }
+        if ($Capabilities) {
+            $Body.capabilities = $Capabilities
+        }
+
+        if ($Server.APIVersion -ge 2) {
+            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            if ($Quota) {
+                $Body.policy.quotaObjectBytes = $Quota
+            }
+        }
+
+        $Body = $Body | ConvertTo-Json
+
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
