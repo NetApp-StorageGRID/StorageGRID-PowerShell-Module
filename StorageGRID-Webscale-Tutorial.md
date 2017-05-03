@@ -98,3 +98,19 @@ $BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTyp
 ```
 
 ## Report creation
+
+StorageGRID allows to create reports for different metrics on grid, site and node level.
+
+You can check the available metrics by using Command Completion. Just type the following command and hit the Tabulator key (->|)
+```powershell
+Get-SGWReport -Attribute 
+```
+
+The reports have a start and an end date. By default the attributes will be listed for the last hour. For attributes within the last 7 days StorageGRID will report the measure value in a specific interval. Attributes older than 7 days will be aggregated and StorageGRID will return average, minium and maximum value for each sample time. You can specify a time range using PowerShell DateTime objects.
+
+Here are some examples:
+```powershell
+Get-SGWReport -Attribute 'S3 Ingest - Rate (XSIR) [MB/s]'
+Get-SGWReport -Attribute 'S3 Retrieval - Rate (XSRR) [MB/s]' -StartTime (Get-Date).AddDays(-1)
+Get-SGWReport -Attribute 'Used Storage Capacity (XUSC) [Bytes]' -StartTime (Get-Date).AddDays(-10) -EndTime (Get-Date).AddDays(-1)
+```
