@@ -2839,6 +2839,9 @@ function Global:Get-SGWAccountGroups {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.APIVersion -gt 1) {
+            Throw "This Cmdlet is only supported with API Version 1"
+        }
     }
  
     Process {
@@ -2860,25 +2863,21 @@ function Global:Get-SGWAccountGroups {
     }
 }
 
+## identity-source ##
+
 <#
     .SYNOPSIS
-    Retrieve StorageGRID Webscale Account Usage Report
+    Retrieve identity sources
     .DESCRIPTION
-    Retrieve StorageGRID Webscale Account Usage Report
+    Retrieve identity sources
 #>
-function Global:Get-SGWAccountUsage {
+function Global:Get-SGWIdentitySources {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get usage information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
-        [parameter(
             Mandatory=$False,
-            Position=1,
+            Position=0,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -2892,22 +2891,405 @@ function Global:Get-SGWAccountUsage {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id/usage"
-            $Method = "GET"
+        $Uri = $Server.BaseURI + "/grid/identity-source"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve identity sources
+    .DESCRIPTION
+    Retrieve identity sources
+#>
+function Global:Update-SGWIdentitySources {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="Identity Source ID",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="Disable Identity Source ID")][Switch]$Disable,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="Identity Source Hostname")][String]$Hostname,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Identity Source Port")][Int]$Port,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Identity Source Username")][String]$Username,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
+            HelpMessage="Identity Source Password")][String]$Password,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Identity Source Base Group DN")][String]$BaseGroupDN,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Identity Source Base User DN")][String]$BaseUserDN,
+        [parameter(
+            Mandatory=$False,
+            Position=8,
+            HelpMessage="Identity Source LDAP Service Type")][String]$LdapServiceType,
+        [parameter(
+            Mandatory=$False,
+            Position=9,
+            HelpMessage="Identity Source Type")][String]$Type,
+        [parameter(
+            Mandatory=$False,
+            Position=10,
+            HelpMessage="Identity Source LDAP User ID Attribute")][String]$LDAPUserIDAttribute,
+        [parameter(
+            Mandatory=$False,
+            Position=11,
+            HelpMessage="Identity Source LDAP User UUID Attribute")][String]$LDAPUserUUIDAttribute,
+        [parameter(
+            Mandatory=$False,
+            Position=12,
+            HelpMessage="Identity Source LDAP Group ID Attribute")][String]$LDAPGroupIDAttribute,
+        [parameter(
+            Mandatory=$False,
+            Position=13,
+            HelpMessage="Identity Source Disable TLS")][Switch]$DisableTLS,
+        [parameter(
+            Mandatory=$False,
+            Position=14,
+            HelpMessage="Identity Source CA Certificate")][String]$CACertificate,
+        [parameter(
+            Mandatory=$False,
+            Position=15,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Id = @($Id)
+        
+        foreach ($Id in $Id) {
+            $Username = $Username -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+
+            $Body = @"
+{
+    "id": "$Id",
+    "disable": $Disable,
+    "hostname": "$Hostname",
+    "port": $Port,
+    "username": "$Username",
+    "password": "$Password",
+    "baseGroupDn": "$BaseGroupDN",
+    "baseUserDn": "$BaseUserDN",
+    "ldapServiceType": "$LDAPServiceType",
+    "type": "$Type",
+    "ldapUserIdAttribute": "$LDAPUserIDAttribute",
+    "ldapUserUUIDAttribute": "$LDAPUserUUIDAttribute",
+    "ldapGroupIdAttribute": "$LDAPGroupIDAttribute",
+    "ldapGroupUUIDAttribute": "$LDAPGroupUUIDAttribute",
+    "disableTls": $DisableTLS,
+    "caCert": "$CACertificate\n"
+}
+"@
+            $Uri = $Server.BaseURI + "/grid/identity-source"
+            $Method = "PUT"
 
             try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
             }
             catch {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
+       
             Write-Output $Result.data
         }
     }
 }
+
+<#
+    .SYNOPSIS
+    Retrieve identity sources
+    .DESCRIPTION
+    Retrieve identity sources
+#>
+function Global:Sync-SGWIdentitySources {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/identity-source/synchronize"
+        $Method = "POST"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
+            Write-Host "Successfully synchronized users and groups of identity sources"
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## ilm ##
+
+# TODO: Implement ILM Cmdlets
+
+## license ##
+
+<#
+    .SYNOPSIS
+    Retrieves the grid license
+    .DESCRIPTION
+    Retrieves the grid license
+#>
+function Global:Get-SGWLicense {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/license"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Change the endpoint domain names
+    .DESCRIPTION
+    Change the endpoint domain names
+#>
+function Global:Update-SGWLicense {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale license.",
+                   ValueFromPipeline=$True,
+                   ValueFromPipelineByPropertyName=$True)][String]$License,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/license/update"
+        $Method = "POST"
+
+        $Body = @{}
+        $Body.passphrase = $Passphrase
+        $Body.license = $License
+
+        $Body = ConvertTo-Json -InputObject $Body
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## ntp-servers ##
+
+<#
+    .SYNOPSIS
+    Lists configured external NTP servers
+    .DESCRIPTION
+    Lists configured external NTP servers
+#>
+function Global:Get-SGWNtpServes {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ntp-servers"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Change the external NTP servers used by the grid
+    .DESCRIPTION
+    Change the external NTP servers used by the grid
+#>
+function Global:Update-SGWNtpServers {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale license.")][String[]]$Servers,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ntp-servers/update"
+        $Method = "POST"
+
+        $Body = @{}
+        $Body.passphrase = $Passphrase
+        $Body.servers = $Servers
+
+        $Body = ConvertTo-Json -InputObject $Body
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## recovery ##
+
+# TODO: Implement recovery Cmdlets
+
+## recovery-package ##
+
+# TODO: Implement recovery-package Cmdlets
+
+## server-certificate ##
+
+# TODO: Implement server-certificate Cmdlets
+
+## users ##
+
+# TODO: Implement users Cmdlets
+
+## s3 ##
 
 <#
     .SYNOPSIS
@@ -3135,218 +3517,6 @@ function Global:Remove-SGWAccountS3AccessKey {
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
         }
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve identity sources
-    .DESCRIPTION
-    Retrieve identity sources
-#>
-function Global:Get-SGWIdentitySources {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/grid/identity-source"
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-       
-        Write-Output $Result.data
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve identity sources
-    .DESCRIPTION
-    Retrieve identity sources
-#>
-function Global:Update-SGWIdentitySources {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="Identity Source ID",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
-        [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="Disable Identity Source ID")][Switch]$Disable,
-        [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Identity Source Hostname")][String]$Hostname,
-        [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Identity Source Port")][Int]$Port,
-        [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Identity Source Username")][String]$Username,
-        [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Identity Source Password")][String]$Password,
-        [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Identity Source Base Group DN")][String]$BaseGroupDN,
-        [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Identity Source Base User DN")][String]$BaseUserDN,
-        [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Identity Source LDAP Service Type")][String]$LdapServiceType,
-        [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Identity Source Type")][String]$Type,
-        [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="Identity Source LDAP User ID Attribute")][String]$LDAPUserIDAttribute,
-        [parameter(
-            Mandatory=$False,
-            Position=11,
-            HelpMessage="Identity Source LDAP User UUID Attribute")][String]$LDAPUserUUIDAttribute,
-        [parameter(
-            Mandatory=$False,
-            Position=12,
-            HelpMessage="Identity Source LDAP Group ID Attribute")][String]$LDAPGroupIDAttribute,
-        [parameter(
-            Mandatory=$False,
-            Position=13,
-            HelpMessage="Identity Source Disable TLS")][Switch]$DisableTLS,
-        [parameter(
-            Mandatory=$False,
-            Position=14,
-            HelpMessage="Identity Source CA Certificate")][String]$CACertificate,
-        [parameter(
-            Mandatory=$False,
-            Position=15,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Id = @($Id)
-        
-        foreach ($Id in $Id) {
-            $Username = $Username -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
-
-            $Body = @"
-{
-    "id": "$Id",
-    "disable": $Disable,
-    "hostname": "$Hostname",
-    "port": $Port,
-    "username": "$Username",
-    "password": "$Password",
-    "baseGroupDn": "$BaseGroupDN",
-    "baseUserDn": "$BaseUserDN",
-    "ldapServiceType": "$LDAPServiceType",
-    "type": "$Type",
-    "ldapUserIdAttribute": "$LDAPUserIDAttribute",
-    "ldapUserUUIDAttribute": "$LDAPUserUUIDAttribute",
-    "ldapGroupIdAttribute": "$LDAPGroupIDAttribute",
-    "ldapGroupUUIDAttribute": "$LDAPGroupUUIDAttribute",
-    "disableTls": $DisableTLS,
-    "caCert": "$CACertificate\n"
-}
-"@
-            $Uri = $Server.BaseURI + "/grid/identity-source"
-            $Method = "PUT"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
-        }
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve identity sources
-    .DESCRIPTION
-    Retrieve identity sources
-#>
-function Global:Sync-SGWIdentitySources {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/grid/identity-source/synchronize"
-        $Method = "POST"
-
-        try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
-            Write-Host "Successfully synchronized users and groups of identity sources"
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-       
-        Write-Output $Result.data
     }
 }
 
