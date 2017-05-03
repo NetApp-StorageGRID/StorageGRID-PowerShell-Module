@@ -114,3 +114,18 @@ Get-SGWReport -Attribute 'S3 Ingest - Rate (XSIR) [MB/s]'
 Get-SGWReport -Attribute 'S3 Retrieval - Rate (XSRR) [MB/s]' -StartTime (Get-Date).AddDays(-1)
 Get-SGWReport -Attribute 'Used Storage Capacity (XUSC) [Bytes]' -StartTime (Get-Date).AddDays(-10) -EndTime (Get-Date).AddDays(-1)
 ```
+
+By default the report is created for all nodes in the grid. To select a specific site or node, you need the OID of the site or node. The OIDs can be retrieved using the following Cmdlet
+```powershell
+$Topology = Get-SGWTopologyHealth
+$Sites = $Topology.children
+$Nodes = $Topology.children.children
+```
+
+To report only on the first site, use the following
+```powershell
+$Topology = Get-SGWTopologyHealth
+$Sites = $Topology.children
+$Site = $Sites[0]
+Get-SGWReport -Attribute 'S3 Ingest - Rate (XSIR) [MB/s]' -OID $Site.oid
+```
