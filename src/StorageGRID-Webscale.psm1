@@ -2108,24 +2108,20 @@ function Global:Update-SGWExpansionSite {
     }
 }
 
+## grid-networks ##
+
 <#
     .SYNOPSIS
-    Resets a grid node's configuration and returns it back to pending state
+    Lists the current Grid Networks
     .DESCRIPTION
-    Resets a grid node's configuration and returns it back to pending state
+    Lists the current Grid Networks
 #>
-function Global:Reset-SGWExpansionNode {
+function Global:Get-SGWGridNetworks {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID node eligible for expansion.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
-                   Position=1,
+                   Position=0,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
            )
 
@@ -2139,8 +2135,8 @@ function Global:Reset-SGWExpansionNode {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/node/$id"
-        $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/grid-networks"
+        $Method = "GET"
 
         try {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
@@ -2154,6 +2150,665 @@ function Global:Reset-SGWExpansionNode {
     }
 }
 
+<#
+    .SYNOPSIS
+    Change the Grid Network list
+    .DESCRIPTION
+    Change the Grid Network list
+#>
+function Global:Update-SGWGridNetworks {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                   Position=1,
+                   HelpMessage="List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
+        [parameter(Mandatory=$True,
+                   Position=2,
+                   HelpMessage="StorageGRID Passphrase.")][String]$Passphrase
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/grid-networks/update"
+        $Method = "POST"
+
+        $Body = @{}
+        $Body.passphrase = $Passphrase
+        $Body.subnets = $Subnets
+        $Body = ConvertTo-Json -InputObject $Body
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## groups ##
+
+<#
+    .SYNOPSIS
+    Lists Grid Administrator Groups
+    .DESCRIPTION
+    Lists Grid Administrator Groups
+#>
+function Global:Get-SGWGroups {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/groups"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Creates a new Grid Administrator Group
+    .DESCRIPTION
+    Creates a new Grid Administrator Group
+#>
+function Global:New-SGWGroup {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="Display name of the group.")][String]$displayName,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Display name of the group.")][String]$uniqueName,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
+            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+        [parameter(
+            Mandatory=$False,
+            Position=8,
+            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+        [parameter(
+            Mandatory=$False,
+            Position=9,
+            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+        [parameter(
+            Mandatory=$False,
+            Position=10,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $Server.BaseURI + "/grid/groups"
+            $Method = "POST"
+
+            $Body = @{}
+            $Body.displayName = $displayName
+            $Body.uniqueName = $uniqueName
+            if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
+                $Body.policies = @{}
+                $Body.policies.management = @{}
+                if ($alarmAcknowledgment) {
+                    $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+                }
+                if ($otherGridConfiguration) {
+                    $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+                }
+                if ($tenantAccounts) {
+                    $Body.policies.management.tenantAccounts = $tenantAccounts
+                }
+                if ($changeTenantRootPassword) {
+                    $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+                }
+                if ($maintenance) {
+                    $Body.policies.management.maintenance = $maintenance
+                }
+                if ($activateFeatures) {
+                    $Body.policies.management.activateFeatures = $activateFeatures
+                }
+                if ($rootAccess) {
+                    $Body.policies.management.rootAccess = $rootAccess
+                }
+            }
+            
+            $Body = ConvertTo-Json -InputObject $Body
+            Write-Verbose "Body: $Body"
+
+            try {
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a local Grid Administrator Group by unique name
+    .DESCRIPTION
+    Retrieves a local Grid Administrator Group by unique name
+#>
+function Global:Get-SGWGroupByShortName {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Short name of the user to retrieve.")][String]$ShortName,
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/groups/group/$ShortName"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a federated Grid Administrator Group by unique name
+    .DESCRIPTION
+    Retrieves a federated Grid Administrator Group by unique name
+#>
+function Global:Get-SGWFederatedGroupByShortName {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Short name of the user to retrieve.")][String]$ShortName,
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/groups/federated-group/$ShortName"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deletes a single Grid Administrator Group
+    .DESCRIPTION
+    Deletes a single Grid Administrator Group
+#>
+function Global:Delete-SGWGroup {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Group to delete.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $Server.BaseURI + "/grid/groups/$id"
+            $Method = "DELETE"
+
+            try {
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a single Grid Administrator Group by UUID
+    .DESCRIPTION
+    Retrieves a single Grid Administrator Group by UUID
+#>
+function Global:Get-SGWGroup {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Group to retrieve.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $Server.BaseURI + "/grid/groups/$id"
+            $Method = "GET"
+
+            try {
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Updates a single Grid Administrator Group
+    .DESCRIPTION
+    Updates a single Grid Administrator Group
+#>
+function Global:Update-SGWGroup {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of the group to be updated.")][String]$ID,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Display name of the group.")][String]$displayName,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
+            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+        [parameter(
+            Mandatory=$False,
+            Position=8,
+            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+        [parameter(
+            Mandatory=$False,
+            Position=9,
+            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+        [parameter(
+            Mandatory=$False,
+            Position=10,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $id = @($id)
+        foreach ($id in $id) {
+            $Uri = $Server.BaseURI + "/grid/groups"
+            $Method = "POST"
+
+            $Body = @{}
+            if ($displayName) {
+                $Body.displayName = $displayName
+            }
+            if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
+                $Body.policies = @{}
+                $Body.policies.management = @{}
+                if ($alarmAcknowledgment) {
+                    $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+                }
+                if ($otherGridConfiguration) {
+                    $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+                }
+                if ($tenantAccounts) {
+                    $Body.policies.management.tenantAccounts = $tenantAccounts
+                }
+                if ($changeTenantRootPassword) {
+                    $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+                }
+                if ($maintenance) {
+                    $Body.policies.management.maintenance = $maintenance
+                }
+                if ($activateFeatures) {
+                    $Body.policies.management.activateFeatures = $activateFeatures
+                }
+                if ($rootAccess) {
+                    $Body.policies.management.rootAccess = $rootAccess
+                }
+            }
+            
+            $Body = ConvertTo-Json -InputObject $Body
+            Write-Verbose "Body: $Body"
+
+            try {
+                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            }
+            catch {
+                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            }
+       
+            Write-Output $Result.data
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replaces a single Grid Administrator Group
+    .DESCRIPTION
+    Replaces a single Grid Administrator Group
+#>
+function Global:Replace-SGWGroup {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of the group to be updated.")][String]$ID,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="Display name of the group.")][String]$displayName,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="Unique name.")][String]$uniqueName,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="Unique name.")][String]$accountId,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="Unique name.")][Boolean]$federated,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="Unique name.")][String]$groupURN,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
+            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+        [parameter(
+            Mandatory=$False,
+            Position=8,
+            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+        [parameter(
+            Mandatory=$False,
+            Position=9,
+            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+        [parameter(
+            Mandatory=$False,
+            Position=10,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/groups/$id"
+        $Method = "PUT"
+
+        $Body = @{}
+        if ($displayName) {
+            $Body.displayName = $displayName
+        }
+        if ($uniqueName) {
+            $Body.uniqueName = $uniqueName
+        }
+        if ($accountId) {
+            $Body.accountId = $accountId
+        }
+        if ($federated) {
+            $Body.federated = $federated
+        }
+        if ($groupURN) {
+            $Body.groupURN = $groupURN
+        }
+        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
+            $Body.policies = @{}
+            $Body.policies.management = @{}
+            if ($alarmAcknowledgment) {
+                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+            }
+            if ($otherGridConfiguration) {
+                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            }
+            if ($tenantAccounts) {
+                $Body.policies.management.tenantAccounts = $tenantAccounts
+            }
+            if ($changeTenantRootPassword) {
+                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            }
+            if ($maintenance) {
+                $Body.policies.management.maintenance = $maintenance
+            }
+            if ($activateFeatures) {
+                $Body.policies.management.activateFeatures = $activateFeatures
+            }
+            if ($rootAccess) {
+                $Body.policies.management.rootAccess = $rootAccess
+            }
+        }
+            
+        $Body = ConvertTo-Json -InputObject $Body
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
 
 <#
     .SYNOPSIS
