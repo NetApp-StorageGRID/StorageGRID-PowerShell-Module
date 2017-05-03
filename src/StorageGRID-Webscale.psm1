@@ -307,7 +307,7 @@ function Global:New-SGWAccount {
             }
         }
 
-        $Body = $Body | ConvertTo-Json
+        $Body = ConvertTo-Json -InputObject $Body
 
         Write-Verbose "Body: $Body"
 
@@ -489,7 +489,7 @@ function Global:Update-SGWAccount {
             }
         }
 
-        $Body = $Body | ConvertTo-Json
+        $Body = ConvertTo-Json -InputObject $Body
 
         Write-Verbose "Body: $Body"
 
@@ -572,7 +572,7 @@ function Global:Replace-SGWAccount {
             }
         }
 
-        $Body = $Body | ConvertTo-Json
+        $Body = ConvertTo-Json -InputObject $Body
 
         Write-Verbose "Body: $Body"
 
@@ -988,7 +988,7 @@ function Global:Update-SGWConfigManagement {
         $Uri = $Server.BaseURI + "/grid/config/management"
         $Method = "PUT"
 
-        $Body = @{minApiVersion=$MinApiVersion} | ConvertTo-Json
+        $Body = ConvertTo-Json -InputObject @{minApiVersion=$MinApiVersion}
         Write-Verbose "Body: $Body"
 
         try {
@@ -1280,7 +1280,7 @@ function Global:Update-SGWDeactivatedFeatures {
         if ($ManageOwnS3Credentials) {
             $Body.tenant = @{manageOwnS3Credentials=$ManageOwnS3Credentials}
         }
-        $Body = $Body | ConvertTo-Json
+        $Body = ConvertTo-Json -InputObject $Body
 
         Write-Verbose "Body: $Body"
 
@@ -1295,7 +1295,6 @@ function Global:Update-SGWDeactivatedFeatures {
         Write-Output $Result.data
     }
 }
-
 
 ## dns-servers ##
 
@@ -1385,6 +1384,776 @@ function Global:Replace-SGWDNSServers {
         Write-Output $Result.data
     }
 }
+
+## endpoint-domain-names ##
+
+<#
+    .SYNOPSIS
+    Lists endpoint domain names
+    .DESCRIPTION
+    Lists endpoint domain names
+#>
+function Global:Get-SGWEndpointDomainNames {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/domain-names"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Change the endpoint domain names
+    .DESCRIPTION
+    Change the endpoint domain names
+#>
+function Global:Replace-SGWEndpointDomainNames {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                   Position=1,
+                   HelpMessage="List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/domain-names"
+        $Method = "PUT"
+
+        $Body = ConvertTo-Json -InputObject $EndpointDomainNames
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## expansion ##
+
+<#
+    .SYNOPSIS
+    Cancels the expansion procedure and resets all user configuration of expansion grid nodes
+    .DESCRIPTION
+    Cancels the expansion procedure and resets all user configuration of expansion grid nodes
+#>
+function Global:Stop-SGWExpansion {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion"
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves the status of the current expansion procedure
+    .DESCRIPTION
+    Retrieves the status of the current expansion procedure
+#>
+function Global:Get-SGWExpansion {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Initiates the expansion procedure, allowing configuration of the expansion grid nodes
+    .DESCRIPTION
+    Initiates the expansion procedure, allowing configuration of the expansion grid nodes
+#>
+function Global:Start-SGWExpansion {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/start"
+        $Method = "POST"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Executes the expansion procedure, adding configured grid nodes to the grid
+    .DESCRIPTION
+    Executes the expansion procedure, adding configured grid nodes to the grid
+#>
+function Global:Invoke-SGWExpansion {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/expand"
+        $Method = "POST"
+
+        $Body = ConvertTo-Json -InputObject @{passphrase=$Passphrase}
+
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## expansion-nodes ##
+
+<#
+    .SYNOPSIS
+    Retrieves the list of grid nodes available for expansion
+    .DESCRIPTION
+    Retrieves the list of grid nodes available for expansion
+#>
+function Global:Get-SGWExpansionNodes {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Removes a grid node from all procedures; the grid node may be added back in by rebooting it
+    .DESCRIPTION
+    Removes a grid node from all procedures; the grid node may be added back in by rebooting it
+#>
+function Global:Remove-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale node to remove from expansion.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a grid node eligbible for expansion
+    .DESCRIPTION
+    Retrieves a grid node eligbible for expansion
+#>
+function Global:Get-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID node eligible for expansion.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+# TODO: Implement
+<#
+    .SYNOPSIS
+    Configures a grid node expansion
+    .DESCRIPTION
+    Configures a grid node expansion
+#>
+function Global:New-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/start"
+        $Method = "POST"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Resets a grid node's configuration and returns it back to pending state
+    .DESCRIPTION
+    Resets a grid node's configuration and returns it back to pending state
+#>
+function Global:Reset-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID node eligible for expansion.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/node/$id"
+        $Method = "POST"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## expansion-sites ##
+
+<#
+    .SYNOPSIS
+    Retrieves the list of existing and new sites (empty until expansion is started)
+    .DESCRIPTION
+    Retrieves the list of existing and new sites (empty until expansion is started)
+#>
+function Global:Get-SGWExpansionSites {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/sites"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Adds a new site
+    .DESCRIPTION
+    Adds a new site
+#>
+function Global:New-SGWExpansionSite {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="Name of new site.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$Name,
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/site"
+        $Method = "POST"
+
+        $Body = ConvertTo-Json -InputObject @{name=$Name}
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deletes a site
+    .DESCRIPTION
+    Deletes a site
+#>
+function Global:Remove-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale site to remove from expansion.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/sites/$id"
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a site
+    .DESCRIPTION
+    Retrieves a site
+#>
+function Global:Get-SGWExpansionSite {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID site.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/sites/$id"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Updates the details of a site
+    .DESCRIPTION
+    Updates the details of a site
+#>
+function Global:Update-SGWExpansionSite {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID site to be updated.")][String]$ID,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="New ID for the StorageGRID site.")][String]$NewID,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="New name for the StorageGRID site.")][String]$Name,
+        [parameter(Mandatory=$False,
+                   Position=3,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/site/$id"
+        $Method = "PUT"
+
+        $Body = @{}
+        if ($Name) {
+            $Body.name = $Name
+        }
+        if ($NewID) {
+            $Body.id = $NewID
+        }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Resets a grid node's configuration and returns it back to pending state
+    .DESCRIPTION
+    Resets a grid node's configuration and returns it back to pending state
+#>
+function Global:Reset-SGWExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="ID of a StorageGRID node eligible for expansion.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/node/$id"
+        $Method = "POST"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
 
 <#
     .SYNOPSIS
