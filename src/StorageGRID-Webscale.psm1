@@ -1139,6 +1139,164 @@ function Global:Get-SGWVersions {
     }
 }
 
+## deactivated-features ##
+
+<#
+    .SYNOPSIS
+    Retrieves the deactivated features configuration
+    .DESCRIPTION
+    Retrieves the deactivated features configuration
+#>
+function Global:Get-SGWDeactivatedFeatures {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Throw "This Cmdlet is only supported for API Version 2.0 and above"
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/deactivated-features"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deactivates specific features. If no feature is selected, all features will be enabled again.
+    .DESCRIPTION
+    Deactivates specific features. If no feature is selected, all features will be enabled again.
+#>
+function Global:Update-SGWDeactivatedFeatures {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="Deactivate Alarm Acknowledgements.")][Boolean]$AlarmAcknowledgment,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="Deactivate Other Grid Configuration.")][Boolean]$OtherGridConfiguration,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Deactivate Grid Topology Page Configuration.")][Boolean]$GridTopologyPageConfiguration,
+        [parameter(Mandatory=$False,
+                   Position=3,
+                   HelpMessage="Deactivate Management of Tenant Accounts.")][Boolean]$TenantAccounts,
+        [parameter(Mandatory=$False,
+                   Position=4,
+                   HelpMessage="Deactivate changing of tenant root passwords.")][Boolean]$ChangeTenantRootPassword,
+        [parameter(Mandatory=$False,
+                   Position=4,
+                   HelpMessage="Deactivate maintenance.")][Boolean]$Maintenance,
+        [parameter(Mandatory=$False,
+                   Position=5,
+                   HelpMessage="Deactivates activating features. This cannot be undone!")][Boolean]$ActivateFeatures,
+        [parameter(Mandatory=$False,
+                   Position=6,
+                   HelpMessage="Deactivates managing of own S3 Credentials.")][Boolean]$ManageOwnS3Credentials,
+        [parameter(Mandatory=$False,
+                   Position=7,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Throw "This Cmdlet is only supported for API Version 2.0 and above"
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/deactivated-features"
+        $Method = "PUT"
+
+        $Body = @{}
+        if ($AlarmAcknowledgment -or $OtherGridConfiguration -or $GridTopologyPageConfiguration -or $TenantAccounts -or $ChangeTenantRootPassword -or $Maintenance -or $ActivateFeatures) {
+            $Body.grid = @{}
+        }
+        if ($AlarmAcknowledgment) {
+            $Body.grid.alarmAcknowledgment = $AlarmAcknowledgment
+        }
+        if ($OtherGridConfiguration) {
+            $Body.grid.otherGridConfiguration = $OtherGridConfiguration
+        }
+        if ($GridTopologyPageConfiguration) {
+            $Body.grid.gridTopologyPageConfiguration = $GridTopologyPageConfiguration
+        }
+        if ($TenantAccounts) {
+            $Body.grid.tenantAccounts = $TenantAccounts
+        }
+        if ($ChangeTenantRootPassword) {
+            $Body.grid.changeTenantRootPassword = $ChangeTenantRootPassword
+        }
+        if ($Maintenance) {
+            $Body.grid.maintenance = $Maintenance
+        }
+        if ($ActivateFeatures) {
+            $caption = "Please Confirm"    
+            $message = "Are you sure you want to proceed with permanently deactivating the activation of features (this can't be undone!):"
+            [int]$defaultChoice = 0
+            $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Do the job."
+            $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Do not do the job."
+            $options = [System.Management.Automation.Host.ChoiceDescription[]]($no, $yes)
+            $choiceRTN = $host.ui.PromptForChoice($caption,$message, $options,$defaultChoice)
+            if ($choiceRTN -eq 1) {
+                $Body.grid.activateFeatures = $ActivateFeatures
+            }
+            else {
+                Write-Host "Deactivating of permanent feature activation aborted."
+                return
+            }
+        }
+        if ($ManageOwnS3Credentials) {
+            $Body.tenant = @{manageOwnS3Credentials=$ManageOwnS3Credentials}
+        }
+        $Body = $Body | ConvertTo-Json
+
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+
 ## dns-servers ##
 
 <#
