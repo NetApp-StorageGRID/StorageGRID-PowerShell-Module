@@ -156,21 +156,7 @@ function global:Connect-SGWServer {
 }
 "@
  
-    # determine StorageGRID Version
-    Try {
-        $Response = Invoke-RestMethod -Method GET -Uri "https://$Name/api/versions" -TimeoutSec 10 -ContentType "application/json"
-        $APIVersion = $Response.APIVersion -split "\." | select -first 1
-    }
-    Catch {
-        $ResponseBody = ParseExceptionBody $_.Exception.Response
-        if ($ResponseBody -match "apiVersion") {
-            $APIVersion = ($ResponseBody | ConvertFrom-Json).APIVersion -split "\." | select -first 1
-        }
-        elseif ($_.Exception.Message -match "trust relationship") {
-            Write-Error $_.Exception.Message
-            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
-        }
-    }
+    $APIVersion = (Get-SGWVersions -Uri "https://$Name" | Sort | select -Last 1) -replace "\..*",""
 
     if (!$APIVersion) {
         Write-Error "API Version could not be retrieved via https://$Name/api/versions"
@@ -929,6 +915,139 @@ function Global:Get-SGWTopologyHealth {
 
 <#
     .SYNOPSIS
+    Retrieves global configuration and token information
+    .DESCRIPTION
+    Retrieves global configuration and token information
+#>
+function Global:Get-SGWConfig {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/config"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Changes the global management API and UI configuration
+    .DESCRIPTION
+    Changes the global management API and UI configuration
+#>
+function Global:Update-SGWConfigManagement {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$True,
+                   Position=0,
+                   HelpMessage="Minimum API Version.")][Int][ValidateSet(1,2)]$MinApiVersion,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Throw "Cmdlet not supported on server with API Version less than 2.0"
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/config/management"
+        $Method = "PUT"
+
+        $Body = @{minApiVersion=$MinApiVersion} | ConvertTo-Json
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves the global management API and UI configuration
+    .DESCRIPTION
+    Retrieves the global management API and UI configuration
+#>
+function Global:Get-SGWConfigManagement {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Throw "Cmdlet not supported on server with API Version less than 2.0"
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/config/management"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
     Retrieve StorageGRID Product Version
     .DESCRIPTION
     Retrieve StorageGRID Product Version
@@ -964,6 +1083,59 @@ function Global:Get-SGWProductVersion {
         }
        
         Write-Output $Result.data.productVersion
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves the major versions of the management API supported by the product release
+    .DESCRIPTION
+    Retrieves the major versions of the management API supported by the product release
+#>
+function Global:Get-SGWVersions {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="Uri of the StorageGRID Server")][String]$Uri
+           )
+
+    Begin {
+        if ($Uri) {
+            $Server = @{BaseURI="$Uri/api/v2";APIVersion=2}
+        }
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/versions"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $APIVersions = $Response.APIVersion
+        }
+        Catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            if ($ResponseBody -match "apiVersion") {
+                $APIVersions = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            elseif ($_.Exception.Message -match "trust relationship") {
+                Write-Error $_.Exception.Message
+                Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
+            }
+        }
+       
+        Write-Output $APIVersions
     }
 }
 
