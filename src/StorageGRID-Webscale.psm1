@@ -3570,11 +3570,11 @@ function Global:Get-SGWReport {
         $AttributeCode = $Attribute -replace ".*\((.+)\).*",'$1'
 
         if (!$OID) {
-            $OID = (Get-SGWTopologyHealth).oid
+            $OID = (Get-SGWTopologyHealth -Server $Server).oid
         }
 
         $Method = "GET"
-        $Uri = "https://florianf-sgw-admin.muccbc.hq.netapp.com/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
+        $Uri = "https://$($Server.Name)/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
 
         try {
             $Result = Invoke-RestMethod -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri
