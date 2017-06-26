@@ -156,7 +156,7 @@ function global:Connect-SGWServer {
 }
 "@
  
-    $APIVersion = (Get-SGWVersions -Uri "https://$Name" | Sort | select -Last 1) -replace "\..*",""
+    $APIVersion = (Get-SGWVersions -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
 
     if (!$APIVersion) {
         Write-Error "API Version could not be retrieved via https://$Name/api/versions"
