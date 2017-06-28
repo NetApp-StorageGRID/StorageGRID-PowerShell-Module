@@ -1,3 +1,5 @@
 *.psd1
 release/
 out/
+.idea/
+/StorageGRID-Webscale.iml

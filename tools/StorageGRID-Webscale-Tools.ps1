@@ -10,7 +10,6 @@ function New-GithubRelease {
         [Parameter(Mandatory = $false)][String]$GitHubRepository="StorageGRID-Webscale",
         [Parameter(Mandatory = $false)][switch]$Draft=$false,
         [Parameter(Mandatory = $false)][switch]$PreRelease=$false
-
     )
 
     # The github API key must be available in $GitHubApiKey (https://github.com/blog/1509-personal-api-tokens)
@@ -74,7 +73,8 @@ function New-SGWRelease {
         [Parameter(Mandatory = $false)][switch]$Major,
         [Parameter(Mandatory = $false)][switch]$Minor,
         [Parameter(Mandatory = $false)][switch]$Build,
-        [Parameter(Mandatory = $false)][switch]$Release
+        [Parameter(Mandatory = $false)][switch]$Release,
+        [Parameter(Mandatory = $true)][X509Certificate]$Certificate
     )
 
     $ErrorActionPreference = "Stop"
@@ -148,8 +148,7 @@ function New-SGWRelease {
     Write-Host "Signing PowerShell files..."
 
     # Code Signing
-    $cert = Get-ChildItem cert:\CurrentUser\My -CodeSigningCert
-    Get-ChildItem $dst\*.ps*  | % { $_.FullName } | Set-AuthenticodeSignature -Certificate $cert | Out-Null
+    Get-ChildItem $dst\*.ps*  | % { $_.FullName } | Set-AuthenticodeSignature -Certificate $Certificate -TimestampServer "http://timestamp.comodoca.com/authenticode" | Out-Null
     
     Write-Host "Creating the release archive..."
 
