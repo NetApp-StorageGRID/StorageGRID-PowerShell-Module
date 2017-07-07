@@ -74,7 +74,7 @@ function New-SGWRelease {
         [Parameter(Mandatory = $false)][switch]$Minor,
         [Parameter(Mandatory = $false)][switch]$Build,
         [Parameter(Mandatory = $false)][switch]$Release,
-        [Parameter(Mandatory = $true)][X509Certificate]$Certificate
+        [Parameter(Mandatory = $true)][System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate
     )
 
     $ErrorActionPreference = "Stop"
@@ -168,12 +168,12 @@ function New-SGWRelease {
 
     Write-Host "Release zip file $zipFileName successfully created!" -ForegroundColor Green
 
-    Write-Host "Creating MSI installers..."
-    Start-WixBuild -Path $dst -OutputFolder $out -ProductShortName "StorageGRID-Webscale" -ProductName "StorageGRID-Webscale PowerShell Cmdlets" -ProductVersion $ModuleVersion -Manufacturer $Author -IconFile $PSScriptRoot\icon.ico -BannerFile $PSScriptRoot\banner.bmp -DialogFile $PSScriptRoot\dialog.bmp -UpgradeCodeX86 "CCEE2853-0FC5-4D1B-8485-4625D9D75CF8" -UpgradeCodeX64 "7A7CD8B3-CD26-4829-8E05-08D7D9CFA5CA"
+    #Write-Host "Creating MSI installers..."
+    #Start-WixBuild -Path $dst -OutputFolder $out -ProductShortName "StorageGRID-Webscale" -ProductName "StorageGRID-Webscale PowerShell Cmdlets" -ProductVersion $ModuleVersion -Manufacturer $Author -IconFile $PSScriptRoot\icon.ico -BannerFile $PSScriptRoot\banner.bmp -DialogFile $PSScriptRoot\dialog.bmp -UpgradeCodeX86 "CCEE2853-0FC5-4D1B-8485-4625D9D75CF8" -UpgradeCodeX64 "7A7CD8B3-CD26-4829-8E05-08D7D9CFA5CA"
 
-    Write-Host "Release MSI Installer OnCommand_Insight_$($ModuleVersion)_x64.msi and OnCommand_Insight_$($ModuleVersion)_x86.msi successfully created!" -ForegroundColor Green
+    #Write-Host "Release MSI Installer OnCommand_Insight_$($ModuleVersion)_x64.msi and OnCommand_Insight_$($ModuleVersion)_x86.msi successfully created!" -ForegroundColor Green
 
-    Remove-Item $dst\.wix.json
+    #Remove-Item $dst\.wix.json
 
     if ($Release) { 
         Write-Host "Publishing Module to PowerShell Gallery"
