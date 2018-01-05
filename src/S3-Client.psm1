@@ -205,9 +205,9 @@ function Global:New-AwsSignatureV2 {
 
         $StringToSign = "$HTTPRequestMethod`n$ContentMD5`n$ContentType`n$Date`n$SignedHeaders`n$RequestPayloadHash"
 
-        Write-Verbose "StringToSign: $StringToSign"
+        Write-Debug "StringToSign: $StringToSign"
 
-        Write-Verbose "CanonicalURI: $CanonicalURI"
+        Write-Debug "CanonicalURI: $CanonicalURI"
 
         $CanonicalQueryString = ""
         if ($Query.Keys) {
@@ -225,31 +225,31 @@ function Global:New-AwsSignatureV2 {
         else {
             $CanonicalQueryString = ""
         }
-        Write-Verbose "CanonicalQueryString: $CanonicalQueryString"
+        Write-Debug "CanonicalQueryString: $CanonicalQueryString"
 
-        Write-Verbose "DateTime: $DateTime"
-        Write-Verbose "DateString: $DateString"
+        Write-Debug "DateTime: $DateTime"
+        Write-Debug "DateString: $DateString"
 
         $RequestPayloadHash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($RequestPayload))) -replace '-','').ToLower()
-        Write-Verbose "RequestPayloadHash: $RequestPayloadHash"
+        Write-Debug "RequestPayloadHash: $RequestPayloadHash"
 
         $CanonicalHeaders = "host:$EndpointUrl`nx-amz-content-sha256:$RequestPayloadHash`nx-amz-date:$DateTime`n"
-        Write-Verbose "CanonicalHeaders: $CanonicalHeaders"
+        Write-Debug "CanonicalHeaders: $CanonicalHeaders"
 
         $SignedHeaders = "host;x-amz-content-sha256;x-amz-date"
-        Write-Verbose "SignedHeaders: $SignedHeaders"
+        Write-Debug "SignedHeaders: $SignedHeaders"
 
         $CanonicalRequest = "$HTTPRequestMethod`n$CanonicalURI`n$CanonicalQueryString`n$CanonicalHeaders`n$SignedHeaders`n$RequestPayloadHash"
-        Write-Verbose "CanonicalRequest: $CanonicalRequest"
+        Write-Debug "CanonicalRequest: $CanonicalRequest"
 
         $CanonicalRequestHash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($CanonicalRequest))) -replace '-','').ToLower()
-        Write-Verbose "CanonicalRequestHash: $CanonicalRequestHash"
+        Write-Debug "CanonicalRequestHash: $CanonicalRequestHash"
 
         $StringToSign = "AWS4-HMAC-SHA256`n$DateTime`n$DateString/$Region/$Service/aws4_request`n$CanonicalRequestHash"
-        Write-Verbose "StringToSign"
+        Write-Debug "StringToSign"
 
         $SignatureKey = GetSignatureKey $SecretAccessKey $DateString $Region $Service
-        Write-Verbose "SignatureKey: $SignatureKey"
+        Write-Debug "SignatureKey: $SignatureKey"
 
         $Signature = ([BitConverter]::ToString((sign $SignatureKey $StringToSign)) -replace '-','').ToLower()
  
@@ -335,10 +335,10 @@ function Global:New-AwsSignatureV4 {
             $DateString = [DateTime]::UtcNow.ToString('yyyyMMdd')
         }
 
-        Write-Verbose "Task 1: Create a Canonical Request for Signature Version 4"
+        Write-Debug "Task 1: Create a Canonical Request for Signature Version 4"
         # http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 
-        Write-Verbose "1. HTTP Request Method:`n$HTTPRequestMethod" 
+        Write-Debug "1. HTTP Request Method:`n$HTTPRequestMethod" 
 
         # only URL encode if service is not S3
         if ($Service -ne "s3" -and $Uri -ne "/") {
@@ -347,7 +347,7 @@ function Global:New-AwsSignatureV4 {
         else {
             $CanonicalURI = $Uri
         }
-        Write-Verbose "2. Canonical URI:`n$CanonicalURI"
+        Write-Debug "2. Canonical URI:`n$CanonicalURI"
 
         $CanonicalQueryString = ""
         if ($Query.Keys) {
@@ -365,51 +365,51 @@ function Global:New-AwsSignatureV4 {
         else {
             $CanonicalQueryString = ""
         }
-        Write-Verbose "3. Canonical query string:`n$CanonicalQueryString"
+        Write-Debug "3. Canonical query string:`n$CanonicalQueryString"
 
         if (!$Headers["host"]) { $Headers["host"] = $EndpointUrl }
         if (!$Headers["x-amz-date"]) { $Headers["x-amz-date"] = $DateTime }
         if (!$Headers["content-type"] -and $ContentType) { $Headers["content-type"] = $ContentType }
         $SortedHeaders = ConvertTo-SortedDictionary $Headers
         $CanonicalHeaders = (($SortedHeaders.GetEnumerator()  | % { "$($_.Key):$($_.Value)" }) -join "`n") + "`n"
-        Write-Verbose "4. Canonical headers:`n$CanonicalHeaders"
+        Write-Debug "4. Canonical headers:`n$CanonicalHeaders"
 
         $SignedHeaders = $SortedHeaders.Keys -join ";"
-        Write-Verbose "5. Signed headers:`n$SignedHeaders"
+        Write-Debug "5. Signed headers:`n$SignedHeaders"
 
-        Write-Verbose "6. Hashed Payload`n$RequestPayloadHash"
+        Write-Debug "6. Hashed Payload`n$RequestPayloadHash"
 
         $CanonicalRequest = "$HTTPRequestMethod`n$CanonicalURI`n$CanonicalQueryString`n$CanonicalHeaders`n$SignedHeaders`n$RequestPayloadHash"
-        Write-Verbose "7. CanonicalRequest:`n$CanonicalRequest"
+        Write-Debug "7. CanonicalRequest:`n$CanonicalRequest"
 
         $hasher = [System.Security.Cryptography.SHA256]::Create()
         $CanonicalRequestHash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($CanonicalRequest))) -replace '-','').ToLower()
-        Write-Verbose "8. Canonical request hash:`n$CanonicalRequestHash"
+        Write-Debug "8. Canonical request hash:`n$CanonicalRequestHash"
 
-        Write-Verbose "Task 2: Create a String to Sign for Signature Version 4"
+        Write-Debug "Task 2: Create a String to Sign for Signature Version 4"
         # http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
 
         $AlgorithmDesignation = "AWS4-HMAC-SHA256"
-        Write-Verbose "1. Algorithm designation:`n$AlgorithmDesignation"
+        Write-Debug "1. Algorithm designation:`n$AlgorithmDesignation"
 
-        Write-Verbose "2. request date value, specified with ISO8601 basic format in the format YYYYMMDD'T'HHMMSS'Z:`n$DateTime"
+        Write-Debug "2. request date value, specified with ISO8601 basic format in the format YYYYMMDD'T'HHMMSS'Z:`n$DateTime"
 
         $CredentialScope = "$DateString/$Region/$Service/aws4_request"
-        Write-Verbose "3. Credential scope:`n$CredentialScope"
+        Write-Debug "3. Credential scope:`n$CredentialScope"
 
-        Write-Verbose "4. Canonical request hash:`n$CanonicalRequestHash"
+        Write-Debug "4. Canonical request hash:`n$CanonicalRequestHash"
 
         $StringToSign = "$AlgorithmDesignation`n$DateTime`n$CredentialScope`n$CanonicalRequestHash"
-        Write-Verbose "StringToSign:`n$StringToSign"
+        Write-Debug "StringToSign:`n$StringToSign"
 
-        Write-Verbose "Task 3: Calculate the Signature for AWS Signature Version 4"
+        Write-Debug "Task 3: Calculate the Signature for AWS Signature Version 4"
         # http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
 
         $SigningKey = GetSignatureKey $SecretAccessKey $DateString $Region $Service
-        Write-Verbose "1. Signing Key:`n$([System.BitConverter]::ToString($SigningKey))"
+        Write-Debug "1. Signing Key:`n$([System.BitConverter]::ToString($SigningKey))"
 
         $Signature = ([BitConverter]::ToString((sign $SigningKey $StringToSign)) -replace '-','').ToLower()
-        Write-Verbose "2. Signature:`n$Signature"
+        Write-Debug "2. Signature:`n$Signature"
 
         Write-Output $Signature
     }
@@ -607,10 +607,10 @@ function Global:Invoke-AwsRequest {
         if ($SingerType = "AWS4") {
             Write-Verbose "Using AWS Signature Version 4"
             $Signature = New-AwsSignatureV4 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -HTTPRequestMethod $HTTPRequestMethod -RequestPayloadHash $RequestPayloadHash -DateTime $DateTime -DateString $DateString -Headers $Headers
-            Write-Verbose "Task 4: Add the Signing Information to the Request"
+            Write-Debug "Task 4: Add the Signing Information to the Request"
             # http://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
             $Headers["Authorization"]="AWS4-HMAC-SHA256 Credential=$AccessKey/$DateString/$Region/$Service/aws4_request,SignedHeaders=$SignedHeaders,Signature=$Signature"
-            Write-Verbose "Headers:`n$(ConvertTo-Json -InputObject $Headers)"
+            Write-Debug "Headers:`n$(ConvertTo-Json -InputObject $Headers)"
         }
         else {
             Write-Verbose "Using AWS Signature Version 2"
@@ -625,8 +625,6 @@ function Global:Invoke-AwsRequest {
         }
 
         $Url = $Protocol + $EndpointUrl + $Uri + $QueryString
-
-        Write-Verbose "Url: $url"
 
         try {
             #$Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -OutFile $FilePath
@@ -781,14 +779,12 @@ function Global:New-AwsPresignedUrl {
 
         $Headers["Accept"]="application/json"
 
-        Write-Verbose "Headers:"
+        Write-Debug "Headers:"
         foreach ($Key in $Headers.Keys) {
-            Write-Verbose "$Key=$($Headers[$Key])"
+            Write-Debug "$Key=$($Headers[$Key])"
         }
 
         $Url = $Protocol + $EndpointUrl + $Uri + $QueryString
-
-        Write-Verbose "Url: $url"
 
         try {
             #$Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -OutFile $FilePath
@@ -953,7 +949,7 @@ function Global:Get-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="EndpointUrl")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
             Position=5,
@@ -1047,7 +1043,7 @@ function Global:Get-S3Bucket {
 
         if ($Result.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
             Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
-            Write-Verbose "NextMarker: $($Result.ListBucketResult.NextMarker)"
+            Write-Debug "NextMarker: $($Result.ListBucketResult.NextMarker)"
             if ($Profile) {
                 $Objects += Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
             }
@@ -1065,11 +1061,11 @@ function Global:Get-S3Bucket {
 
 <#
     .SYNOPSIS
-    Get S3 Bucket
+    Get S3 Bucket Last Access Time
     .DESCRIPTION
-    Get S3 Bucket
+    Get S3 Bucket Last Access Time
 #>
-function Global:Get-S3Bucket {
+function Global:Get-S3BucketLastAccessTime {
     [CmdletBinding(DefaultParameterSetName="profile")]
 
     PARAM (
@@ -1104,50 +1100,13 @@ function Global:Get-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="EndpointUrl")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
             Position=5,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
-        [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Maximum Number of keys to return")][Int][ValidateRange(0,1000)]$MaxKeys=0,
-        [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Bucket prefix for filtering")][String]$Prefix,
-        [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Bucket prefix for filtering")][String][ValidateLength(1,1)]$Delimiter,
-        [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Return Owner information (Only valid for list type 2).")][Switch]$FetchOwner=$False,
-        [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="Return key names after a specific object key in your key space. The S3 service lists objects in UTF-8 character encoding in lexicographical order (Only valid for list type 2).")][String]$StartAfter,
-        [parameter(
-            Mandatory=$False,
-            Position=11,
-            HelpMessage="Continuation token (Only valid for list type 1).")][String]$Marker,
-       [parameter(
-            Mandatory=$False,
-            Position=12,
-            HelpMessage="Continuation token (Only valid for list type 2).")][String]$ContinuationToken,
-        [parameter(
-            Mandatory=$False,
-            Position=13,
-            HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType,
-        [parameter(
-            Mandatory=$False,
-            Position=14,
-            HelpMessage="Bucket list type.")][String][ValidateSet(1,2)]$ListType=1
-
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
  
     Process {
@@ -1163,25 +1122,7 @@ function Global:Get-S3Bucket {
 
         $HTTPRequestMethod = "GET"
 
-        $Query = @{}
-
-        if ($Delimiter) { $Query["delimiter"] = $Delimiter }
-        if ($EncodingType) { $Query["encoding-type"] = $EncodingType }
-        if ($MaxKeys -ge 1) {
-            $Query["max-keys"] = $MaxKeys
-        }
-        if ($Prefix) { $Query["prefix"] = $Prefix }
-
-        # S3 supports two types for listing buckets, but only v2 is recommended, thus using list-type=2 query parameter
-        if ($ListType -eq 1) {
-            if ($Marker) { $Query["marker"] = $Marker }
-        }
-        else {
-            $Query["list-type"] = 2
-            if ($FetchOwner) { $Query["fetch-owner"] = $FetchOwner }
-            if ($StartAfter) { $Query["start-after"] = $StartAfter }
-            if ($ContinuationToken) { $Query["continuation-token"] = $ContinuationToken }
-        }
+        $Query = @{"x-ntap-sg-lastaccesstime"=""}
 
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
@@ -1193,24 +1134,163 @@ function Global:Get-S3Bucket {
             $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
-        $Objects = $Result.ListBucketResult.Contents | ? { $_ }
-        $Objects | Add-Member -MemberType NoteProperty -Name Bucket -Value $Result.ListBucketResult.Name
+        $BucketLastAccessTime = [PSCustomObject]@{Bucket=$Bucket;LastAccessTime=$Result.LastAccessTime.InnerText}
 
-        if ($Result.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
-            Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
-            Write-Verbose "NextMarker: $($Result.ListBucketResult.NextMarker)"
-            if ($Profile) {
-                $Objects += Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
-            }
-            elseif ($Credential) {
-                $Objects += Get-S3Bucket -Credential $Credential -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
-            }
-            else {
-                $Objects += Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
-            }            
+        Write-Output $BucketLastAccessTime
+    }
+}
+
+<#
+    .SYNOPSIS
+    Enable S3 Bucket Last Access Time
+    .DESCRIPTION
+    Enable S3 Bucket Last Access Time
+#>
+function Global:Enable-S3BucketLastAccessTime {
+    [CmdletBinding(DefaultParameterSetName="profile")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
         }
 
-        Write-Output $Objects
+        $HTTPRequestMethod = "PUT"
+
+        $Query = @{"x-ntap-sg-lastaccesstime"="enabled"}
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Credential) {
+            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Disable S3 Bucket Last Access Time
+    .DESCRIPTION
+    Disable S3 Bucket Last Access Time
+#>
+function Global:Disable-S3BucketLastAccessTime {
+    [CmdletBinding(DefaultParameterSetName="profile")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $HTTPRequestMethod = "PUT"
+
+        $Query = @{"x-ntap-sg-lastaccesstime"="disabled"}
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Credential) {
+            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
     }
 }
 
