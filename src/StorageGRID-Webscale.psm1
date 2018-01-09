@@ -85,6 +85,66 @@ function ParseExceptionBody($Response) {
     }
 }
 
+# helper function to convert datetime to unix timestamp
+function ConvertTo-UnixTimestamp {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$True,
+                    Position=0,
+                    ValueFromPipeline=$True,
+                    ValueFromPipelineByPropertyName=$True,
+                    HelpMessage="Date to be converted.")][DateTime[]]$Date
+    )
+
+    BEGIN {
+        $epoch = Get-Date -Year 1970 -Month 1 -Day 1 -Hour 0 -Minute 0 -Second 0
+    }
+
+    PROCESS {
+        $Date = @($Date)
+
+        foreach ($Date in $Date) {
+                $milliSeconds = [math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalMilliSeconds)
+                Write-Output $milliSeconds
+        }
+    }
+}
+
+# helper function to convert unix timestamp to datetime
+function ConvertFrom-UnixTimestamp {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$True,
+                    Position=0,
+                    ValueFromPipeline=$True,
+                    ValueFromPipelineByPropertyName=$True,
+                    HelpMessage="Timestamp to be converted.")][String]$Timestamp,
+        [parameter(Mandatory=$True,
+                    Position=0,
+                    ValueFromPipeline=$True,
+                    ValueFromPipelineByPropertyName=$True,
+                    HelpMessage="Unit of timestamp.")][ValidateSet("Seconds","Milliseconds")][String]$Unit="Milliseconds",
+        [parameter(Mandatory=$False,
+                    Position=1,
+                    HelpMessage="Optional Timezone to be used as basis for Timestamp. Default is system Timezone.")][System.TimeZoneInfo]$Timezone=[System.TimeZoneInfo]::Local
+    )
+
+    PROCESS {
+        $Timestamp = @($Timestamp)
+        foreach ($Timestamp in $Timestamp) {
+            if ($Unit -eq "Seconds") {
+                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddSeconds($Timestamp),$Timezone)
+            }
+            else {
+                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddMilliseconds($Timestamp),$Timezone)
+            }
+            Write-Output $Date
+        }
+    }
+}
+
 ### Cmdlets ###
 
 ## accounts ##
@@ -3683,6 +3743,114 @@ function Global:Update-SGWLicense {
 # TODO: Implement logs cmdlets
 
 ## metrics ##
+
+<#
+    .SYNOPSIS
+    Retrieves the metric names
+    .DESCRIPTION
+    Retrieves the metric names
+#>
+function Global:Get-SGWMetricNames {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/metric-names"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Performs an instant metric query at a single point in time
+    .DESCRIPTION
+    Performs an instant metric query at a single point in time
+#>
+function Global:Get-SGWMetricQuery {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                   Position=1,
+                   HelpMessage="Prometheus query string.")][String]$Query,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Query start, default current time (date-time).")][DateTime]$Time,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Timeout in seconds.")][Int]$Timeout=120
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/metric-query"
+        $Method = "GET"
+
+        $Uri += "?query=$Query"
+
+        if ($Time) {
+            $Uri += "&time=$(Get-Date -Format o $Time.ToUniversalTime())"
+        }
+
+        if ($Timeout) {
+            $Uri += "&timeout=$($Timeout)s"
+        }
+
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        $Metrics = $Result.data.result | % { [PSCustomObject]@{Metric=$_.metric.__name__;Instance=$_.metric.instance;Time=(ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]);Value=$_.value[1]} }
+       
+        Write-Output $Metrics
+    }
+}
 
 # TODO: Implement metrics cmdlets
 
