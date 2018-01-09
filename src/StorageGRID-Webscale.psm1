@@ -91,115 +91,6 @@ function ParseExceptionBody($Response) {
 
 <#
     .SYNOPSIS
-    Connect to StorageGRID Webscale Management Server
-    .DESCRIPTION
-    Connect to StorageGRID Webscale Management Server
-#>
-function global:Connect-SGWServer {
-    [CmdletBinding()]
- 
-    PARAM (
-        [parameter(Mandatory=$True,
-                   Position=0,
-                   HelpMessage="The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
-        [parameter(Position=3,
-                   Mandatory=$False,
-                   HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient
-    )
-
-    # check if untrusted SSL certificates should be ignored
-    if ($Insecure) {
-        if ($PSVersionTable.PSVersion.Major -lt 6) {
-            [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-        }
-        else {
-            if (!"Invoke-RestMethod:SkipCertificateCheck") {
-                $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
-            }
-            else {
-                $PSDefaultParameterValues.'Invoke-RestMethod:SkipCertificateCheck'=$true
-            }
-        }
-    }
-
-    # TODO: Remove try/catch as soon as PowerShell 6 fixes OSVersion implementation
-    try {
-        if ([environment]::OSVersion.Platform -match "Win") {
-            # check if proxy is used
-            $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-            $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
-            if ($ProxySettings.ProxyEnable) {
-                Write-Warning "Proxy Server $($ProxySettings.ProxyServer) configured in Internet Explorer may be used to connect to the OCI server!"
-            }
-            if ($ProxySettings.AutoConfigURL) {
-                Write-Warning "Proxy Server defined in automatic proxy configuration script $($ProxySettings.AutoConfigURL) configured in Internet Explorer may be used to connect to the OCI server!"
-            }
-        }
-    }
-    catch {}
-
-    $Server = New-Object -TypeName PSCustomObject
-    $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
-    $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
-
-    $Body = @"
-{
-    "username": "$($Credential.UserName)", 
-    "password": "$($Credential.GetNetworkCredential().Password)",
-    "cookie": true
-}
-"@
- 
-    $APIVersion = (Get-SGWVersions -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
-
-    if (!$APIVersion) {
-        Write-Error "API Version could not be retrieved via https://$Name/api/versions"
-        return
-    }
-
-    $BaseURI = "https://$Name/api/v$APIVersion"
-
-    Try {
-        $Response = Invoke-RestMethod -Session Session -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $body
-        if ($Response.status -eq "success") {
-            $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
-            $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
-        }
-    }
-    Catch {
-        $ResponseBody = ParseExceptionBody $_.Exception.Response
-        if ($_.Exception.Message -match "Unauthorized") {                
-            Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
-            return
-        }
-        elseif ($_.Exception.Message -match "trust relationship") {
-            Write-Error $_.Exception.Message
-            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
-        }
-        else {
-            Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
-            return
-        }
-    }
-
-    $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value $BaseURI
-    $Server | Add-Member -MemberType NoteProperty -Name Session -Value $Session
-
-    if (!$Transient) {
-        Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
-    }
-
-    return $Server
-}
-
-<#
-    .SYNOPSIS
     Retrieve all StorageGRID Webscale Accounts
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Accounts
@@ -210,7 +101,19 @@ function Global:Get-SGWAccounts {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="Maximum number of results.")][Int]$Limit=0,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Pagination offset (value is Account's id).")][String]$Marker,
+        [parameter(Mandatory=$False,
+                   Position=3,
+                   HelpMessage="if set, the marker element is also returned.")][Switch]$IncludeMarker,
+        [parameter(Mandatory=$False,
+                   Position=4,
+                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc"
     )
 
     Begin {
@@ -220,21 +123,44 @@ function Global:Get-SGWAccounts {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
+
         $Uri = $Server.BaseURI + '/grid/accounts'
         $Method = "GET"
 
+        if ($Limit -eq 0) {
+            $Query = "?limit=25"
+        }
+        else {
+            $Query = "?limit=$Limit"
+        }
+        if ($Marker) { $Query += "&marker=$Marker" }
+        if ($IncludeMarker) { $Query += "&includeMarker=true" }
+        if ($Order) { $Query += "&order=$Order" }
+
+        $Uri += $Query
+        
         try {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $($responseBody.message)"
+            return
         }
-       
+
+        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+
         Write-Output $Result.data
+
+        if ($Limit -eq 0 -and $Result.data.count -eq 25) {
+            Get-SGWAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+        }              
     }
 }
 
@@ -257,7 +183,7 @@ function Global:New-SGWAccount {
         [parameter(
             Mandatory=$True,
             Position=1,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
+            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -289,6 +215,9 @@ function Global:New-SGWAccount {
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -318,6 +247,8 @@ function Global:New-SGWAccount {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
+
+        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
        
         Write-Output $Result.data
     }
@@ -338,7 +269,7 @@ function Global:Remove-SGWAccount {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to delete.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -351,6 +282,9 @@ function Global:Remove-SGWAccount {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -376,15 +310,23 @@ function Global:Remove-SGWAccount {
     Retrieve a StorageGRID Webscale Account
 #>
 function Global:Get-SGWAccount {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="id")]
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
+            ParameterSetName="id",
             HelpMessage="ID of a StorageGRID Webscale Account to get information for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            ParameterSetName="name",
+            HelpMessage="Name of a StorageGRID Webscale Account to get information for.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$Name,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -398,11 +340,18 @@ function Global:Get-SGWAccount {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
+        if ($Name) {
+            # this is a convenience method for retrieving an account by name
+            $Account = Get-SGWAccounts | ? { $_.Name -eq $Name }
+            Write-Output $Account
+        }
+        else {
             $Uri = $Server.BaseURI + "/grid/accounts/$id"
             $Method = "GET"
 
@@ -413,6 +362,8 @@ function Global:Get-SGWAccount {
                 $ResponseBody = ParseExceptionBody $_.Exception.Response
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
+
+            $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
        
             Write-Output $Result.data
         }
@@ -434,7 +385,7 @@ function Global:Update-SGWAccount {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to update.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+            ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -467,6 +418,9 @@ function Global:Update-SGWAccount {
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -500,6 +454,8 @@ function Global:Update-SGWAccount {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
+
+        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
        
         Write-Output $Result.data
     }
@@ -520,7 +476,7 @@ function Global:Replace-SGWAccount {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to update.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+            ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -553,6 +509,9 @@ function Global:Replace-SGWAccount {
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -628,6 +587,9 @@ function Global:Update-SGWSwiftAdminPassword {
         if ($Server.APIVersion -gt 1) {
             Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SGWPassword Cmdlet instead!"
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -695,6 +657,9 @@ function Global:Update-SGWPassword {
         if ($Server.APIVersion -lt 2) {
             Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SGWSwiftAdminPassword Cmdlet instead!"
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -733,11 +698,11 @@ function Global:Get-SGWAccountUsage {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to get usage information for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -754,19 +719,197 @@ function Global:Get-SGWAccountUsage {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
+        if (!$Id) {
+            if (!$Server.AccountId) {
+                throw "No ID specified and not connected as tenant user. Either specify an ID or use Connect-SgwServer with the parameter accountId."
+            }
+            else {
+                $Uri = $Server.BaseURI + "/org/usage"
+            }
+        }
+        else {
             $Uri = $Server.BaseURI + "/grid/accounts/$id/usage"
-            $Method = "GET"
+        }
 
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            return
+        }
+        Write-Output $Result.data
+    }
+}
+
+## auth ##
+
+<#
+    .SYNOPSIS
+    Connect to StorageGRID Webscale Management Server
+    .DESCRIPTION
+    Connect to StorageGRID Webscale Management Server
+#>
+function global:Connect-SGWServer {
+    [CmdletBinding()]
+ 
+    PARAM (
+        [parameter(Mandatory=$True,
+                   Position=0,
+                   HelpMessage="The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+        [parameter(Mandatory=$True,
+                   Position=1,
+                   HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
+        [parameter(Position=3,
+                   Mandatory=$False,
+                   HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
+        [parameter(Position=4,
+                   Mandatory=$False,
+                   HelpMessage="Account ID of tenant to connect to.")][String]$AccountId
+    )
+
+    # check if untrusted SSL certificates should be ignored
+    if ($Insecure) {
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
+            [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+        }
+        else {
+            if (!"Invoke-RestMethod:SkipCertificateCheck") {
+                $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
             }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            else {
+                $PSDefaultParameterValues.'Invoke-RestMethod:SkipCertificateCheck'=$true
             }
-            Write-Output $Result.data
+        }
+    }
+    else {
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $PSDefaultParameterValues.Remove("Invoke-RestMethod:SkipCertificateCheck")
+        }
+    }
+
+    if ([environment]::OSVersion.Platform -match "Win") {
+        # check if proxy is used
+        $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+        $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
+        if ($ProxySettings.ProxyEnable) {
+            Write-Warning "Proxy Server $($ProxySettings.ProxyServer) configured in Internet Explorer may be used to connect to the OCI server!"
+        }
+        if ($ProxySettings.AutoConfigURL) {
+            Write-Warning "Proxy Server defined in automatic proxy configuration script $($ProxySettings.AutoConfigURL) configured in Internet Explorer may be used to connect to the OCI server!"
+        }
+    }
+
+    $Server = New-Object -TypeName PSCustomObject
+    $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
+    $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
+
+    $Body = @{}
+    $Body.username = $Credential.UserName
+    $Body.password = $Credential.GetNetworkCredential().Password
+    $Body.cookie = $True
+    $Body.csrfToken = $True
+
+    if ($AccountId) {
+        $Body.accountId = $AccountId
+        $Server | Add-Member -MemberType NoteProperty -Name AccountId -Value $AccountId
+    }
+
+    $Body = ConvertTo-Json -InputObject $Body
+
+    Write-Verbose "Body:`n$Body"
+ 
+    $APIVersion = (Get-SGWVersion -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
+
+    if (!$APIVersion) {
+        Write-Error "API Version could not be retrieved via https://$Name/api/versions"
+        return
+    }
+
+    $BaseURI = "https://$Name/api/v$APIVersion"
+    $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value $BaseURI
+
+    Try {
+        $Response = Invoke-RestMethod -Session Session -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
+        if ($Response.status -eq "success") {
+            $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
+            $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
+            $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
+            $Server | Add-Member -MemberType NoteProperty -Name SupportedApiVersions -Value $SupportedApiVersions
+            if (($Session.Cookies.GetCookies($BaseURI) | ? { $_.Name -match "CsrfToken" })) {
+                $XCsrfToken = $Session.Cookies.GetCookies($BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
+                $Server.Headers["X-Csrf-Token"] = $XCsrfToken
+            }
+        }
+    }
+    Catch {
+        $ResponseBody = ParseExceptionBody $_.Exception.Response
+        if ($_.Exception.Message -match "Unauthorized") {                
+            Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
+            return
+        }
+        elseif ($_.Exception.Message -match "trust relationship") {
+            Write-Error $_.Exception.Message
+            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
+        }
+        else {
+            Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
+            return
+        }
+    }
+
+    $Server | Add-Member -MemberType NoteProperty -Name Session -Value $Session
+
+    if (!$Transient) {
+        Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
+    }
+
+    return $Server
+}
+
+<#
+    .SYNOPSIS
+    Connect to StorageGRID Webscale Management Server
+    .DESCRIPTION
+    Connect to StorageGRID Webscale Management Server
+#>
+function global:Disconnect-SGWServer {
+    [CmdletBinding()]
+ 
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/authorize"
+
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            return
         }
     }
 }
@@ -801,6 +944,9 @@ function Global:Get-SGWAlarms {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -815,89 +961,6 @@ function Global:Get-SGWAlarms {
         if ($limit) {
             $Uri += "$($Separator)limit=$limit"
         }
-
-        try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-       
-        Write-Output $Result.data
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve StorageGRID Health Status
-    .DESCRIPTION
-    Retrieve StorageGRID Health Status
-#>
-function Global:Get-SGWHealth {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + '/grid/health'
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
-       
-        Write-Output $Result.data
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve StorageGRID Topology with Health Status
-    .DESCRIPTION
-    Retrieve StorageGRID Topology with Health Status
-#>
-function Global:Get-SGWTopologyHealth {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="Topology depth level to provide (default=node).")][String][ValidateSet("grid","site","node","component","subcomponent")]$Depth="node"
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/grid/health/topology?depth=$depth"
-        $Method = "GET"
 
         try {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
@@ -938,7 +1001,59 @@ function Global:Get-SGWConfig {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/config"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/config"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/config"
+        }
+
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves the global management API and UI configuration
+    .DESCRIPTION
+    Retrieves the global management API and UI configuration
+#>
+function Global:Get-SGWConfigManagement {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.APIVersion -lt 2) {
+            Throw "Cmdlet not supported on server with API Version less than 2.0"
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/config/management"
         $Method = "GET"
 
         try {
@@ -982,6 +1097,9 @@ function Global:Update-SGWConfigManagement {
         if ($Server.APIVersion -lt 2) {
             Throw "Cmdlet not supported on server with API Version less than 2.0"
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -992,55 +1110,14 @@ function Global:Update-SGWConfigManagement {
         Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
             $ResponseBody = ParseExceptionBody $_.Exception.Response
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
-       
-        Write-Output $Result.data
-    }
-}
 
-<#
-    .SYNOPSIS
-    Retrieves the global management API and UI configuration
-    .DESCRIPTION
-    Retrieves the global management API and UI configuration
-#>
-function Global:Get-SGWConfigManagement {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-           )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-        if ($Server.APIVersion -lt 2) {
-            Throw "Cmdlet not supported on server with API Version less than 2.0"
-        }
-    }
- 
-    Process {
-        $Uri = $Server.BaseURI + "/grid/config/management"
-        $Method = "GET"
-
-        try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-        }
-        catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-        }
+        $Server.SupportedApiVersions = @(Get-SGWVersions -Server $Server)
        
         Write-Output $Result.data
     }
@@ -1071,7 +1148,13 @@ function Global:Get-SGWProductVersion {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/config/product-version"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/config/product-version"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/config/product-version"
+        }
+
         $Method = "GET"
 
         try {
@@ -1088,11 +1171,11 @@ function Global:Get-SGWProductVersion {
 
 <#
     .SYNOPSIS
-    Retrieves the major versions of the management API supported by the product release
+    Retrieves the current API versionsof the management API
     .DESCRIPTION
-    Retrieves the major versions of the management API supported by the product release
+    Retrieves the current API versionsof the management API
 #>
-function Global:Get-SGWVersions {
+function Global:Get-SGWVersion {
     [CmdletBinding()]
 
     PARAM (
@@ -1135,9 +1218,54 @@ function Global:Get-SGWVersions {
             }
         }
        
-        Write-Output $APIVersions
+        Write-Output $APIVersions        
     }
 }
+
+<#
+    .SYNOPSIS
+    Retrieves the major versions of the management API supported by the product release
+    .DESCRIPTION
+    Retrieves the major versions of the management API supported by the product release
+#>
+function Global:Get-SGWVersions {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+           )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/versions"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $APIVersions = $Response.APIVersion
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Response.data
+    }
+}
+
+## containers ##
+
+# TODO: Implement container cmdlets
 
 ## deactivated-features ##
 
@@ -1169,7 +1297,13 @@ function Global:Get-SGWDeactivatedFeatures {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/deactivated-features"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/deactivated-features"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/deactivated-features"
+        }
+
         $Method = "GET"
 
         try {
@@ -1232,6 +1366,9 @@ function Global:Update-SGWDeactivatedFeatures {
         }
         if ($Server.APIVersion -lt 2) {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1320,6 +1457,9 @@ function Global:Get-SGWDNSServers {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1363,6 +1503,9 @@ function Global:Replace-SGWDNSServers {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1384,6 +1527,10 @@ function Global:Replace-SGWDNSServers {
         Write-Output $Result.data
     }
 }
+
+## endpoints ##
+
+# TODO: Implement endpoints cmdlets
 
 ## endpoint-domain-names ##
 
@@ -1408,6 +1555,9 @@ function Global:Get-SGWEndpointDomainNames {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1452,6 +1602,9 @@ function Global:Replace-SGWEndpointDomainNames {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1472,6 +1625,10 @@ function Global:Replace-SGWEndpointDomainNames {
         Write-Output $Result.data
     }
 }
+
+## erasure-coding
+
+# TODO: Implement erasure-coding cmdlets
 
 ## expansion ##
 
@@ -1496,6 +1653,9 @@ function Global:Stop-SGWExpansion {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1537,6 +1697,9 @@ function Global:Get-SGWExpansion {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1576,6 +1739,9 @@ function Global:Start-SGWExpansion {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1619,6 +1785,9 @@ function Global:Invoke-SGWExpansion {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1666,6 +1835,9 @@ function Global:Get-SGWExpansionNodes {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1711,6 +1883,9 @@ function Global:Remove-SGWExpansionNode {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1758,6 +1933,9 @@ function Global:Get-SGWExpansionNode {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1798,6 +1976,9 @@ function Global:New-SGWExpansionNode {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1845,6 +2026,9 @@ function Global:Reset-SGWExpansionNode {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1886,6 +2070,9 @@ function Global:Get-SGWExpansionSites {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -1933,6 +2120,9 @@ function Global:New-SGWExpansionSite {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -1956,9 +2146,9 @@ function Global:New-SGWExpansionSite {
 
 <#
     .SYNOPSIS
-    Deletes a site
+    Delete a site
     .DESCRIPTION
-    Deletes a site
+    Delete a site
 #>
 function Global:Remove-SGWExpansionNode {
     [CmdletBinding()]
@@ -1982,6 +2172,9 @@ function Global:Remove-SGWExpansionNode {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -2002,9 +2195,9 @@ function Global:Remove-SGWExpansionNode {
 
 <#
     .SYNOPSIS
-    Retrieves a site
+    Retrieve a site
     .DESCRIPTION
-    Retrieves a site
+    Retrieve a site
 #>
 function Global:Get-SGWExpansionSite {
     [CmdletBinding()]
@@ -2027,6 +2220,9 @@ function Global:Get-SGWExpansionSite {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -2080,6 +2276,9 @@ function Global:Update-SGWExpansionSite {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -2132,6 +2331,9 @@ function Global:Get-SGWGridNetworks {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -2178,6 +2380,9 @@ function Global:Update-SGWGridNetworks {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -2206,9 +2411,9 @@ function Global:Update-SGWGridNetworks {
 
 <#
     .SYNOPSIS
-    Lists Grid Administrator Groups
+    List Groups
     .DESCRIPTION
-    Lists Grid Administrator Groups
+    List Groups
 #>
 function Global:Get-SGWGroups {
     [CmdletBinding()]
@@ -2230,7 +2435,13 @@ function Global:Get-SGWGroups {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/groups"
+        }
+
         $Method = "GET"
 
         try {
@@ -2245,6 +2456,7 @@ function Global:Get-SGWGroups {
     }
 }
 
+# TODO: Implement adding tenant groups and rename cmdlets
 <#
     .SYNOPSIS
     Creates a new Grid Administrator Group
@@ -2307,6 +2519,9 @@ function Global:New-SGWGroup {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -2391,7 +2606,13 @@ function Global:Get-SGWGroupByShortName {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups/group/$ShortName"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/group/$ShortName"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/groups/group/$ShortName"
+        }
+
         $Method = "GET"
 
         try {
@@ -2436,7 +2657,13 @@ function Global:Get-SGWFederatedGroupByShortName {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups/federated-group/$ShortName"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/federated-group/$ShortName"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/groups/federated-group/$ShortName"
+        }
+
         $Method = "GET"
 
         try {
@@ -2453,9 +2680,9 @@ function Global:Get-SGWFederatedGroupByShortName {
 
 <#
     .SYNOPSIS
-    Deletes a single Grid Administrator Group
+    Deletes a single Group
     .DESCRIPTION
-    Deletes a single Grid Administrator Group
+    Deletes a single Group
 #>
 function Global:Delete-SGWGroup {
     [CmdletBinding()]
@@ -2466,7 +2693,7 @@ function Global:Delete-SGWGroup {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Group to delete.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -2483,29 +2710,32 @@ function Global:Delete-SGWGroup {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/groups/$id"
-            $Method = "DELETE"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/$id"
         }
+        else {
+            $Uri = $Server.BaseURI + "/grid/groups/$id"
+        }
+
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
 <#
     .SYNOPSIS
-    Retrieves a single Grid Administrator Group by UUID
+    Retrieves a single Group
     .DESCRIPTION
-    Retrieves a single Grid Administrator Group by UUID
+    Retrieves a single Group
 #>
 function Global:Get-SGWGroup {
     [CmdletBinding()]
@@ -2516,7 +2746,7 @@ function Global:Get-SGWGroup {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Group to retrieve.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -2533,24 +2763,28 @@ function Global:Get-SGWGroup {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/groups/$id"
-            $Method = "GET"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/$id"
         }
+        else {
+            $Uri = $Server.BaseURI + "/grid/groups/$id"
+        }
+
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
+# TODO: Implement updating tenant group and rename cmdlet
 <#
     .SYNOPSIS
     Updates a single Grid Administrator Group
@@ -2614,60 +2848,61 @@ function Global:Update-SGWGroup {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/groups"
-            $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/groups"
+        $Method = "POST"
 
-            $Body = @{}
-            if ($displayName) {
-                $Body.displayName = $displayName
-            }
-            if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-                $Body.policies = @{}
-                $Body.policies.management = @{}
-                if ($alarmAcknowledgment) {
-                    $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
-                }
-                if ($otherGridConfiguration) {
-                    $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
-                }
-                if ($tenantAccounts) {
-                    $Body.policies.management.tenantAccounts = $tenantAccounts
-                }
-                if ($changeTenantRootPassword) {
-                    $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
-                }
-                if ($maintenance) {
-                    $Body.policies.management.maintenance = $maintenance
-                }
-                if ($activateFeatures) {
-                    $Body.policies.management.activateFeatures = $activateFeatures
-                }
-                if ($rootAccess) {
-                    $Body.policies.management.rootAccess = $rootAccess
-                }
-            }
-            
-            $Body = ConvertTo-Json -InputObject $Body
-            Write-Verbose "Body: $Body"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        $Body = @{}
+        if ($displayName) {
+            $Body.displayName = $displayName
         }
+        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
+            $Body.policies = @{}
+            $Body.policies.management = @{}
+            if ($alarmAcknowledgment) {
+                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+            }
+            if ($otherGridConfiguration) {
+                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            }
+            if ($tenantAccounts) {
+                $Body.policies.management.tenantAccounts = $tenantAccounts
+            }
+            if ($changeTenantRootPassword) {
+                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            }
+            if ($maintenance) {
+                $Body.policies.management.maintenance = $maintenance
+            }
+            if ($activateFeatures) {
+                $Body.policies.management.activateFeatures = $activateFeatures
+            }
+            if ($rootAccess) {
+                $Body.policies.management.rootAccess = $rootAccess
+            }
+        }
+            
+        $Body = ConvertTo-Json -InputObject $Body
+        Write-Verbose "Body: $Body"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
+# TODO: Implement replacing tenant group and rename this cmdlet
 <#
     .SYNOPSIS
     Replaces a single Grid Administrator Group
@@ -2747,6 +2982,9 @@ function Global:Replace-SGWGroup {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -2825,7 +3063,7 @@ function Global:Get-SGWAccountGroups {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to get group information for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -2842,24 +3080,115 @@ function Global:Get-SGWAccountGroups {
         if ($Server.APIVersion -gt 1) {
             Throw "This Cmdlet is only supported with API Version 1"
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id/groups"
-            $Method = "GET"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id/groups"
+        $Method = "GET"
 
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+## health ##
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID Health Status
+    .DESCRIPTION
+    Retrieve StorageGRID Health Status
+#>
+function Global:Get-SGWHealth {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + '/grid/health'
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve StorageGRID Topology with Health Status
+    .DESCRIPTION
+    Retrieve StorageGRID Topology with Health Status
+#>
+function Global:Get-SGWTopologyHealth {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="Topology depth level to provide (default=node).")][String][ValidateSet("grid","site","node","component","subcomponent")]$Depth="node"
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+ 
+    Process {
+        $Uri = $Server.BaseURI + "/grid/health/topology?depth=$depth"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
@@ -2891,7 +3220,13 @@ function Global:Get-SGWIdentitySources {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/identity-source"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/identity-source"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/identity-source"
+        }
+
         $Method = "GET"
 
         try {
@@ -2921,7 +3256,7 @@ function Global:Update-SGWIdentitySources {
             Position=0,
             HelpMessage="Identity Source ID",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+            ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -2994,12 +3329,18 @@ function Global:Update-SGWIdentitySources {
     }
  
     Process {
-        $Id = @($Id)
-        
-        foreach ($Id in $Id) {
-            $Username = $Username -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/identity-source"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/identity-source"
+        }
 
-            $Body = @"
+        $Method = "PUT"
+
+        $Username = $Username -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+
+        $Body = @"
 {
     "id": "$Id",
     "disable": $Disable,
@@ -3018,20 +3359,17 @@ function Global:Update-SGWIdentitySources {
     "disableTls": $DisableTLS,
     "caCert": "$CACertificate\n"
 }
-"@
-            $Uri = $Server.BaseURI + "/grid/identity-source"
-            $Method = "PUT"
+"@        
 
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
         }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data
     }
 }
 
@@ -3061,7 +3399,13 @@ function Global:Sync-SGWIdentitySources {
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/identity-source/synchronize"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/identity-source/synchronize"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/identity-source/synchronize"
+        }
+
         $Method = "POST"
 
         try {
@@ -3078,6 +3422,8 @@ function Global:Sync-SGWIdentitySources {
 }
 
 ## ilm ##
+
+# TODO: Implement missing cmdlets and check existing cmdlets
 
 <#
     .SYNOPSIS
@@ -3109,6 +3455,9 @@ function Global:Invoke-SGWIlmEvaluate {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -3162,6 +3511,9 @@ function Global:Get-SGWIlmMetadata {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -3202,6 +3554,9 @@ function Global:Get-SGWIlmRules {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -3219,7 +3574,6 @@ function Global:Get-SGWIlmRules {
         Write-Output $Result.data
     }
 }
-
 
 ## license ##
 
@@ -3245,6 +3599,9 @@ function Global:Get-SGWLicense {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -3265,9 +3622,9 @@ function Global:Get-SGWLicense {
 
 <#
     .SYNOPSIS
-    Change the endpoint domain names
+    Update the license
     .DESCRIPTION
-    Change the endpoint domain names
+    Update the license
 #>
 function Global:Update-SGWLicense {
     [CmdletBinding()]
@@ -3292,6 +3649,9 @@ function Global:Update-SGWLicense {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -3318,6 +3678,14 @@ function Global:Update-SGWLicense {
     }
 }
 
+## logs ##
+
+# TODO: Implement logs cmdlets
+
+## metrics ##
+
+# TODO: Implement metrics cmdlets
+
 ## ntp-servers ##
 
 <#
@@ -3326,7 +3694,7 @@ function Global:Update-SGWLicense {
     .DESCRIPTION
     Lists configured external NTP servers
 #>
-function Global:Get-SGWNtpServes {
+function Global:Get-SGWNtpServers {
     [CmdletBinding()]
 
     PARAM (
@@ -3341,6 +3709,9 @@ function Global:Get-SGWNtpServes {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
@@ -3388,6 +3759,9 @@ function Global:Update-SGWNtpServers {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
  
     Process {
@@ -3413,6 +3787,8 @@ function Global:Update-SGWNtpServers {
     }
 }
 
+## objects ##
+
 ## recovery ##
 
 # TODO: Implement recovery Cmdlets
@@ -3421,11 +3797,96 @@ function Global:Update-SGWNtpServers {
 
 # TODO: Implement recovery-package Cmdlets
 
+## regions ##
+
+# TODO: implement regions cmdlets
+
 ## server-certificate ##
 
 # TODO: Implement server-certificate Cmdlets
 
 ## users ##
+
+<#
+    .SYNOPSIS
+    Retrieve all StorageGRID Users
+    .DESCRIPTION
+    Retrieve all StorageGRID Users
+#>
+function Global:Get-SGWUsers {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                   Position=0,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$False,
+                   Position=1,
+                   HelpMessage="User type (default local).")][ValidateSet("local","federated")][String]$Type="local",
+        [parameter(Mandatory=$False,
+                   Position=2,
+                   HelpMessage="Maximum number of results.")][Int]$Limit=0,
+        [parameter(Mandatory=$False,
+                   Position=3,
+                   HelpMessage="Pagination offset (value is Account's id).")][String]$Marker,
+        [parameter(Mandatory=$False,
+                   Position=4,
+                   HelpMessage="if set, the marker element is also returned.")][Switch]$IncludeMarker,
+        [parameter(Mandatory=$False,
+                   Position=5,
+                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc"
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+    }
+ 
+    Process {
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + '/org/users'
+        }
+        else {
+            $Uri = $Server.BaseURI + '/grid/users'
+        }
+
+        $Method = "GET"
+
+        if ($Limit -eq 0) {
+            $Query = "?limit=25"
+        }
+        else {
+            $Query = "?limit=$Limit"
+        }
+        if ($Type) { $Query += "&type=$Type" }
+        if ($Marker) { $Query += "&marker=$Marker" }
+        if ($IncludeMarker) { $Query += "&includeMarker=true" }
+        if ($Order) { $Query += "&order=$Order" }
+
+        $Uri += $Query
+        
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $($responseBody.message)"
+            return
+        }
+
+        $Result.data | Add-Member -MemberType AliasProperty -Name userId -Value id
+
+        Write-Output $Result.data
+
+        if ($Limit -eq 0 -and $Result.data.count -eq 25) {
+            Get-SGWAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+        }              
+    }
+}
 
 # TODO: Implement users Cmdlets
 
@@ -3437,71 +3898,22 @@ function Global:Update-SGWNtpServers {
     .DESCRIPTION
     Retrieve StorageGRID Webscale Account S3 Access Keys
 #>
-function Global:Get-SGWAccountS3AccessKeys {
+function Global:Get-SGWS3AccessKeys {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
-    )
- 
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSGWServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
-        }
-    }
- 
-    Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id/s3-access-keys"
-            $Method = "GET"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-            Write-Output $Result.data
-        }
-    }
-}
-
-<#
-    .SYNOPSIS
-    Retrieve a StorageGRID Webscale Account S3 Access Key
-    .DESCRIPTION
-    Retrieve a StorageGRID Webscale Account S3 Access Key
-#>
-function Global:Get-SGWAccountS3AccessKey {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="S3 Access Key ID to be deleted",
+            HelpMessage="ID of a StorageGRID Webscale User.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
-        [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$AccountId,
+            ValueFromPipelineByPropertyName=$True)][String]$UserId,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -3515,26 +3927,117 @@ function Global:Get-SGWAccountS3AccessKey {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+        }
     }
  
     Process {
-        $Id = @($Id)
-        $AccountId = @($AccountId)
-
-        foreach ($Index in 0..($Id.Count-1)) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
-            $Method = "GET"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        if ($Server.AccountId) {
+            if ($UserId) {
+                $Uri = $Server.BaseURI + "/org/users/$UserId/s3-access-keys"
             }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            else {
+                $Uri = $Server.BaseURI + "/org/users/current-user/s3-access-keys"
             }
-       
-            Write-Output $Result.data
         }
+        else {
+            if ($AccountId) {
+                $Uri = $Server.BaseURI + "/grid/accounts/$AccountId/s3-access-keys"
+            }
+            else {
+                Throw "Account ID required. Rerun command with AccountId parameter"
+            }
+        }
+
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve a StorageGRID Webscale Account S3 Access Key
+    .DESCRIPTION
+    Retrieve a StorageGRID Webscale Account S3 Access Key
+#>
+function Global:Get-SGWS3AccessKey {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="ID of a StorageGRID Webscale Account to get S3 Access Keys for",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="ID of a StorageGRID Webscale User.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$UserId,
+        [parameter(
+            Mandatory=$True,
+            Position=2,
+            HelpMessage="Access Key to delete.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$AccessKey,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+    )
+ 
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSGWServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+        }
+        if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+        }
+    }
+ 
+    Process {
+        if ($Server.AccountId) {
+            if ($UserId) {
+                $Uri = $Server.BaseURI + "/org/users/$UserId/s3-access-keys/$AccessKey"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/org/users/current-user/s3-access-keys/$AccessKey"
+            }
+        }
+        else {
+            if ($AccountId) {
+                $Uri = $Server.BaseURI + "/grid/accounts/$AccountId/s3-access-keys/$AccessKey"
+            }
+            else {
+                Throw "Account ID required. Rerun command with id parameter"
+            }
+        }
+
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+       
+        Write-Output $Result.data        
     }
 }
 
@@ -3544,23 +4047,29 @@ function Global:Get-SGWAccountS3AccessKey {
     .DESCRIPTION
     Create a new StorageGRID Webscale Account S3 Access Key
 #>
-function Global:New-SGWAccountS3AccessKey {
+function Global:New-SGWS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
             HelpMessage="Id of the StorageGRID Webscale Account to create new S3 Access Key for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="Expiration date of the S3 Access Key.")][DateTime]$Expires,
+            HelpMessage="ID of a StorageGRID Webscale User.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$UserId,
         [parameter(
             Mandatory=$False,
             Position=2,
+            HelpMessage="Expiration date of the S3 Access Key.")][DateTime]$Expires,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -3571,25 +4080,38 @@ function Global:New-SGWAccountS3AccessKey {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
-
+        if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+        }
         if ($Expires) {
-            $ExpirationDate = (Get-Date -Format s $Expires).ToString()
+            $ExpirationDate = Get-Date -Format o $Expires.ToUniversalTime()
         }
     }
  
     Process {
-        $Uri = $Server.BaseURI + "/grid/accounts/$id/s3-access-keys"
-        $Method = "POST"
-
-        if ($Expires) { 
-            $Body = @"
-{
-    "expires": "$ExpirationDate"
-}
-"@
+        if ($Server.AccountId) {
+            if ($UserId) {
+                $Uri = $Server.BaseURI + "/org/users/$UserId/s3-access-keys"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/org/users/current-user/s3-access-keys"
+            }
         }
         else {
-            $Body = "{}"
+            if ($AccountId) {
+                $Uri = $Server.BaseURI + "/grid/accounts/$AccountId/s3-access-keys"
+            }
+            else {
+                Throw "Account ID required. Rerun command with id parameter"
+            }
+        }
+
+        $Method = "POST"
+
+        $Body = "{}"
+        if ($Expires) { 
+            $Body = ConvertTo-Json -InputObject @{"expires"="$ExpirationDate"}
+            Write-Verbose "Body:`n$Body"
         }
 
         try {
@@ -3610,25 +4132,31 @@ function Global:New-SGWAccountS3AccessKey {
     .DESCRIPTION
     Delete a StorageGRID Webscale Account S3 Access Key
 #>
-function Global:Remove-SGWAccountS3AccessKey {
+function Global:Remove-SGWS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
             Mandatory=$True,
             Position=0,
-            HelpMessage="S3 Access Key ID to be deleted",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
-        [parameter(
-            Mandatory=$True,
-            Position=1,
             HelpMessage="Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$AccountId,
+            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
         [parameter(
             Mandatory=$False,
+            Position=1,
+            HelpMessage="ID of a StorageGRID Webscale User.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$UserId,
+        [parameter(
+            Mandatory=$True,
             Position=2,
+            HelpMessage="S3 Access Key ID to be deleted,",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][String]$AccessKey,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -3639,25 +4167,39 @@ function Global:Remove-SGWAccountS3AccessKey {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
         }
+        if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+        }
     }
  
     Process {
-        $Id = @($Id)
-        $AccountId = @($AccountId)
-        foreach ($Index in 0..($Id.Count-1)) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$($AccountId[$Index])/s3-access-keys/$($Id[$Index])"
-            $Method = "DELETE"
-
-            try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-                Write-Host "Successfully deleted S3 Access Key $AccessKey for ID $Id"
+        if ($Server.AccountId) {
+            if ($UserId) {
+                $Uri = $Server.BaseURI + "/org/users/$UserId/s3-access-keys/$AccessKey"
             }
-            catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            else {
+                $Uri = $Server.BaseURI + "/org/users/current-user/s3-access-keys/$AccessKey"
             }
         }
-    }
+        else {
+            if ($AccountId) {
+                $Uri = $Server.BaseURI + "/grid/accounts/$AccountId/s3-access-keys/$AccessKey"
+            }
+            else {
+                Throw "Account ID required. Rerun command with AccountId parameter"
+            }
+        }
+
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+        }
+        catch {
+            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }  
+    }     
 }
 
 ### reporting ###

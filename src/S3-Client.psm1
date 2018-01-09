@@ -15,29 +15,37 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
             }
         }
 "@
-}
 
-# Using .NET JSON Serializer as JSON serialization included in Invoke-RestMethod has a length restriction for JSON content
-Add-Type -AssemblyName System.Web.Extensions
-$global:javaScriptSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-$global:javaScriptSerializer.MaxJsonLength = [System.Int32]::MaxValue
-$global:javaScriptSerializer.RecursionLimit = 99
+    # Using .NET JSON Serializer as JSON serialization included in Invoke-RestMethod has a length restriction for JSON content
+    Add-Type -AssemblyName System.Web.Extensions
+    $global:javaScriptSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $global:javaScriptSerializer.MaxJsonLength = [System.Int32]::MaxValue
+    $global:javaScriptSerializer.RecursionLimit = 99
+}
+else {
+    # unfortunately AWS Authentication is not RFC-7232 compliant (it is using semicolons in the value) 
+    # and PowerShell 6 enforces strict header verification by default
+    # therefore disabling strict header verification until AWS fixed this
+    $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipHeaderValidation",$true)
+}
 
 ### Helper Functions ###
 
-function ParseExceptionBody($Response) {
-    if ($Response) {
-        $Reader = New-Object System.IO.StreamReader($Response.GetResponseStream())
-        $Reader.BaseStream.Position = 0
-        $Reader.DiscardBufferedData()
-        $ResponseBody = $reader.ReadToEnd()
-        if ($ResponseBody.StartsWith('{')) {
-            $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
+function ParseErrorForResponseBody($Error) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        if ($Error.Exception.Response) {  
+            $Reader = New-Object System.IO.StreamReader($Error.Exception.Response.GetResponseStream())
+            $Reader.BaseStream.Position = 0
+            $Reader.DiscardBufferedData()
+            $ResponseBody = $Reader.ReadToEnd()
+            if ($ResponseBody.StartsWith('{')) {
+                $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
+            }
+            return $ResponseBody
         }
-        return $ResponseBody
     }
     else {
-        return $Response
+        return $Error.ErrorDetails.Message
     }
 }
 
@@ -82,10 +90,17 @@ function ConvertFrom-AwsConfigFile {
         # convert to JSON structure
         $Json = $Content  -replace "profile ","" -replace "`n([^\[])",',$1' -replace "\[","`"" -replace "],","`":{`"" -replace "\s*=\s*","`":`"" -replace ",","`",`"" -replace "`n","`"}," -replace "^","{" -replace "$","`"}}"
         # parse JSON to Hashtable
-        $Parser = New-Object Web.Script.Serialization.JavaScriptSerializer
-        $Parser.MaxJsonLength = $Json.length
-        $Hashtable = $Parser.Deserialize($Json, [hashtable])
-        Write-Output $Hashtable
+
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
+            $Parser = New-Object Web.Script.Serialization.JavaScriptSerializer
+            $Parser.MaxJsonLength = $Json.length
+            $Hashtable = $Parser.Deserialize($Json, [hashtable])
+            Write-Output $Hashtable
+        }
+        else {
+            $Hashtable = ConvertFrom-Json -InputObject $Json -AsHashtable
+            Write-Output $Hashtable
+        }
     }
 }
 
@@ -118,7 +133,7 @@ function ConvertTo-AwsConfigFile {
     }
 }
 
-### S3 Cmdlets ###
+### AWS Cmdlets ###
 
 <#
     .SYNOPSIS
@@ -137,9 +152,9 @@ function Global:Get-AwsHash {
     )
  
     Process {
-        $hasher = [System.Security.Cryptography.SHA256]::Create()
+        $Hasher = [System.Security.Cryptography.SHA256]::Create()
 
-        $Hash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($StringToHash))) -replace '-','').ToLower()
+        $Hash = ([BitConverter]::ToString($Hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($StringToHash))) -replace '-','').ToLower()
 
         Write-Output $Hash
     }
@@ -440,19 +455,14 @@ function Global:New-AwsSignatureV4 {
     Invoke AWS Request
 #>
 function Global:Invoke-AwsRequest {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding()]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$True,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -518,18 +528,84 @@ function Global:Invoke-AwsRequest {
         [parameter(
             Mandatory=$False,
             Position=14,
-            HelpMessage="Bucket required for signing with V2 Authentication and virtual host style")][String]$Bucket,
+            HelpMessage="Bucket name")][String]$Bucket,
         [parameter(
             Mandatory=$False,
             Position=15,
+            HelpMessage="Tenant name")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=16,
             HelpMessage="Use virtual host style for V2 Authentication")][Switch]$VirtualHostStyle
     )
 
     Begin {
-        if ($Profile) {
+        $Credential = $null
+        # convenience method to autogenerate credentials
+        if ($CurrentSGWServer) {            
+            if (!$Profile -and !$AccessKey -and $CurrentSGWServer.AccountId -and $EndpointUrl) {
+                Write-Warning "No profile and no access key specified, but connected to a StorageGRID tenant. Therefore autogenerating temporary AWS credentials and removing them after command execution"
+                $Credential = New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)
+            }
+            elseif (!$Profile -and !$AccessKey -and $Tenant -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {
+                Write-Warning "No profile and no access key specified, but connected to a StorageGRID server. Therefore autogenerating temporary AWS credentials for tenant $Tenant and removing them after command execution"
+                $Credential = Get-SGWAccount -Name $Tenant | New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)                
+            }
+            elseif (!$Profile -and !$AccessKey -and $Bucket -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {                
+                # need to check each account for its buckets to determine which account the bucket belongs to
+                $AccountId = foreach ($Account in (Get-SgwAccounts)) {
+                    if ($Account | Get-SGWAccountUsage | select -ExpandProperty buckets | ? { $_.name -eq $Bucket }) {
+                        Write-Output $Account.id
+                        break
+                    }
+                }
+                if ($AccountId) {
+                    Write-Warning "No profile and no access key specified, therefore autogenerating temporary AWS credentials and removing them after command execution"
+                    $Credential = New-SGWS3AccessKey -AccountId $AccountId -Expires (Get-Date).AddMinutes(5)
+                }
+                else {
+                    $Profile = "default"
+                }
+            }
+            else {
+                Write-Verbose "StorageGRID Server present, but either API Version 1 is not supported or no Bucket or Tenant available"
+                $Profile = "default"            
+            }
+
+            if ($Credential -and !$EndpointUrl -and !$CurrentSGWServer.accountId) {
+                Write-Verbose "EndpointUrl not specified, but connected to StorageGRID server. Trying to connect with any of the endpoint domain names specified in the grid"
+                # connect to default https port and to default StorageGRID S3 port
+                $EndpointDomainNames = Get-SGWEndpointDomainNames | % { @($_,"${_}:8082") }
+                $EndpointUrl = foreach ($EndpointDomainName in $EndpointDomainNames) {             
+                    try {
+                        $Null = Get-S3Buckets -AccessKey $Credential.accessKey -SecretAccessKey $Credential.secretAccessKey -EndpointUrl $EndpointDomainName
+                        Write-Output $EndpointDomainName
+                        break
+                    }
+                    catch {
+                    }                        
+                }
+            }
+
+            if ($Credential -and $EndpointUrl) {
+                $CleanupCredential = $true
+                $AccessKey = $Credential.accessKey
+                $SecretAccessKey = $Credential.secretAccessKey
+            }
+            elseif ($Credential) {
+                $Credential | Remove-SGWS3AccessKey
+                $Profile = "default"
+            }
+        }
+
+        if (!$Credential -and !$AccessKey -and !$Profile) {
+            $Profile = "default"
+        }
+        
+        if ($Profile -and !$AccessKey) {
             Write-Verbose "Using credentials from profile $Profile"
             if (!(Test-Path $AWS_CREDENTIALS_FILE)) {
-                throw "Profile $Profile specified but no credentials defined!"
+                throw "Profile $Profile does not contain credentials. Either connect to a StorageGRID Server using Connect-SgwServer or add credentials to the default profile with Add-AwsCredentials"
             }
             $Credentials = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CREDENTIALS_FILE
             $AccessKey = $Credentials[$Profile].aws_access_key_id
@@ -541,11 +617,7 @@ function Global:Invoke-AwsRequest {
                 }
             }
         }
-        if ($Credential) {
-            Write-Verbose "Using credentials from credential object"
-            $AccessKey = $Credential.UserName
-            $SecretAccessKey = $Credential.GetNetworkCredential().Password
-        }
+
         if (!$AccessKey) {
             throw "No Access Key specified"
         }
@@ -598,7 +670,7 @@ function Global:Invoke-AwsRequest {
         }
 
         # remove port 80 and port 443 from EndpointUrl as they must not be included
-        $EndpointUrl -replace ':80$','' -replace ':443$',''
+        $EndpointUrl = $EndpointUrl -replace ':80$','' -replace ':443$',''
     }
  
     Process {
@@ -658,16 +730,27 @@ function Global:Invoke-AwsRequest {
             $Url = $Protocol + $EndpointUrl + $Uri
         }
 
-        try {
-            #$Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -OutFile $FilePath
-            $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers
+        try {            
+            if ($RequestPayload) {
+                Write-Verbose "RequestPayload:`n$RequestPayload"
+                $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload
+            }
+            else {
+                $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers
+            }
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
-            Write-Error "$HTTPRequestMethod to $Url failed with Exception $($_.Exception.Message) `n $responseBody"
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$HTTPRequestMethod to $Url failed with Exception $($_.Exception.Message) `n $ResponseBody"
         }
 
         Write-Output $Result
+    }
+
+    End {
+        if ($CleanupCredential) {
+            $Credential | Remove-SGWS3AccessKey
+        }
     }
 }
 
@@ -714,6 +797,8 @@ function Global:Add-AwsCredentials {
     }
 }
 
+### S3 Cmdlets ###
+
 <#
     .SYNOPSIS
     Get S3 Buckets
@@ -721,50 +806,54 @@ function Global:Add-AwsCredentials {
     Get S3 Buckets
 #>
 function Global:Get-S3Buckets {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
-            Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            Position=2,
+            HelpMessage="AWS Profile to use which contains AWS credentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
-            Position=0,
+            Position=2,
             HelpMessage="S3 Access Key")][String]$AccessKey,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
-            Position=1,
+            Position=3,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
         [parameter(
+            ParameterSetName="tenant",
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
-        [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant
     )
  
     Process {
         $Uri = '/'
         $HTTPRequestMethod = "GET"
+
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
         }
         
         $Buckets = @()
@@ -787,14 +876,14 @@ function Global:Get-S3Buckets {
     Get S3 Bucket
 #>
 function Global:Get-S3Bucket {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="credential",
             Mandatory=$False,
@@ -810,6 +899,11 @@ function Global:Get-S3Bucket {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -903,11 +997,14 @@ function Global:Get-S3Bucket {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
         $Objects = $Result.ListBucketResult.Contents | ? { $_ }
@@ -933,19 +1030,19 @@ function Global:Get-S3Bucket {
 
 <#
     .SYNOPSIS
-    Get S3 Bucket Consistency Setting
+    Get S3 Bucket
     .DESCRIPTION
-    Get S3 Bucket Consistency Setting
+    Get S3 Bucket
 #>
-function Global:Get-S3BucketConsistency {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+function Global:New-S3Bucket {
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="credential",
             Mandatory=$False,
@@ -961,6 +1058,192 @@ function Global:Get-S3BucketConsistency {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Canned ACL")][Alias("CannedAcl")][String][ValidateSet("private","public-read","public-read-write","aws-exec-read","authenticated-read","bucket-owner-read","bucket-owner-full-control")]$Acl,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Canned ACL")][Alias("Location","LocationConstraint")][String]$Region
+
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $HTTPRequestMethod = "PUT"
+
+        if ($Region) {
+            $RequestPayload = "<CreateBucketConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><LocationConstraint>$Region</LocationConstraint></CreateBucketConfiguration>"
+        }
+
+        $Query = @{}
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+        }
+
+        Write-Output $Result
+    }
+}
+
+<#
+    .SYNOPSIS
+    Remove S3 Bucket
+    .DESCRIPTION
+    Remove S3 Bucket
+#>
+function Global:Remove-S3Bucket {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $HTTPRequestMethod = "DELETE"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+
+        Write-Output $Result
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get S3 Bucket Consistency Setting
+    .DESCRIPTION
+    Get S3 Bucket Consistency Setting
+#>
+function Global:Get-S3BucketConsistency {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -999,11 +1282,14 @@ function Global:Get-S3BucketConsistency {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
         $BucketConsistency = [PSCustomObject]@{Bucket=$Bucket;Consistency=$Result.Consistency.InnerText}
@@ -1019,19 +1305,14 @@ function Global:Get-S3BucketConsistency {
     Modify S3 Bucket Consistency Setting
 #>
 function Global:Update-S3BucketConsistency {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -1042,6 +1323,11 @@ function Global:Update-S3BucketConsistency {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -1084,11 +1370,14 @@ function Global:Update-S3BucketConsistency {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
     }
 }
@@ -1100,19 +1389,14 @@ function Global:Update-S3BucketConsistency {
     Get S3 Bucket Storage Usage
 #>
 function Global:Get-S3StorageUsage {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -1123,6 +1407,11 @@ function Global:Get-S3StorageUsage {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -1143,11 +1432,14 @@ function Global:Get-S3StorageUsage {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
         $UsageResult = [PSCustomObject]@{CalculationTime=(Get-Date -Date $Result.UsageResult.CalculationTime);ObjectCount=$Result.UsageResult.ObjectCount;DataBytes=$Result.UsageResult.DataBytes;buckets=$Result.UsageResult.Buckets.ChildNodes}
@@ -1163,19 +1455,15 @@ function Global:Get-S3StorageUsage {
     Get S3 Bucket Last Access Time
 #>
 function Global:Get-S3BucketLastAccessTime {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+  
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -1186,6 +1474,11 @@ function Global:Get-S3BucketLastAccessTime {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -1224,11 +1517,14 @@ function Global:Get-S3BucketLastAccessTime {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
         $BucketLastAccessTime = [PSCustomObject]@{Bucket=$Bucket;LastAccessTime=$Result.LastAccessTime.InnerText}
@@ -1244,19 +1540,14 @@ function Global:Get-S3BucketLastAccessTime {
     Enable S3 Bucket Last Access Time
 #>
 function Global:Enable-S3BucketLastAccessTime {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -1267,6 +1558,11 @@ function Global:Enable-S3BucketLastAccessTime {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -1305,11 +1601,14 @@ function Global:Enable-S3BucketLastAccessTime {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
     }
 }
@@ -1321,19 +1620,14 @@ function Global:Enable-S3BucketLastAccessTime {
     Disable S3 Bucket Last Access Time
 #>
 function Global:Disable-S3BucketLastAccessTime {
-    [CmdletBinding(DefaultParameterSetName="profile")]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
             ParameterSetName="profile",
             Mandatory=$False,
             Position=0,
-            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile="default",
-        [parameter(
-            ParameterSetName="credential",
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Credential")][PSCredential]$Credential,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -1344,6 +1638,11 @@ function Global:Disable-S3BucketLastAccessTime {
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
         [parameter(
             Mandatory=$False,
             Position=2,
@@ -1382,11 +1681,14 @@ function Global:Disable-S3BucketLastAccessTime {
         if ($Profile) {
             $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
-        elseif ($Credential) {
-            $Result = Invoke-AwsRequest -Credential $Credential -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
     }
 }
