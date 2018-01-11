@@ -57,6 +57,38 @@ function ConvertTo-SortedDictionary($HashTable) {
     Write-Output $SortedDictionary
 }
 
+function Get-SignedString {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$True,
+                    Position=0,
+                    ValueFromPipeline=$True,
+                    ValueFromPipelineByPropertyName=$True,
+                    HelpMessage="Key in Bytes.")][Byte[]]$Key,
+        [parameter(Mandatory=$False,
+                    Position=1,
+                    ValueFromPipeline=$True,
+                    ValueFromPipelineByPropertyName=$True,
+                    HelpMessage="Unit of timestamp.")][String]$Message="",
+        [parameter(Mandatory=$False,
+                    Position=2,
+                    HelpMessage="Algorithm to use for signing.")][ValidateSet("SHA1","SHA256")][String]$Algorithm="SHA256"
+    )
+
+    PROCESS {
+        if ($Algorithm -eq "SHA1") {
+            $Signer = New-Object System.Security.Cryptography.HMACSHA1
+        }
+        else {
+            $Signer = New-Object System.Security.Cryptography.HMACSHA256
+        }
+
+        $Signer.Key = $Key
+        $Signer.ComputeHash([Text.Encoding]::UTF8.GetBytes($Message))
+    }
+}
+
 function Sign($Key,$Message) {
     $hmacsha = New-Object System.Security.Cryptography.HMACSHA256
     $hmacsha.Key = $Key
@@ -142,19 +174,30 @@ function ConvertTo-AwsConfigFile {
     Retrieve SHA256 Hash for Payload
 #>
 function Global:Get-AwsHash {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="string")]
 
     PARAM (
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="String to hash")][String]$StringToHash
+            ParameterSetName="string",
+            HelpMessage="String to hash")][String]$StringToHash="",
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            ParameterSetName="file",
+            HelpMessage="File to hash")][System.IO.FileInfo]$FileToHash
     )
  
     Process {
         $Hasher = [System.Security.Cryptography.SHA256]::Create()
 
-        $Hash = ([BitConverter]::ToString($Hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($StringToHash))) -replace '-','').ToLower()
+        if ($FileToHash) {
+            $Hash = Get-FileHash -Algorithm SHA256 -Path $FileToHash | select -ExpandProperty Hash
+        }
+        else {
+            $Hash = ([BitConverter]::ToString($Hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($StringToHash))) -replace '-','').ToLower()
+        }
 
         Write-Output $Hash
     }
@@ -191,21 +234,29 @@ function Global:New-AwsSignatureV2 {
             Position=4,
             HelpMessage="URI")][String]$Uri="/",
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=6,
-            HelpMessage="Content MD5")][Hashtable]$ContentMD5,
+            HelpMessage="Content MD5")][String]$ContentMD5="",
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=7,
-            HelpMessage="Content Type")][Hashtable]$ContentType,
+            HelpMessage="Content Type")][String]$ContentType="",
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=8,
-            HelpMessage="Date")][DateTime]$DateTime,
+            HelpMessage="Date")][String]$DateTime,
         [parameter(
             Mandatory=$False,
             Position=9,
-            HelpMessage="Headers")][Hashtable]$Headers=@{}
+            HelpMessage="Headers")][Hashtable]$Headers=@{},
+        [parameter(
+            Mandatory=$False,
+            Position=10,
+            HelpMessage="Bucket")][String]$Bucket,
+        [parameter(
+            Mandatory=$False,
+            Position=11,
+            HelpMessage="Query String (unencoded)")][String]$QueryString
     )
  
     Process {
@@ -216,92 +267,53 @@ function Global:New-AwsSignatureV2 {
             $DateTime = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")        
         }
 
-        Write-Debug "Constructing the CanonicalizedResource Element "
+        Write-Debug "Task 1: Constructing the CanonicalizedResource Element "
 
         $CanonicalizedResource = ""
         Write-Debug "1. Start with an empty string:`n$CanonicalizedResource"
 
-        $CanonicalizedResource = $Uri
-        Write-Debug "2. Add the bucketname for virtual host style:`n$EndpointUrl" 
-
-        # only URL encode if service is not S3
-        if ($Service -ne "s3" -and $Uri -ne "/") {
-            $CanonicalURI = [System.Web.HttpUtility]::UrlEncode($Uri)
+        if ($Bucket -and $EndpointUrl -match "^$Bucket") {
+            $CanonicalizedResource += "/$Bucket"
+            Write-Debug "2. Add the bucketname for virtual host style:`n$CanonicalizedResource" 
         }
         else {
-            $CanonicalURI = $Uri
-        }
-        Write-Debug "3. Canonical URI:`n$CanonicalURI"
-
-        Write-Debug "4. Canonical Query String:`n$CanonicalQueryString"
-
-        $CanonicalRequest = "$HTTPRequestMethod`n$EndpointUrl`n$CanonicalURI`n$CanonicalQueryString`n"
-        Write-Debug "5. Canonical Request:`n$CanonicalRequest"
-
-        Write-Debug "Task 2: Calculate the Signature"
-
-        $hmacsha = New-Object System.Security.Cryptography.HMACSHA256
-        $hmacsha.Key = [Text.Encoding]::UTF8.GetBytes($SecretAccessKey)
-
-        $hasher = [System.Security.Cryptography.SHA256]::Create()
-
-        $SortedHeaders = New-Object 'System.Collections.Generic.SortedDictionary[string, string]'
-        $SortedHeaders["Host"] = $EndpointUrl
-
-        foreach ($Key in $Headers.Keys) {
-            $SortedHeaders[$Key]=$Headers[$Key]
+            Write-Debug "2. Bucketname already part of Url for path style therefore skipping this step"
         }
 
-        $StringToSign = "$HTTPRequestMethod`n$ContentMD5`n$ContentType`n$Date`n$SignedHeaders`n$RequestPayloadHash"
+        $CanonicalizedResource += $Uri
+        Write-Debug "3. Append the path part of the un-decoded HTTP Request-URI, up-to but not including the query string:`n$CanonicalizedResource" 
 
-        Write-Debug "StringToSign: $StringToSign"
+        $CanonicalizedResource += $QueryString
+        Write-Debug "4. Append the query string unencoded for signing:`n$CanonicalizedResource" 
 
-        Write-Debug "CanonicalURI: $CanonicalURI"
+        Write-Debug "Task 2: Constructing the CanonicalizedAmzHeaders Element"
 
-        $CanonicalQueryString = ""
-        if ($Query.Keys) {
-            # using Sorted Dictionary as query need to be sorted by encoded keys
-            $SortedEncodedQuery = New-Object 'System.Collections.Generic.SortedDictionary[string, string]'
-            foreach ($Key in $Query.Keys) {
-                # Key and value need to be URL encoded separately
-                $SortedEncodedQuery[[System.Web.HttpUtility]::UrlEncode($Key)]=[System.Web.HttpUtility]::UrlEncode($Query[$Key])
-            }
-            foreach ($Key in $SortedEncodedQuery.Keys) {
-                $CanonicalQueryString += "$Key=$($SortedEncodedQuery[$Key])&"
-            }
-            $CanonicalQueryString = $CanonicalQueryString -replace "&`$",""
+        Write-Debug "1. Filter for all headers starting with x-amz"
+        $AmzHeaders = $Headers.Clone()
+        # remove all headers which do not start with x-amz
+        $Headers.Keys | % { if ($_ -notmatch "x-amz") { $AmzHeaders.Remove($_) } }
+        
+        Write-Debug "2. Sort headers lexicographically"
+        $SortedAmzHeaders = ConvertTo-SortedDictionary $AmzHeaders
+        $CanonicalizedAmzHeaders = ($SortedAmzHeaders.GetEnumerator()  | % { "$($_.Key.toLower()):$($_.Value)" }) -join "`n"
+        if ($CanonicalizedAmzHeaders) {
+            $CanonicalizedAmzHeaders = $CanonicalizedAmzHeaders + "`n"
         }
-        else {
-            $CanonicalQueryString = ""
-        }
-        Write-Debug "CanonicalQueryString: $CanonicalQueryString"
+        Write-Debug "3. CanonicalizedAmzHeaders headers:`n$CanonicalizedAmzHeaders"
 
-        Write-Debug "DateTime: $DateTime"
-        Write-Debug "DateString: $DateString"
+        Write-Debug "Task 3: String to sign"
 
-        $RequestPayloadHash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($RequestPayload))) -replace '-','').ToLower()
-        Write-Debug "RequestPayloadHash: $RequestPayloadHash"
+        $StringToSign = "$HTTPRequestMethod`n$ContentMD5`n$ContentType`n$DateTime`n$CanonicalizedAmzHeaders$CanonicalizedResource"
 
-        $CanonicalHeaders = "host:$EndpointUrl`nx-amz-content-sha256:$RequestPayloadHash`nx-amz-date:$DateTime`n"
-        Write-Debug "CanonicalHeaders: $CanonicalHeaders"
+        Write-Debug "1. StringToSign:`n$StringToSign"
 
-        $SignedHeaders = "host;x-amz-content-sha256;x-amz-date"
-        Write-Debug "SignedHeaders: $SignedHeaders"
+        Write-Debug "Task 4: Signature"
 
-        $CanonicalRequest = "$HTTPRequestMethod`n$CanonicalURI`n$CanonicalQueryString`n$CanonicalHeaders`n$SignedHeaders`n$RequestPayloadHash"
-        Write-Debug "CanonicalRequest: $CanonicalRequest"
+        $SignedString = Get-SignedString -Key ([Text.Encoding]::UTF8.GetBytes($SecretAccessKey)) -Message $StringToSign -Algorithm SHA1
+        $Signature = [Convert]::ToBase64String($SignedString)
 
-        $CanonicalRequestHash = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($CanonicalRequest))) -replace '-','').ToLower()
-        Write-Debug "CanonicalRequestHash: $CanonicalRequestHash"
+        Write-Debug "1. Signature:`n$Signature" 
 
-        $StringToSign = "AWS4-HMAC-SHA256`n$DateTime`n$DateString/$Region/$Service/aws4_request`n$CanonicalRequestHash"
-        Write-Debug "StringToSign"
-
-        $SignatureKey = GetSignatureKey $SecretAccessKey $DateString $Region $Service
-        Write-Debug "SignatureKey: $SignatureKey"
-
-        $Signature = ([BitConverter]::ToString((sign $SignatureKey $StringToSign)) -replace '-','').ToLower()
- 
         Write-Output $Signature
     }
 }
@@ -404,7 +416,7 @@ function Global:New-AwsSignatureV4 {
         if (!$Headers["x-amz-date"]) { $Headers["x-amz-date"] = $DateTime }
         if (!$Headers["content-type"] -and $ContentType) { $Headers["content-type"] = $ContentType }
         $SortedHeaders = ConvertTo-SortedDictionary $Headers
-        $CanonicalHeaders = (($SortedHeaders.GetEnumerator()  | % { "$($_.Key):$($_.Value)" }) -join "`n") + "`n"
+        $CanonicalHeaders = (($SortedHeaders.GetEnumerator()  | % { "$($_.Key.toLower()):$($_.Value)" }) -join "`n") + "`n"
         Write-Debug "4. Canonical headers:`n$CanonicalHeaders"
 
         $SignedHeaders = $SortedHeaders.Keys -join ";"
@@ -535,8 +547,12 @@ function Global:Invoke-AwsRequest {
             HelpMessage="Tenant name")][String]$Tenant,
         [parameter(
             Mandatory=$False,
-            Position=16,
-            HelpMessage="Use virtual host style for V2 Authentication")][Switch]$VirtualHostStyle
+            Position=17,
+            HelpMessage="File to output result to")][System.IO.DirectoryInfo]$OutFile,
+        [parameter(
+            Mandatory=$False,
+            Position=18,
+            HelpMessage="File to output result to")][System.IO.FileInfo]$InFile
     )
 
     Begin {
@@ -544,11 +560,11 @@ function Global:Invoke-AwsRequest {
         # convenience method to autogenerate credentials
         if ($CurrentSGWServer) {            
             if (!$Profile -and !$AccessKey -and $CurrentSGWServer.AccountId -and $EndpointUrl) {
-                Write-Warning "No profile and no access key specified, but connected to a StorageGRID tenant. Therefore autogenerating temporary AWS credentials and removing them after command execution"
+                Write-Verbose "No profile and no access key specified, but connected to a StorageGRID tenant. Therefore autogenerating temporary AWS credentials and removing them after command execution"
                 $Credential = New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)
             }
             elseif (!$Profile -and !$AccessKey -and $Tenant -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {
-                Write-Warning "No profile and no access key specified, but connected to a StorageGRID server. Therefore autogenerating temporary AWS credentials for tenant $Tenant and removing them after command execution"
+                Write-Verbose "No profile and no access key specified, but connected to a StorageGRID server. Therefore autogenerating temporary AWS credentials for tenant $Tenant and removing them after command execution"
                 $Credential = Get-SGWAccount -Name $Tenant | New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)                
             }
             elseif (!$Profile -and !$AccessKey -and $Bucket -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {                
@@ -560,7 +576,7 @@ function Global:Invoke-AwsRequest {
                     }
                 }
                 if ($AccountId) {
-                    Write-Warning "No profile and no access key specified, therefore autogenerating temporary AWS credentials and removing them after command execution"
+                    Write-Verbose "No profile and no access key specified, therefore autogenerating temporary AWS credentials and removing them after command execution"
                     $Credential = New-SGWS3AccessKey -AccountId $AccountId -Expires (Get-Date).AddMinutes(5)
                 }
                 else {
@@ -585,6 +601,7 @@ function Global:Invoke-AwsRequest {
                     catch {
                     }                        
                 }
+                Write-Verbose "Found out that the following EndpointUrl is valid: $EndpointUrl"
             }
 
             if ($Credential -and $EndpointUrl) {
@@ -673,26 +690,37 @@ function Global:Invoke-AwsRequest {
         $EndpointUrl = $EndpointUrl -replace ':80$','' -replace ':443$',''
     }
  
-    Process {
+    Process {        
         $DateTime = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
         $DateString = [DateTime]::UtcNow.ToString('yyyyMMdd')
 
+        $QueryString = ""
         $CanonicalQueryString = ""
         if ($Query.Keys.Count -ge 1) {
             # using Sorted Dictionary as query need to be sorted by encoded keys
-            $SortedEncodedQuery = New-Object 'System.Collections.Generic.SortedDictionary[string, string]'
+            $SortedQuery = New-Object 'System.Collections.Generic.SortedDictionary[string, string]'
             
             foreach ($Key in $Query.Keys) {
                 # Key and value need to be URL encoded separately
-                $SortedEncodedQuery[[System.Web.HttpUtility]::UrlEncode($Key)]=[System.Web.HttpUtility]::UrlEncode($Query[$Key])
+                $SortedQuery[$Key]=$Query[$Key]
             }
-            foreach ($Key in $SortedEncodedQuery.Keys) {
-                $CanonicalQueryString += "$Key=$($SortedEncodedQuery[$Key])&"
+            foreach ($Key in $SortedQuery.Keys) {
+                # AWS V2 only requires specific queries to be included in signing process                
+                if ($Key -match "versioning|location|acl|torrent|lifecycle|versionid|response-content-type|response-content-language|response-expires|response-cache-control|response-content-disposition|response-content-encoding") {
+                    $QueryString += "$Key=$($SortedQuery[$Key])&"
+                }
+                $CanonicalQueryString += "$([System.Web.HttpUtility]::UrlEncode($Key))=$([System.Web.HttpUtility]::UrlEncode($SortedQuery[$Key]))&"
             }
+            $QueryString = $QueryString -replace "&`$",""
             $CanonicalQueryString = $CanonicalQueryString -replace "&`$",""
         }
 
-        $RequestPayloadHash=Get-AWSHash -StringToHash $RequestPayload
+        if ($InFile) {
+            $RequestPayloadHash=Get-AWSHash -FileToHash $InFile
+        }
+        else {
+            $RequestPayloadHash=Get-AWSHash -StringToHash $RequestPayload
+        }
         
         if (!$Headers["host"]) { $Headers["host"] = $EndpointUrl }
         if (!$Headers["x-amz-content-sha256"]) { $Headers["x-amz-content-sha256"] = $RequestPayloadHash }
@@ -713,7 +741,7 @@ function Global:Invoke-AwsRequest {
         }
         else {
             Write-Verbose "Using AWS Signature Version 2"
-            $Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -HTTPRequestMethod $HTTPRequestMethod -ContentMD5 $ContentMd5 -ContentType $ContentType -Date $DateTime -Bucket $Bucket -VirtualHostStyle:$VirtualHostStyle
+            $Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -HTTPRequestMethod $HTTPRequestMethod -ContentMD5 $ContentMd5 -ContentType $ContentType -Date $DateTime -Bucket $Bucket -QueryString $QueryString
         }
 
         if ($HTTP) {
@@ -732,11 +760,28 @@ function Global:Invoke-AwsRequest {
 
         try {            
             if ($RequestPayload) {
-                Write-Verbose "RequestPayload:`n$RequestPayload"
-                $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload
+                if ($OutFile) {
+                    Write-Verbose "RequestPayload:`n$RequestPayload"
+                    Write-Verbose "Saving output in file $OutFile"
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload -OutFile $OutFile
+                }                
+                else {
+                    Write-Verbose "RequestPayload:`n$RequestPayload"
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload
+                }
             }
             else {
-                $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers
+                if ($OutFile) {
+                    Write-Verbose "Saving output in file $OutFile"
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -OutFile $OutFile
+                }
+                elseif ($InFile) {
+                    Write-Verbose "InFile:`n$InFile"
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -InFile $InFile
+                }
+                else {
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers
+                }
             }
         }
         catch {
@@ -798,6 +843,8 @@ function Global:Add-AwsCredentials {
 }
 
 ### S3 Cmdlets ###
+
+## Buckets ##
 
 <#
     .SYNOPSIS
@@ -1010,21 +1057,24 @@ function Global:Get-S3Bucket {
         $Objects = $Result.ListBucketResult.Contents | ? { $_ }
         $Objects | Add-Member -MemberType NoteProperty -Name Bucket -Value $Result.ListBucketResult.Name
 
+        Write-Output $Objects
+
         if ($Result.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
             Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
             Write-Debug "NextMarker: $($Result.ListBucketResult.NextMarker)"
             if ($Profile) {
-                $Objects += Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
             }
-            elseif ($Credential) {
-                $Objects += Get-S3Bucket -Credential $Credential -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+            elseif ($AccessKey) {
+                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+            }
+            elseif ($Tenant) {
+                Get-S3Bucket -Tenant $Tenant -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
             }
             else {
-                $Objects += Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
             }            
-        }
-
-        Write-Output $Objects
+        }   
     }
 }
 
@@ -1213,6 +1263,330 @@ function Global:Remove-S3Bucket {
         Write-Output $Result
     }
 }
+
+## Objects ##
+
+Set-Alias -Name Get-S3Objects -Value Get-S3Bucket
+
+Set-Alias -Name Get-S3Object -Value Read-S3Object
+<#
+    .SYNOPSIS
+    Get S3 Bucket
+    .DESCRIPTION
+    Get S3 Bucket
+#>
+function Global:Read-S3Object {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][String]$Bucket,
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key")][Alias("Object","Name")][String]$Key,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Byte range to retrieve from object")][String]$Range,
+        [parameter(
+            Mandatory=$False,
+            Position=8,
+            HelpMessage="Path where object should be stored")][Alias("OutFile")][System.IO.DirectoryInfo]$Path
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+        
+        $Uri += $Key        
+
+        $HTTPRequestMethod = "GET"
+
+        $Headers = @{}
+        if ($Range) {            
+            $Headers["Range"] = $Range
+        }
+
+        if ($Path) {
+            if ($Path.Exists) {
+                $Item = Get-Item $Path
+                if ($Item -is [FileInfo]) {
+                    $OutFile = $Item
+                }
+                else {
+                    $OutFile = Join-Path -Path $Path -ChildPath $Key
+                }
+            }
+            elseif ($Path.Parent.Exists) {
+                $OutFile = $Path
+            }
+            else {
+                Throw "Path $Path does not exist and parent directory $($Path.Parent) also does not exist"
+            }
+        }
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+        }
+
+        Write-Output $Result
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get S3 Bucket
+    .DESCRIPTION
+    Get S3 Bucket
+#>
+function Global:Write-S3Object {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][String]$Bucket,
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key")][Alias("Object","Name")][String]$Key,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            HelpMessage="Path where object should be stored")][Alias("Path")][System.IO.FileInfo]$InFile
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+        
+        $Uri += $Key        
+
+        $HTTPRequestMethod = "PUT"
+
+        if (!$InFile.Exists) {        
+            Throw "File $InFile does not exist"
+        }
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -OutFile $InFile -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+        }
+
+        Write-Output $Result
+    }
+}
+
+
+<#
+    .SYNOPSIS
+    Get S3 Bucket
+    .DESCRIPTION
+    Get S3 Bucket
+#>
+function Global:Remove-S3Object {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+            ParameterSetName="profile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+            ParameterSetName="credential",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="Credential")][PSCredential]$Credential,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+            ParameterSetName="keys",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+            ParameterSetName="tenant",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant,
+        [parameter(
+            Mandatory=$False,
+            Position=2,
+            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+        [parameter(
+            Mandatory=$False,
+            Position=3,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=4,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+            Mandatory=$True,
+            Position=5,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Bucket")][String]$Bucket,
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key")][Alias("Object","Name")][String]$Key
+    )
+ 
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $Uri = "/"
+            $EndpointUrl = $Bucket + "." + $EndpointUrl
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+        
+        $Uri += $Key        
+
+        $HTTPRequestMethod = "DELETE"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+        }
+        elseif ($Tenant) {
+            $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+        }
+    }
+}
+
+# StorageGRID specific #
 
 <#
     .SYNOPSIS

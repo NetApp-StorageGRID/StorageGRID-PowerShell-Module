@@ -3332,11 +3332,7 @@ function Global:Update-SGWIdentitySources {
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="Identity Source Username")][String]$Username,
-        [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Identity Source Password")][String]$Password,
+            HelpMessage="Identity Source Username and password")][PSCredential]$Credential,
         [parameter(
             Mandatory=$False,
             Position=6,
@@ -3398,7 +3394,8 @@ function Global:Update-SGWIdentitySources {
 
         $Method = "PUT"
 
-        $Username = $Username -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+        $Username = $Credential.UserName -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+        $Password = $Credential.GetNetworkCredential().Password
 
         $Body = @"
 {

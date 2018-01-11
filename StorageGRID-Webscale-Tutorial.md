@@ -129,3 +129,52 @@ $Sites = $Topology.children
 $Site = $Sites[0]
 Get-SGWReport -Attribute 'S3 Ingest - Rate (XSIR) [MB/s]' -OID $Site.oid
 ```
+
+# S3 Operations
+
+
+
+## Creating AWS Signatures
+
+### Version 4
+
+```powershell
+$DebugPreference = "Continue"
+# Example from http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+New-AwsSignatureV4 -AccessKey "test" -SecretAccessKey "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" -EndpointUrl "iam.amazonaws.com" -HTTPRequestMethod GET -Uri '/' -Query @{Action="ListUsers";Version="2010-05-08"} -ContentType "application/x-www-form-urlencoded; charset=utf-8" -DateTime "20150830T123600Z" -DateString "20150830" -Service "iam"
+$DebugPreference = "SilentlyContinue"
+```powershell
+
+### Version 2
+
+```powershell
+$DebugPreference = "Continue"
+# Examples from https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
+$AccessKey = "AKIAIOSFODNN7EXAMPLE"
+$SecretAccessKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+# Object GET
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "johnsmith.s3.amazonaws.com" -HTTPRequestMethod "GET" -DateTime "Tue, 27 Mar 2007 19:36:42 +0000" -Bucket "johnsmith" -Uri "/photos/puppy.jpg"
+$Signature -eq "bWq2s1WEIj+Ydj0vQ697zp+IXMU="
+# Object GET
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "johnsmith.s3.amazonaws.com" -HTTPRequestMethod "PUT" -DateTime "Tue, 27 Mar 2007 21:15:45 +0000" -Bucket "johnsmith" -Uri "/photos/puppy.jpg" -ContentType "image/jpeg"
+$Signature -eq "MyyxeRY7whkBe+bq8fHCL/2kKUg="
+# List
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "johnsmith.s3.amazonaws.com" -HTTPRequestMethod "GET" -DateTime "Tue, 27 Mar 2007 19:42:41 +0000" -Bucket "johnsmith"
+$Signature -eq "htDYFYduRNen8P9ZfE/s9SuKy0U="
+# Fetch
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "johnsmith.s3.amazonaws.com" -HTTPRequestMethod "GET" -DateTime "Tue, 27 Mar 2007 19:44:46 +0000" -Bucket "johnsmith" -QueryString "?acl"
+$Signature -eq "c2WLPFtWHVgbEmeEG93a4cG37dM="
+# Delete
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "s3.amazonaws.com" -HTTPRequestMethod "DELETE" -DateTime "Tue, 27 Mar 2007 21:20:26 +0000" -Bucket "johnsmith" -Uri "/johnsmith/photos/puppy.jpg"
+$Signature -eq "$Signature -eq "
+# Upload
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "static.johnsmith.net" -HTTPRequestMethod "PUT" -DateTime "Tue, 27 Mar 2007 21:06:08 +0000" -Bucket "static.johnsmith.net" -Uri "/db-backup.dat.gz" -ContentType "application/x-download" -ContentMD5 "4gJE4saaMU4BqNR0kLY+lw==" -Headers @{"x-amz-acl"="public-read";"content-type"="application/x-download";"Content-MD5"="4gJE4saaMU4BqNR0kLY+lw==";"X-Amz-Meta-ReviewedBy"="joe@johnsmith.net,jane@johnsmith.net";"X-Amz-Meta-FileChecksum"="0x02661779";"X-Amz-Meta-ChecksumAlgorithm"="crc32";"Content-Disposition"="attachment; filename=database.dat";"Content-Encoding"="gzip";"Content-Length"="5913339"}
+$Signature -eq "ilyl83RwaSoYIEdixDQcA4OnAnc="
+# List All My Buckets
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "s3.amazonaws.com" -HTTPRequestMethod "GET" -DateTime "Wed, 28 Mar 2007 01:29:59 +0000"
+$Signature -eq "qGdzdERIC03wnaRNKh6OqZehG9s="
+# Unicode Keys
+$Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl "s3.amazonaws.com" -HTTPRequestMethod "GET" -DateTime "Wed, 28 Mar 2007 01:49:49 +0000" -Uri "/dictionary/fran%C3%A7ais/pr%c3%a9f%c3%a8re"
+$Signature -eq "qGdzdERIC03wnaRNKh6OqZehG9s="
+$DebugPreference = "SilentlyContinue"
+```
