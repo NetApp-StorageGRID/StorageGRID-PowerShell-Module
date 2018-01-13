@@ -39,6 +39,8 @@ If the Module was installed with `Install-Module`, it can be upgraded with
 Update-Module -Name StorageGRID-Webscale
 ```
 
+If the Module was installed by downloading the ZIP file, then update the Module by replacing the StorageGRID-Webscale folder with the content of the new release ZIP file.
+
 Usage
 -----
 
