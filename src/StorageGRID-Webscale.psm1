@@ -1,4 +1,4 @@
-﻿# workarounds for PowerShell issues
+# workarounds for PowerShell issues
 if ($PSVersionTable.PSVersion.Major -lt 6) {
     Add-Type @"
         using System.Net;
@@ -155,7 +155,7 @@ function ConvertFrom-UnixTimestamp {
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Accounts
 #>
-function Global:Get-SGWAccounts {
+function Global:Get-SgwAccounts {
     [CmdletBinding()]
 
     PARAM (
@@ -181,7 +181,7 @@ function Global:Get-SGWAccounts {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -219,7 +219,7 @@ function Global:Get-SGWAccounts {
         Write-Output $Result.data
 
         if ($Limit -eq 0 -and $Result.data.count -eq 25) {
-            Get-SGWAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
         }              
     }
 }
@@ -230,7 +230,7 @@ function Global:Get-SGWAccounts {
     .DESCRIPTION
     Create a StorageGRID Webscale Account
 #>
-function Global:New-SGWAccount {
+function Global:New-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
@@ -267,7 +267,7 @@ function Global:New-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -ge 2 -and !$Password) {
             Throw "Password required"
@@ -320,7 +320,7 @@ function Global:New-SGWAccount {
     .DESCRIPTION
     Delete a StorageGRID Webscale Account
 #>
-function Global:Remove-SGWAccount {
+function Global:Remove-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
@@ -341,7 +341,7 @@ function Global:Remove-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -369,7 +369,7 @@ function Global:Remove-SGWAccount {
     .DESCRIPTION
     Retrieve a StorageGRID Webscale Account
 #>
-function Global:Get-SGWAccount {
+function Global:Get-SgwAccount {
     [CmdletBinding(DefaultParameterSetName="id")]
 
     PARAM (
@@ -398,7 +398,7 @@ function Global:Get-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -408,7 +408,7 @@ function Global:Get-SGWAccount {
     Process {
         if ($Name) {
             # this is a convenience method for retrieving an account by name
-            $Account = Get-SGWAccounts | ? { $_.Name -eq $Name }
+            $Account = Get-SgwAccounts | ? { $_.Name -eq $Name }
             Write-Output $Account
         }
         else {
@@ -436,7 +436,7 @@ function Global:Get-SGWAccount {
     .DESCRIPTION
     Update a StorageGRID Webscale Account
 #>
-function Global:Update-SGWAccount {
+function Global:Update-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
@@ -473,7 +473,7 @@ function Global:Update-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
@@ -527,7 +527,7 @@ function Global:Update-SGWAccount {
     .DESCRIPTION
     Replace a StorageGRID Webscale Account
 #>
-function Global:Replace-SGWAccount {
+function Global:Replace-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
@@ -564,7 +564,7 @@ function Global:Replace-SGWAccount {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
@@ -613,7 +613,7 @@ function Global:Replace-SGWAccount {
     .DESCRIPTION
     Change Swift Admin Password for StorageGRID Webscale Account
 #>
-function Global:Update-SGWSwiftAdminPassword {
+function Global:Update-SgwSwiftAdminPassword {
     [CmdletBinding()]
 
     PARAM (
@@ -642,10 +642,10 @@ function Global:Update-SGWSwiftAdminPassword {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
-            Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SGWPassword Cmdlet instead!"
+            Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SgwPassword Cmdlet instead!"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -683,7 +683,7 @@ function Global:Update-SGWSwiftAdminPassword {
     .DESCRIPTION
     Changes the root user password for the Storage Tenant Account
 #>
-function Global:Update-SGWPassword {
+function Global:Update-SgwPassword {
     [CmdletBinding()]
 
     PARAM (
@@ -712,10 +712,10 @@ function Global:Update-SGWPassword {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
-            Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SGWSwiftAdminPassword Cmdlet instead!"
+            Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SgwSwiftAdminPassword Cmdlet instead!"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -753,7 +753,7 @@ function Global:Update-SGWPassword {
     .DESCRIPTION
     Retrieve StorageGRID Webscale Account Usage Report
 #>
-function Global:Get-SGWAccountUsage {
+function Global:Get-SgwAccountUsage {
     [CmdletBinding()]
 
     PARAM (
@@ -774,7 +774,7 @@ function Global:Get-SGWAccountUsage {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -813,7 +813,7 @@ function Global:Get-SGWAccountUsage {
     .DESCRIPTION
     Connect to StorageGRID Webscale Management Server
 #>
-function global:Connect-SGWServer {
+function global:Connect-SgwServer {
     [CmdletBinding()]
  
     PARAM (
@@ -885,7 +885,7 @@ function global:Connect-SGWServer {
 
     Write-Verbose "Body:`n$Body"
  
-    $APIVersion = (Get-SGWVersion -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
+    $APIVersion = (Get-SgwVersion -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
 
     if (!$APIVersion) {
         Write-Error "API Version could not be retrieved via https://$Name/api/versions"
@@ -939,7 +939,7 @@ function global:Connect-SGWServer {
     .DESCRIPTION
     Connect to StorageGRID Webscale Management Server
 #>
-function global:Disconnect-SGWServer {
+function global:Disconnect-SgwServer {
     [CmdletBinding()]
  
     PARAM (
@@ -954,7 +954,7 @@ function global:Disconnect-SGWServer {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -982,7 +982,7 @@ function global:Disconnect-SGWServer {
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Alarms
 #>
-function Global:Get-SGWAlarms {
+function Global:Get-SgwAlarms {
     [CmdletBinding()]
 
     PARAM (
@@ -1002,7 +1002,7 @@ function Global:Get-SGWAlarms {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1042,7 +1042,7 @@ function Global:Get-SGWAlarms {
     .DESCRIPTION
     Retrieves global configuration and token information
 #>
-function Global:Get-SGWConfig {
+function Global:Get-SgwConfig {
     [CmdletBinding()]
 
     PARAM (
@@ -1056,7 +1056,7 @@ function Global:Get-SGWConfig {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -1088,7 +1088,7 @@ function Global:Get-SGWConfig {
     .DESCRIPTION
     Retrieves the global management API and UI configuration
 #>
-function Global:Get-SGWConfigManagement {
+function Global:Get-SgwConfigManagement {
     [CmdletBinding()]
 
     PARAM (
@@ -1102,7 +1102,7 @@ function Global:Get-SGWConfigManagement {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "Cmdlet not supported on server with API Version less than 2.0"
@@ -1134,7 +1134,7 @@ function Global:Get-SGWConfigManagement {
     .DESCRIPTION
     Changes the global management API and UI configuration
 #>
-function Global:Update-SGWConfigManagement {
+function Global:Update-SgwConfigManagement {
     [CmdletBinding()]
 
     PARAM (
@@ -1152,7 +1152,7 @@ function Global:Update-SGWConfigManagement {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "Cmdlet not supported on server with API Version less than 2.0"
@@ -1177,7 +1177,7 @@ function Global:Update-SGWConfigManagement {
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
-        $Server.SupportedApiVersions = @(Get-SGWVersions -Server $Server)
+        $Server.SupportedApiVersions = @(Get-SgwVersions -Server $Server)
        
         Write-Output $Result.data
     }
@@ -1189,7 +1189,7 @@ function Global:Update-SGWConfigManagement {
     .DESCRIPTION
     Retrieve StorageGRID Product Version
 #>
-function Global:Get-SGWProductVersion {
+function Global:Get-SgwProductVersion {
     [CmdletBinding()]
 
     PARAM (
@@ -1203,7 +1203,7 @@ function Global:Get-SGWProductVersion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -1235,7 +1235,7 @@ function Global:Get-SGWProductVersion {
     .DESCRIPTION
     Retrieves the current API versionsof the management API
 #>
-function Global:Get-SGWVersion {
+function Global:Get-SgwVersion {
     [CmdletBinding()]
 
     PARAM (
@@ -1255,7 +1255,7 @@ function Global:Get-SGWVersion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -1288,7 +1288,7 @@ function Global:Get-SGWVersion {
     .DESCRIPTION
     Retrieves the major versions of the management API supported by the product release
 #>
-function Global:Get-SGWVersions {
+function Global:Get-SgwVersions {
     [CmdletBinding()]
 
     PARAM (
@@ -1302,7 +1302,7 @@ function Global:Get-SGWVersions {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -1335,7 +1335,7 @@ function Global:Get-SGWVersions {
     .DESCRIPTION
     Retrieves the deactivated features configuration
 #>
-function Global:Get-SGWDeactivatedFeatures {
+function Global:Get-SgwDeactivatedFeatures {
     [CmdletBinding()]
 
     PARAM (
@@ -1349,7 +1349,7 @@ function Global:Get-SGWDeactivatedFeatures {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
@@ -1384,7 +1384,7 @@ function Global:Get-SGWDeactivatedFeatures {
     .DESCRIPTION
     Deactivates specific features. If no feature is selected, all features will be enabled again.
 #>
-function Global:Update-SGWDeactivatedFeatures {
+function Global:Update-SgwDeactivatedFeatures {
     [CmdletBinding()]
 
     PARAM (
@@ -1422,7 +1422,7 @@ function Global:Update-SGWDeactivatedFeatures {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
@@ -1501,7 +1501,7 @@ function Global:Update-SGWDeactivatedFeatures {
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
 #>
-function Global:Get-SGWDNSServers {
+function Global:Get-SgwDNSServers {
     [CmdletBinding()]
 
     PARAM (
@@ -1515,7 +1515,7 @@ function Global:Get-SGWDNSServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1544,7 +1544,7 @@ function Global:Get-SGWDNSServers {
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
 #>
-function Global:Replace-SGWDNSServers {
+function Global:Replace-SgwDNSServers {
     [CmdletBinding()]
 
     PARAM (
@@ -1561,7 +1561,7 @@ function Global:Replace-SGWDNSServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1600,7 +1600,7 @@ function Global:Replace-SGWDNSServers {
     .DESCRIPTION
     Lists endpoint domain names
 #>
-function Global:Get-SGWEndpointDomainNames {
+function Global:Get-SgwEndpointDomainNames {
     [CmdletBinding()]
 
     PARAM (
@@ -1614,7 +1614,7 @@ function Global:Get-SGWEndpointDomainNames {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1643,7 +1643,7 @@ function Global:Get-SGWEndpointDomainNames {
     .DESCRIPTION
     Change the endpoint domain names
 #>
-function Global:Replace-SGWEndpointDomainNames {
+function Global:Replace-SgwEndpointDomainNames {
     [CmdletBinding()]
 
     PARAM (
@@ -1660,7 +1660,7 @@ function Global:Replace-SGWEndpointDomainNames {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1698,7 +1698,7 @@ function Global:Replace-SGWEndpointDomainNames {
     .DESCRIPTION
     Cancels the expansion procedure and resets all user configuration of expansion grid nodes
 #>
-function Global:Stop-SGWExpansion {
+function Global:Stop-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
@@ -1712,7 +1712,7 @@ function Global:Stop-SGWExpansion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1741,7 +1741,7 @@ function Global:Stop-SGWExpansion {
     .DESCRIPTION
     Retrieves the status of the current expansion procedure
 #>
-function Global:Get-SGWExpansion {
+function Global:Get-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
@@ -1755,7 +1755,7 @@ function Global:Get-SGWExpansion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1784,7 +1784,7 @@ function Global:Get-SGWExpansion {
     .DESCRIPTION
     Initiates the expansion procedure, allowing configuration of the expansion grid nodes
 #>
-function Global:Start-SGWExpansion {
+function Global:Start-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
@@ -1798,7 +1798,7 @@ function Global:Start-SGWExpansion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1827,7 +1827,7 @@ function Global:Start-SGWExpansion {
     .DESCRIPTION
     Executes the expansion procedure, adding configured grid nodes to the grid
 #>
-function Global:Invoke-SGWExpansion {
+function Global:Invoke-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
@@ -1844,7 +1844,7 @@ function Global:Invoke-SGWExpansion {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1879,7 +1879,7 @@ function Global:Invoke-SGWExpansion {
     .DESCRIPTION
     Retrieves the list of grid nodes available for expansion
 #>
-function Global:Get-SGWExpansionNodes {
+function Global:Get-SgwExpansionNodes {
     [CmdletBinding()]
 
     PARAM (
@@ -1893,7 +1893,7 @@ function Global:Get-SGWExpansionNodes {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1922,7 +1922,7 @@ function Global:Get-SGWExpansionNodes {
     .DESCRIPTION
     Removes a grid node from all procedures; the grid node may be added back in by rebooting it
 #>
-function Global:Remove-SGWExpansionNode {
+function Global:Remove-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
@@ -1942,7 +1942,7 @@ function Global:Remove-SGWExpansionNode {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1971,7 +1971,7 @@ function Global:Remove-SGWExpansionNode {
     .DESCRIPTION
     Retrieves a grid node eligbible for expansion
 #>
-function Global:Get-SGWExpansionNode {
+function Global:Get-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
@@ -1991,7 +1991,7 @@ function Global:Get-SGWExpansionNode {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2021,7 +2021,7 @@ function Global:Get-SGWExpansionNode {
     .DESCRIPTION
     Configures a grid node expansion
 #>
-function Global:New-SGWExpansionNode {
+function Global:New-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
@@ -2035,7 +2035,7 @@ function Global:New-SGWExpansionNode {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2064,7 +2064,7 @@ function Global:New-SGWExpansionNode {
     .DESCRIPTION
     Resets a grid node's configuration and returns it back to pending state
 #>
-function Global:Reset-SGWExpansionNode {
+function Global:Reset-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
@@ -2084,7 +2084,7 @@ function Global:Reset-SGWExpansionNode {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2115,7 +2115,7 @@ function Global:Reset-SGWExpansionNode {
     .DESCRIPTION
     Retrieves the list of existing and new sites (empty until expansion is started)
 #>
-function Global:Get-SGWExpansionSites {
+function Global:Get-SgwExpansionSites {
     [CmdletBinding()]
 
     PARAM (
@@ -2129,7 +2129,7 @@ function Global:Get-SGWExpansionSites {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2158,7 +2158,7 @@ function Global:Get-SGWExpansionSites {
     .DESCRIPTION
     Adds a new site
 #>
-function Global:New-SGWExpansionSite {
+function Global:New-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
@@ -2178,7 +2178,7 @@ function Global:New-SGWExpansionSite {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2210,7 +2210,7 @@ function Global:New-SGWExpansionSite {
     .DESCRIPTION
     Delete a site
 #>
-function Global:Remove-SGWExpansionNode {
+function Global:Remove-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
@@ -2230,7 +2230,7 @@ function Global:Remove-SGWExpansionNode {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2259,7 +2259,7 @@ function Global:Remove-SGWExpansionNode {
     .DESCRIPTION
     Retrieve a site
 #>
-function Global:Get-SGWExpansionSite {
+function Global:Get-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
@@ -2279,7 +2279,7 @@ function Global:Get-SGWExpansionSite {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2308,7 +2308,7 @@ function Global:Get-SGWExpansionSite {
     .DESCRIPTION
     Updates the details of a site
 #>
-function Global:Update-SGWExpansionSite {
+function Global:Update-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
@@ -2334,7 +2334,7 @@ function Global:Update-SGWExpansionSite {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2375,7 +2375,7 @@ function Global:Update-SGWExpansionSite {
     .DESCRIPTION
     Lists the current Grid Networks
 #>
-function Global:Get-SGWGridNetworks {
+function Global:Get-SgwGridNetworks {
     [CmdletBinding()]
 
     PARAM (
@@ -2389,7 +2389,7 @@ function Global:Get-SGWGridNetworks {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2418,7 +2418,7 @@ function Global:Get-SGWGridNetworks {
     .DESCRIPTION
     Change the Grid Network list
 #>
-function Global:Update-SGWGridNetworks {
+function Global:Update-SgwGridNetworks {
     [CmdletBinding()]
 
     PARAM (
@@ -2438,7 +2438,7 @@ function Global:Update-SGWGridNetworks {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2475,7 +2475,7 @@ function Global:Update-SGWGridNetworks {
     .DESCRIPTION
     List Groups
 #>
-function Global:Get-SGWGroups {
+function Global:Get-SgwGroups {
     [CmdletBinding()]
 
     PARAM (
@@ -2490,7 +2490,7 @@ function Global:Get-SGWGroups {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -2523,7 +2523,7 @@ function Global:Get-SGWGroups {
     .DESCRIPTION
     Creates a new Grid Administrator Group
 #>
-function Global:New-SGWGroup {
+function Global:New-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -2578,7 +2578,7 @@ function Global:New-SGWGroup {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2642,7 +2642,7 @@ function Global:New-SGWGroup {
     .DESCRIPTION
     Retrieves a local Grid Administrator Group by unique name
 #>
-function Global:Get-SGWGroupByShortName {
+function Global:Get-SgwGroupByShortName {
     [CmdletBinding()]
 
     PARAM (
@@ -2661,7 +2661,7 @@ function Global:Get-SGWGroupByShortName {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -2693,7 +2693,7 @@ function Global:Get-SGWGroupByShortName {
     .DESCRIPTION
     Retrieves a federated Grid Administrator Group by unique name
 #>
-function Global:Get-SGWFederatedGroupByShortName {
+function Global:Get-SgwFederatedGroupByShortName {
     [CmdletBinding()]
 
     PARAM (
@@ -2712,7 +2712,7 @@ function Global:Get-SGWFederatedGroupByShortName {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -2744,7 +2744,7 @@ function Global:Get-SGWFederatedGroupByShortName {
     .DESCRIPTION
     Deletes a single Group
 #>
-function Global:Delete-SGWGroup {
+function Global:Delete-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -2765,7 +2765,7 @@ function Global:Delete-SGWGroup {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -2797,7 +2797,7 @@ function Global:Delete-SGWGroup {
     .DESCRIPTION
     Retrieves a single Group
 #>
-function Global:Get-SGWGroup {
+function Global:Get-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -2818,7 +2818,7 @@ function Global:Get-SGWGroup {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -2851,7 +2851,7 @@ function Global:Get-SGWGroup {
     .DESCRIPTION
     Updates a single Grid Administrator Group
 #>
-function Global:Update-SGWGroup {
+function Global:Update-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -2906,7 +2906,7 @@ function Global:Update-SGWGroup {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -2969,7 +2969,7 @@ function Global:Update-SGWGroup {
     .DESCRIPTION
     Replaces a single Grid Administrator Group
 #>
-function Global:Replace-SGWGroup {
+function Global:Replace-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -3040,7 +3040,7 @@ function Global:Replace-SGWGroup {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3114,7 +3114,7 @@ function Global:Replace-SGWGroup {
     .DESCRIPTION
     Retrieve groups of a StorageGRID Webscale Account
 #>
-function Global:Get-SGWAccountGroups {
+function Global:Get-SgwAccountGroups {
     [CmdletBinding()]
 
     PARAM (
@@ -3135,7 +3135,7 @@ function Global:Get-SGWAccountGroups {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
             Throw "This Cmdlet is only supported with API Version 1"
@@ -3169,7 +3169,7 @@ function Global:Get-SGWAccountGroups {
     .DESCRIPTION
     Retrieve StorageGRID Health Status
 #>
-function Global:Get-SGWHealth {
+function Global:Get-SgwHealth {
     [CmdletBinding()]
 
     PARAM (
@@ -3183,7 +3183,7 @@ function Global:Get-SGWHealth {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3212,7 +3212,7 @@ function Global:Get-SGWHealth {
     .DESCRIPTION
     Retrieve StorageGRID Topology with Health Status
 #>
-function Global:Get-SGWTopologyHealth {
+function Global:Get-SgwTopologyHealth {
     [CmdletBinding()]
 
     PARAM (
@@ -3229,7 +3229,7 @@ function Global:Get-SGWTopologyHealth {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3260,7 +3260,7 @@ function Global:Get-SGWTopologyHealth {
     .DESCRIPTION
     Retrieve identity sources
 #>
-function Global:Get-SGWIdentitySources {
+function Global:Get-SgwIdentitySources {
     [CmdletBinding()]
 
     PARAM (
@@ -3275,7 +3275,7 @@ function Global:Get-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -3307,7 +3307,7 @@ function Global:Get-SGWIdentitySources {
     .DESCRIPTION
     Retrieve identity sources
 #>
-function Global:Update-SGWIdentitySources {
+function Global:Update-SgwIdentitySources {
     [CmdletBinding()]
 
     PARAM (
@@ -3380,7 +3380,7 @@ function Global:Update-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -3436,7 +3436,7 @@ function Global:Update-SGWIdentitySources {
     .DESCRIPTION
     Retrieve identity sources
 #>
-function Global:Sync-SGWIdentitySources {
+function Global:Sync-SgwIdentitySources {
     [CmdletBinding()]
 
     PARAM (
@@ -3451,7 +3451,7 @@ function Global:Sync-SGWIdentitySources {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -3488,7 +3488,7 @@ function Global:Sync-SGWIdentitySources {
     .DESCRIPTION
     Evaluates proposed ILM policy
 #>
-function Global:Invoke-SGWIlmEvaluate {
+function Global:Invoke-SgwIlmEvaluate {
     [CmdletBinding()]
 
     PARAM (
@@ -3511,7 +3511,7 @@ function Global:Invoke-SGWIlmEvaluate {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3549,7 +3549,7 @@ function Global:Invoke-SGWIlmEvaluate {
     .DESCRIPTION
     Lists metadata available for creating an ILM rule
 #>
-function Global:Get-SGWIlmMetadata {
+function Global:Get-SgwIlmMetadata {
     [CmdletBinding()]
 
     PARAM (
@@ -3566,7 +3566,7 @@ function Global:Get-SGWIlmMetadata {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3595,7 +3595,7 @@ function Global:Get-SGWIlmMetadata {
     .DESCRIPTION
     Lists ILM rules
 #>
-function Global:Get-SGWIlmRules {
+function Global:Get-SgwIlmRules {
     [CmdletBinding()]
 
     PARAM (
@@ -3609,7 +3609,7 @@ function Global:Get-SGWIlmRules {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3640,7 +3640,7 @@ function Global:Get-SGWIlmRules {
     .DESCRIPTION
     Retrieves the grid license
 #>
-function Global:Get-SGWLicense {
+function Global:Get-SgwLicense {
     [CmdletBinding()]
 
     PARAM (
@@ -3654,7 +3654,7 @@ function Global:Get-SGWLicense {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3683,7 +3683,7 @@ function Global:Get-SGWLicense {
     .DESCRIPTION
     Update the license
 #>
-function Global:Update-SGWLicense {
+function Global:Update-SgwLicense {
     [CmdletBinding()]
 
     PARAM (
@@ -3705,7 +3705,7 @@ function Global:Update-SGWLicense {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3747,7 +3747,7 @@ function Global:Update-SGWLicense {
     .DESCRIPTION
     Retrieves the metric names
 #>
-function Global:Get-SGWMetricNames {
+function Global:Get-SgwMetricNames {
     [CmdletBinding()]
 
     PARAM (
@@ -3761,7 +3761,7 @@ function Global:Get-SGWMetricNames {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3790,7 +3790,7 @@ function Global:Get-SGWMetricNames {
     .DESCRIPTION
     Performs an instant metric query at a single point in time
 #>
-function Global:Get-SGWMetricQuery {
+function Global:Get-SgwMetricQuery {
     [CmdletBinding()]
 
     PARAM (
@@ -3813,7 +3813,7 @@ function Global:Get-SGWMetricQuery {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3859,7 +3859,7 @@ function Global:Get-SGWMetricQuery {
     .DESCRIPTION
     Lists configured external NTP servers
 #>
-function Global:Get-SGWNtpServers {
+function Global:Get-SgwNtpServers {
     [CmdletBinding()]
 
     PARAM (
@@ -3873,7 +3873,7 @@ function Global:Get-SGWNtpServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3902,7 +3902,7 @@ function Global:Get-SGWNtpServers {
     .DESCRIPTION
     Change the external NTP servers used by the grid
 #>
-function Global:Update-SGWNtpServers {
+function Global:Update-SgwNtpServers {
     [CmdletBinding()]
 
     PARAM (
@@ -3922,7 +3922,7 @@ function Global:Update-SGWNtpServers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3978,7 +3978,7 @@ function Global:Update-SGWNtpServers {
     .DESCRIPTION
     Retrieve all StorageGRID Users
 #>
-function Global:Get-SGWUsers {
+function Global:Get-SgwUsers {
     [CmdletBinding()]
 
     PARAM (
@@ -4007,7 +4007,7 @@ function Global:Get-SGWUsers {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -4048,7 +4048,7 @@ function Global:Get-SGWUsers {
         Write-Output $Result.data
 
         if ($Limit -eq 0 -and $Result.data.count -eq 25) {
-            Get-SGWAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
         }              
     }
 }
@@ -4063,7 +4063,7 @@ function Global:Get-SGWUsers {
     .DESCRIPTION
     Retrieve StorageGRID Webscale Account S3 Access Keys
 #>
-function Global:Get-SGWS3AccessKeys {
+function Global:Get-SgwS3AccessKeys {
     [CmdletBinding()]
 
     PARAM (
@@ -4090,10 +4090,10 @@ function Global:Get-SGWS3AccessKeys {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
-            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
  
@@ -4134,7 +4134,7 @@ function Global:Get-SGWS3AccessKeys {
     .DESCRIPTION
     Retrieve a StorageGRID Webscale Account S3 Access Key
 #>
-function Global:Get-SGWS3AccessKey {
+function Global:Get-SgwS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
@@ -4167,10 +4167,10 @@ function Global:Get-SGWS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
-            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
  
@@ -4212,7 +4212,7 @@ function Global:Get-SGWS3AccessKey {
     .DESCRIPTION
     Create a new StorageGRID Webscale Account S3 Access Key
 #>
-function Global:New-SGWS3AccessKey {
+function Global:New-SgwS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
@@ -4243,10 +4243,10 @@ function Global:New-SGWS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
-            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
         if ($Expires) {
             $ExpirationDate = Get-Date -Format o $Expires.ToUniversalTime()
@@ -4297,7 +4297,7 @@ function Global:New-SGWS3AccessKey {
     .DESCRIPTION
     Delete a StorageGRID Webscale Account S3 Access Key
 #>
-function Global:Remove-SGWS3AccessKey {
+function Global:Remove-SgwS3AccessKey {
     [CmdletBinding()]
 
     PARAM (
@@ -4330,10 +4330,10 @@ function Global:Remove-SGWS3AccessKey {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
-            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SGWConfigManagement -MinApiVersion 1"
+            Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
  
@@ -4375,7 +4375,7 @@ function Global:Remove-SGWS3AccessKey {
     .DESCRIPTION
     Get StorageGRID Report
 #>
-function Global:Get-SGWReport {
+function Global:Get-SgwReport {
     [CmdletBinding()]
 
     PARAM (
@@ -4406,7 +4406,7 @@ function Global:Get-SGWReport {
             $Server = $Global:CurrentSGWServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SGWServer to continue."
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
  
@@ -4417,7 +4417,7 @@ function Global:Get-SGWReport {
         $AttributeCode = $Attribute -replace ".*\((.+)\).*",'$1'
 
         if (!$OID) {
-            $OID = (Get-SGWTopologyHealth -Server $Server).oid
+            $OID = (Get-SgwTopologyHealth -Server $Server).oid
         }
 
         $Method = "GET"
