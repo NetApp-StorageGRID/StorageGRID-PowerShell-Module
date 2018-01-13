@@ -29,6 +29,15 @@ If you can't install via `Install-Module` you can download the latest version of
 For all users copy the folder to 
 
     C:\Windows\System32\WindowsPowerShell\v1.0\Modules
+    
+Update
+------
+
+If the Module was installed with `Install-Module`, it can be upgraded with
+
+```powershell
+Update-Module -Name StorageGRID-Webscale
+```
 
 Usage
 -----
