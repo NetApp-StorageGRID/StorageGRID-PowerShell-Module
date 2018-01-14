@@ -558,16 +558,16 @@ function Global:Invoke-AwsRequest {
     Begin {
         $Credential = $null
         # convenience method to autogenerate credentials
-        if ($CurrentSGWServer) {            
-            if (!$Profile -and !$AccessKey -and $CurrentSGWServer.AccountId -and $EndpointUrl) {
+        if ($CurrentSgwServer) {            
+            if (!$Profile -and !$AccessKey -and $CurrentSgwServer.AccountId -and $EndpointUrl) {
                 Write-Verbose "No profile and no access key specified, but connected to a StorageGRID tenant. Therefore autogenerating temporary AWS credentials and removing them after command execution"
                 $Credential = New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)
             }
-            elseif (!$Profile -and !$AccessKey -and $Tenant -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {
+            elseif (!$Profile -and !$AccessKey -and $Tenant -and $CurrentSgwServer.SupportedApiVersions.Contains(1)) {
                 Write-Verbose "No profile and no access key specified, but connected to a StorageGRID server. Therefore autogenerating temporary AWS credentials for tenant $Tenant and removing them after command execution"
                 $Credential = Get-SGWAccount -Name $Tenant | New-SGWS3AccessKey -Expires (Get-Date).AddMinutes(5)                
             }
-            elseif (!$Profile -and !$AccessKey -and $Bucket -and $CurrentSGWServer.SupportedApiVersions.Contains(1)) {                
+            elseif (!$Profile -and !$AccessKey -and $Bucket -and $CurrentSgwServer.SupportedApiVersions.Contains(1)) {                
                 # need to check each account for its buckets to determine which account the bucket belongs to
                 $AccountId = foreach ($Account in (Get-SgwAccounts)) {
                     if ($Account | Get-SGWAccountUsage | select -ExpandProperty buckets | ? { $_.name -eq $Bucket }) {
@@ -588,7 +588,7 @@ function Global:Invoke-AwsRequest {
                 $Profile = "default"            
             }
 
-            if ($Credential -and !$EndpointUrl -and !$CurrentSGWServer.accountId) {
+            if ($Credential -and !$EndpointUrl -and !$CurrentSgwServer.accountId) {
                 Write-Verbose "EndpointUrl not specified, but connected to StorageGRID server. Trying to connect with any of the endpoint domain names specified in the grid"
                 # connect to default https port and to default StorageGRID S3 port
                 $EndpointDomainNames = Get-SGWEndpointDomainNames | % { @($_,"${_}:8082") }
@@ -868,21 +868,29 @@ function Global:Get-S3Buckets {
             ParameterSetName="profile",
             Mandatory=$False,
             Position=2,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
             HelpMessage="AWS Profile to use which contains AWS credentials and settings")][String]$Profile,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
             Position=2,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
             HelpMessage="S3 Access Key")][String]$AccessKey,
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
             Position=3,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
         [parameter(
             ParameterSetName="tenant",
             Mandatory=$False,
             Position=2,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
             HelpMessage="StorageGRID tenant name to execute this command against")][String]$Tenant
     )
  
@@ -900,19 +908,25 @@ function Global:Get-S3Buckets {
             $Result = Invoke-AwsRequest -Tenant $Tenant -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
-        }
-        
-        $Buckets = @()
-        if ($Result.ListAllMyBucketsResult) {
-            foreach ($Bucket in $Result.ListAllMyBucketsResult.Buckets.ChildNodes) {
-                $Buckets += [PSCustomObject]@{Name=$Bucket.Name;CreationDate=$Bucket.CreationDate}
+            if ($CurrentSgwServer.SupportedApiVersions -match "1" -and !$CurrentSgwServer.AccountId) {
+                Get-SgwAccounts -Capabilities "s3" |  Get-S3Buckets -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck
             }
-            $Owner = [PSCustomObject]@{ID=$Result.ListAllMyBucketsResult.Owner.ID;DisplayName=$Result.ListAllMyBucketsResult.Owner.DisplayName}
+            else {
+                $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            }
         }
-        $Buckets | Add-Member -MemberType NoteProperty -Name OwnerId -Value $Owner.ID
-        $Buckets | Add-Member -MemberType NoteProperty -Name OwnerDisplayName -Value $Owner.DisplayName
-        Write-Output $Buckets
+        if ($Result) {
+            $Buckets = @()
+            if ($Result.ListAllMyBucketsResult) {
+                foreach ($Bucket in $Result.ListAllMyBucketsResult.Buckets.ChildNodes) {
+                    $Buckets += [PSCustomObject]@{ Name = $Bucket.Name; CreationDate = $Bucket.CreationDate }
+                }
+                $Owner = [PSCustomObject]@{ ID = $Result.ListAllMyBucketsResult.Owner.ID; DisplayName = $Result.ListAllMyBucketsResult.Owner.DisplayName }
+            }
+            $Buckets | Add-Member -MemberType NoteProperty -Name OwnerId -Value $Owner.ID
+            $Buckets | Add-Member -MemberType NoteProperty -Name OwnerDisplayName -Value $Owner.DisplayName
+            Write-Output $Buckets
+        }
     }
 }
 
