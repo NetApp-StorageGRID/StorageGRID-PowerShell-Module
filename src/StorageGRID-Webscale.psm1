@@ -69,21 +69,24 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 
 ### Helper Functions ###
 
-function ParseExceptionBody($Response) {
-    if ($Response) {
-        $Reader = New-Object System.IO.StreamReader($Response.GetResponseStream())
-        $Reader.BaseStream.Position = 0
-        $Reader.DiscardBufferedData()
-        $ResponseBody = $reader.ReadToEnd()
-        if ($ResponseBody.StartsWith('{')) {
-            $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
+function ParseErrorForResponseBody($Error) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        if ($Error.Exception.Response) {
+            $Reader = New-Object System.IO.StreamReader($Error.Exception.Response.GetResponseStream())
+            $Reader.BaseStream.Position = 0
+            $Reader.DiscardBufferedData()
+            $ResponseBody = $Reader.ReadToEnd()
+            if ($ResponseBody.StartsWith('{')) {
+                $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
+            }
+            return $ResponseBody
         }
-        return $ResponseBody
     }
     else {
-        return $Response
+        return $Error.ErrorDetails.Message
     }
 }
+
 
 # helper function to convert datetime to unix timestamp
 function ConvertTo-UnixTimestamp {
@@ -173,7 +176,10 @@ function Global:Get-SgwAccounts {
                    HelpMessage="if set, the marker element is also returned.")][Switch]$IncludeMarker,
         [parameter(Mandatory=$False,
                    Position=4,
-                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc"
+                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc",
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Comma separated list of capabilities of the accounts to return. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift","s3","management")][String[]]$Capabilities
     )
 
     Begin {
@@ -209,12 +215,17 @@ function Global:Get-SgwAccounts {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $($responseBody.message)"
             return
         }
 
-        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Result.data = $Result.data | Where-Object { ($_.capabilities -join ",") -match ($Capabilities -join "|") }
+
+        if ($Result.data) {
+            $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+            $Result.data | Add-Member -MemberType AliasProperty -Name tenant -Value name
+        }
 
         Write-Output $Result.data
 
@@ -304,7 +315,7 @@ function Global:New-SgwAccount {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
@@ -357,7 +368,7 @@ function Global:Remove-SgwAccount {
             Write-Host "Successfully deleted account with ID $id"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
     }
@@ -419,7 +430,7 @@ function Global:Get-SgwAccount {
                 $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
 
@@ -511,7 +522,7 @@ function Global:Update-SgwAccount {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
@@ -599,7 +610,7 @@ function Global:Replace-SgwAccount {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -668,7 +679,7 @@ function Global:Update-SgwSwiftAdminPassword {
                 $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
@@ -738,7 +749,7 @@ function Global:Update-SgwPassword {
                 $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
@@ -797,7 +808,7 @@ function Global:Get-SgwAccountUsage {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             return
         }
@@ -909,7 +920,7 @@ function global:Connect-SgwServer {
         }
     }
     Catch {
-        $ResponseBody = ParseExceptionBody $_.Exception.Response
+        $ResponseBody = ParseErrorForResponseBody $_
         if ($_.Exception.Message -match "Unauthorized") {                
             Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
             return
@@ -967,7 +978,7 @@ function global:Disconnect-SgwServer {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             return
         }
@@ -1026,7 +1037,7 @@ function Global:Get-SgwAlarms {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1074,7 +1085,7 @@ function Global:Get-SgwConfig {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1120,7 +1131,7 @@ function Global:Get-SgwConfigManagement {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1173,7 +1184,7 @@ function Global:Update-SgwConfigManagement {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
@@ -1221,7 +1232,7 @@ function Global:Get-SgwProductVersion {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1268,7 +1279,7 @@ function Global:Get-SgwVersion {
             $APIVersions = $Response.APIVersion
         }
         Catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             if ($ResponseBody -match "apiVersion") {
                 $APIVersions = ($ResponseBody | ConvertFrom-Json).APIVersion
             }
@@ -1315,7 +1326,7 @@ function Global:Get-SgwVersions {
             $APIVersions = $Response.APIVersion
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1370,7 +1381,7 @@ function Global:Get-SgwDeactivatedFeatures {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1485,7 +1496,7 @@ function Global:Update-SgwDeactivatedFeatures {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1530,7 +1541,7 @@ function Global:Get-SgwDNSServers {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1580,7 +1591,7 @@ function Global:Replace-SgwDNSServers {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1629,7 +1640,7 @@ function Global:Get-SgwEndpointDomainNames {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1678,7 +1689,7 @@ function Global:Replace-SgwEndpointDomainNames {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1727,7 +1738,7 @@ function Global:Stop-SgwExpansion {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1770,7 +1781,7 @@ function Global:Get-SgwExpansion {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1813,7 +1824,7 @@ function Global:Start-SgwExpansion {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1863,7 +1874,7 @@ function Global:Invoke-SgwExpansion {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1908,7 +1919,7 @@ function Global:Get-SgwExpansionNodes {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -1957,7 +1968,7 @@ function Global:Remove-SgwExpansionNode {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2006,7 +2017,7 @@ function Global:Get-SgwExpansionNode {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2050,7 +2061,7 @@ function Global:New-SgwExpansionNode {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2099,7 +2110,7 @@ function Global:Reset-SgwExpansionNode {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2144,7 +2155,7 @@ function Global:Get-SgwExpansionSites {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2196,7 +2207,7 @@ function Global:New-SgwExpansionSite {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2245,7 +2256,7 @@ function Global:Remove-SgwExpansionNode {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2294,7 +2305,7 @@ function Global:Get-SgwExpansionSite {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2359,7 +2370,7 @@ function Global:Update-SgwExpansionSite {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2404,7 +2415,7 @@ function Global:Get-SgwGridNetworks {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2459,7 +2470,7 @@ function Global:Update-SgwGridNetworks {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2508,7 +2519,7 @@ function Global:Get-SgwGroups {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2627,7 +2638,7 @@ function Global:New-SgwGroup {
                 $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
             }
             catch {
-                $ResponseBody = ParseExceptionBody $_.Exception.Response
+                $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
        
@@ -2679,7 +2690,7 @@ function Global:Get-SgwGroupByShortName {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2730,7 +2741,7 @@ function Global:Get-SgwFederatedGroupByShortName {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2783,7 +2794,7 @@ function Global:Delete-SgwGroup {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2836,7 +2847,7 @@ function Global:Get-SgwGroup {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -2954,7 +2965,7 @@ function Global:Update-SgwGroup {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3100,7 +3111,7 @@ function Global:Replace-SgwGroup {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3153,7 +3164,7 @@ function Global:Get-SgwAccountGroups {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3198,7 +3209,7 @@ function Global:Get-SgwHealth {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3244,7 +3255,7 @@ function Global:Get-SgwTopologyHealth {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3293,7 +3304,7 @@ function Global:Get-SgwIdentitySources {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3422,7 +3433,7 @@ function Global:Update-SgwIdentitySources {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3470,7 +3481,7 @@ function Global:Sync-SgwIdentitySources {
             Write-Host "Successfully synchronized users and groups of identity sources"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3535,7 +3546,7 @@ function Global:Invoke-SgwIlmEvaluate {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3581,7 +3592,7 @@ function Global:Get-SgwIlmMetadata {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3624,7 +3635,7 @@ function Global:Get-SgwIlmRules {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3669,7 +3680,7 @@ function Global:Get-SgwLicense {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3727,7 +3738,7 @@ function Global:Update-SgwLicense {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3776,7 +3787,7 @@ function Global:Get-SgwMetricNames {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3839,7 +3850,7 @@ function Global:Get-SgwMetricQuery {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
@@ -3888,7 +3899,7 @@ function Global:Get-SgwNtpServers {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -3944,7 +3955,7 @@ function Global:Update-SgwNtpServers {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -4038,7 +4049,7 @@ function Global:Get-SgwUsers {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $($responseBody.message)"
             return
         }
@@ -4121,7 +4132,7 @@ function Global:Get-SgwS3AccessKeys {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
         Write-Output $Result.data
@@ -4198,7 +4209,7 @@ function Global:Get-SgwS3AccessKey {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -4283,7 +4294,7 @@ function Global:New-SgwS3AccessKey {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
        
@@ -4361,7 +4372,7 @@ function Global:Remove-SgwS3AccessKey {
             $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }  
     }     
@@ -4427,7 +4438,7 @@ function Global:Get-SgwReport {
             $Result = Invoke-RestMethod -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri
         }
         catch {
-            $ResponseBody = ParseExceptionBody $_.Exception.Response
+            $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
