@@ -308,14 +308,16 @@ function Global:Get-SgwAccounts {
             return
         }
 
-        $Result.data = $Result.data | Where-Object { ($_.capabilities -join ",") -match ($Capabilities -join "|") }
+        $Account = $Result.data
+        $Account = $Account | Where-Object { ($_.capabilities -join ",") -match ($Capabilities -join "|") }
 
-        if ($Result.data) {
-            $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
-            $Result.data | Add-Member -MemberType AliasProperty -Name tenant -Value name
+        if ($Account) {
+            $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
+            $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
+            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
         }
 
-        Write-Output $Result.data
+        Write-Output $Account
 
         if ($Limit -eq 0 -and $Result.data.count -eq 25) {
             Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
@@ -338,7 +340,7 @@ function Global:New-SgwAccount {
             Position=0,
             HelpMessage="Name of the StorageGRID Webscale Account to be created.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Name,
+            ValueFromPipelineByPropertyName=$True)][String]$Name,
         [parameter(
             Mandatory=$True,
             Position=1,
@@ -354,7 +356,7 @@ function Global:New-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="Tenant root password.")][String]$Password,
+            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password,
         [parameter(
             Mandatory=$False,
             Position=5,
@@ -377,6 +379,11 @@ function Global:New-SgwAccount {
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
+        if ($Password) {
+            if ($Password.length -lt 8) {
+                Throw "Password does not meet minimum length requirement of 8 characters"
+            }
+        }
     }
  
     Process {
@@ -384,7 +391,7 @@ function Global:New-SgwAccount {
         $Method = "POST"
 
         $Body = @{}
-        $Body.name = $Name[0]
+        $Body.name = $Name
         $Body.capabilities = $Capabilities
 
         if ($Server.APIVersion -ge 2) {
@@ -398,16 +405,20 @@ function Global:New-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
-        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Account = $Result.data
+
+        $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
        
-        Write-Output $Result.data
+        Write-Output $Account
     }
 }
 
@@ -450,8 +461,8 @@ function Global:Remove-SgwAccount {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            Write-Host "Successfully deleted account with ID $id"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
+            Write-Verbose "Successfully deleted account with ID $id"
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -513,16 +524,19 @@ function Global:Get-SgwAccount {
             $Method = "GET"
 
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
 
-            $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+            $Account = $Result.data
+            $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
+            $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
+            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
        
-            Write-Output $Result.data
+            Write-Output $Account
         }
     }
 }
@@ -603,16 +617,19 @@ function Global:Update-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
-        $Result.data | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Account = $Result.data
+        $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
        
-        Write-Output $Result.data
+        Write-Output $Account
     }
 }
 
@@ -689,14 +706,19 @@ function Global:Replace-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
+
+        $Account = $Result.data
+        $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
+        $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
        
-        Write-Output $Result.data
+        Write-Output $Account
     }
 }
 
@@ -758,7 +780,7 @@ function Global:Update-SgwSwiftAdminPassword {
 }
 "@
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -828,7 +850,7 @@ function Global:Update-SgwPassword {
 }
 "@
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -887,7 +909,7 @@ function Global:Get-SgwAccountUsage {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -957,8 +979,10 @@ function global:Connect-SgwServer {
         [parameter(Position=3,
                    Mandatory=$False,
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
-        [parameter(Position=4,
+        [parameter(Position=5,
                    Mandatory=$False,
+                   ValueFromPipeline=$True,
+                   ValueFromPipelineByPropertyName=$True,
                    HelpMessage="Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId
     )
 
@@ -4173,6 +4197,7 @@ function Global:Get-SgwUsers {
 
 ## s3 ##
 
+Set-Alias -Name Get-SgwAccountS3AccessKeys -Value Get-SgwS3AccessKeys
 <#
     .SYNOPSIS
     Retrieve StorageGRID Webscale Account S3 Access Keys
@@ -4244,6 +4269,7 @@ function Global:Get-SgwS3AccessKeys {
     }
 }
 
+Set-Alias -Name Get-SgwAccountS3AccessKey -Value Get-SgwS3AccessKey
 <#
     .SYNOPSIS
     Retrieve a StorageGRID Webscale Account S3 Access Key
@@ -4259,13 +4285,13 @@ function Global:Get-SgwS3AccessKey {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to get S3 Access Keys for",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+            ValueFromPipelineByPropertyName=$True)][Alias("id")][String]$AccountId,
         [parameter(
             Mandatory=$False,
             Position=1,
             HelpMessage="ID of a StorageGRID Webscale User.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$UserId,
+            ValueFromPipelineByPropertyName=$True)][Alias("userUUID")][String]$UserId,
         [parameter(
             Mandatory=$True,
             Position=2,
@@ -4322,6 +4348,7 @@ function Global:Get-SgwS3AccessKey {
     }
 }
 
+Set-Alias -Name New-SgwAccountS3AccessKey -Value New-SgwS3AccessKey
 <#
     .SYNOPSIS
     Create a new StorageGRID Webscale Account S3 Access Key
@@ -4406,6 +4433,7 @@ function Global:New-SgwS3AccessKey {
     }
 }
 
+Set-Alias -Name Remove-SgwAccountS3AccessKey -Value Remove-SgwS3AccessKey
 <#
     .SYNOPSIS
     Delete a StorageGRID Webscale Account S3 Access Key
@@ -4417,7 +4445,7 @@ function Global:Remove-SgwS3AccessKey {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
             HelpMessage="Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
             ValueFromPipeline=$True,
@@ -4491,7 +4519,7 @@ function Global:Remove-SgwS3AccessKey {
     Get StorageGRID Report
 #>
 function Global:Get-SgwReport {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
         [parameter(
@@ -4505,15 +4533,26 @@ function Global:Get-SgwReport {
         [parameter(
             Mandatory=$False,
             Position=1,
+            ParameterSetName="oid",
             HelpMessage="Topology OID to create report for")][String]$OID,
         [parameter(
             Mandatory=$False,
+            Position=1,
+            ParameterSetName="site",
+            HelpMessage="Site to create report for")][String]$Site,
+        [parameter(
+            Mandatory=$False,
+            Position=1,
+            ParameterSetName="node",
+            HelpMessage="Node to create report for")][String]$Node,
+        [parameter(
+            Mandatory=$False,
             Position=2,
-            HelpMessage="Start Time")][DateTime]$StartTime=(Get-Date).AddHours(-1),
+            HelpMessage="Start Time (default: last hour)")][DateTime]$StartTime=(Get-Date).AddHours(-1),
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="End Time")][DateTime]$EndTime=(Get-Date)
+            HelpMessage="End Time (default: current time)")][DateTime]$EndTime=(Get-Date)
     )
  
     Begin {
@@ -4532,7 +4571,16 @@ function Global:Get-SgwReport {
         $AttributeCode = $Attribute -replace ".*\((.+)\).*",'$1'
 
         if (!$OID) {
-            $OID = (Get-SgwTopologyHealth -Server $Server).oid
+            $Topology = Get-SgwTopologyHealth -Server $Server
+            if ($Node) {
+                $OID = $Topology.children.children | Where-Object { $_.name -eq $node } | Select-Object -First 1 -ExpandProperty oid
+            }
+            elseif ($Site) {
+                $OID = $Topology.children | Where-Object { $_.name -eq $site } | Select-Object -First 1 -ExpandProperty oid
+            }
+            else {
+                $OID = $Topology.oid
+            }
         }
 
         $Method = "GET"
