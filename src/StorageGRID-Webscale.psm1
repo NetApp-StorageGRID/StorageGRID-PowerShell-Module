@@ -148,6 +148,94 @@ function ConvertFrom-UnixTimestamp {
     }
 }
 
+## function to trigger request to StorageGRID Webscale Server ##
+
+function Invoke-SgwRequest {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$True,
+                Position=0,
+                HelpMessage="Uri")][Uri]$Uri,
+        [parameter(Mandatory=$False,
+                Position=1,
+                HelpMessage="WebSession")][Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="HTTP Method")][ValidateSet("Default","Get","Head","Post","Put","Delete","Trace","Options","Merge","Patch")][String]$Method="Get",
+        [parameter(Mandatory=$False,
+                Position=3,
+                HelpMessage="Headers")][Hashtable]$Headers,
+        [parameter(Mandatory=$False,
+                Position=4,
+                HelpMessage="Body")][Object]$Body,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Content Type")][String]$ContentType,
+        [parameter(Mandatory=$False,
+                Position=6,
+                HelpMessage="Variable to store session details in")][String]$SessionVariable,
+        [parameter(Mandatory=$False,
+                Position=7,
+                HelpMessage="Timeout in seconds")][Int]$TimeoutSec=60,
+        [parameter(Mandatory=$False,
+                Position=8,
+                HelpMessage="Skip certificate checks")][Boolean]$SkipCertificateCheck=$false
+    )
+
+    Process {
+        if ($PSVersionTable.PSVersion.Major -lt 6 ) {
+            if ($SkipCertificateCheck) {
+                $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
+                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+            }
+            if ($Body) {
+                Write-Verbose "Body:`n$Body"
+                if ($SessionVariable) {
+                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
+                }
+                else {
+                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                }
+            }
+            else {
+                if ($SessionVariable) {
+                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
+                }
+                else {
+                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession
+                }
+            }
+            if ($SkipCertificateCheck) {
+                [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
+            }
+        }
+        else {
+            if ($Body) {
+                Write-Verbose "Body:`n$Body"
+                if ($SessionVariable) {
+                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
+                }
+                else {
+                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                }
+            }
+            else {
+                if ($SessionVariable) {
+                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
+                }
+                else {
+                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession
+                }
+            }
+        }
+    }
+}
+
 ### Cmdlets ###
 
 ## accounts ##
@@ -164,7 +252,7 @@ function Global:Get-SgwAccounts {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="Maximum number of results.")][Int]$Limit=0,
@@ -184,7 +272,7 @@ function Global:Get-SgwAccounts {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -212,7 +300,7 @@ function Global:Get-SgwAccounts {
         $Uri += $Query
         
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -270,12 +358,12 @@ function Global:New-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=5,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -309,10 +397,8 @@ function Global:New-SgwAccount {
 
         $Body = ConvertTo-Json -InputObject $Body
 
-        Write-Verbose "Body: $Body"
-
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -344,12 +430,12 @@ function Global:Remove-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -364,7 +450,7 @@ function Global:Remove-SgwAccount {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             Write-Host "Successfully deleted account with ID $id"
         }
         catch {
@@ -401,12 +487,12 @@ function Global:Get-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -427,7 +513,7 @@ function Global:Get-SgwAccount {
             $Method = "GET"
 
             try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -476,12 +562,12 @@ function Global:Update-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=5,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -516,10 +602,8 @@ function Global:Update-SgwAccount {
 
         $Body = ConvertTo-Json -InputObject $Body
 
-        Write-Verbose "Body: $Body"
-
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -567,12 +651,12 @@ function Global:Replace-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=5,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -604,10 +688,8 @@ function Global:Replace-SgwAccount {
 
         $Body = ConvertTo-Json -InputObject $Body
 
-        Write-Verbose "Body: $Body"
-
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -645,12 +727,12 @@ function Global:Update-SgwSwiftAdminPassword {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -676,7 +758,7 @@ function Global:Update-SgwSwiftAdminPassword {
 }
 "@
             try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -715,12 +797,12 @@ function Global:Update-SgwPassword {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -746,7 +828,7 @@ function Global:Update-SgwPassword {
 }
 "@
             try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -777,12 +859,12 @@ function Global:Get-SgwAccountUsage {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -805,7 +887,7 @@ function Global:Get-SgwAccountUsage {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -823,6 +905,41 @@ function Global:Get-SgwAccountUsage {
     Connect to StorageGRID Webscale Management Server
     .DESCRIPTION
     Connect to StorageGRID Webscale Management Server
+    .PARAMETER Name
+    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
+    .PARAMETER Credential
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    .PARAMETER Insecure
+    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to skip the validation of the StorageGRID Webscale Management Server certificate.
+    .PARAMETER Transient
+    If set the global variable `$CurrentOciServer will not be set and the Server must be explicitly specified for all Cmdlets.
+    .PARAMETER AccountId
+    Account ID of the StorageGRID Webscale tenant to connect to.
+    .EXAMPLE
+    Minimum required information to connect with a StorageGRID Webscale Admin Node
+
+    $Name = "admin-node.example.org"
+    $Credential = Get-Credential
+    Connect-SgwServer -Name $Name -Credential $Credential
+    .EXAMPLE
+    Skip certificate validation
+
+    $Name = "admin-node.example.org"
+    $Credential = Get-Credential
+    Connect-SgwServer -Name $Name -Credential $Credential -Insecure
+    .EXAMPLE
+    Do not store server in global variable
+
+    $Name = "admin-node.example.org"
+    $Credential = Get-Credential"
+    Connect-SgwServer -Name $Name -Credential $Credential -Transient
+    .EXAMPLE
+    Connect as StorageGRID Webscale tenant
+
+    $Name = "admin-node.example.org"
+    $Credential = Get-Credential
+    $AccountId = "12345678901234567890"
+    Connect-SgwServer -Name $Name -Credential $Credential -AccountId
 #>
 function global:Connect-SgwServer {
     [CmdletBinding()]
@@ -836,112 +953,118 @@ function global:Connect-SgwServer {
                    HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory=$False,
                    Position=2,
-                   HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to ignore the validity of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
+                   HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -Insecure to skip the validation of the StorageGRID Webscale Management Server certificate.")][Switch]$Insecure,
         [parameter(Position=3,
                    Mandatory=$False,
                    HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
         [parameter(Position=4,
                    Mandatory=$False,
-                   HelpMessage="Account ID of tenant to connect to.")][String]$AccountId
+                   HelpMessage="Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId
     )
 
-    # check if untrusted SSL certificates should be ignored
-    if ($Insecure) {
-        if ($PSVersionTable.PSVersion.Major -lt 6) {
-            [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-        }
-        else {
-            if (!"Invoke-RestMethod:SkipCertificateCheck") {
-                $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
+    Process {
+        $Server = [PSCustomObject]@{SkipCertificateCheck=$Insecure.IsPresent;
+                                    Name=$Name;
+                                    Credential=$Credential;
+                                    BaseUri="https://$Name/api/v2";
+                                    Session=[Microsoft.PowerShell.Commands.WebRequestSession]::new();
+                                    Headers=[Hashtable]::new();
+                                    ApiVersion=0;
+                                    SupportedApiVersions=@()}
+
+        if ([environment]::OSVersion.Platform -match "Win")
+        {
+            # check if proxy is used
+            $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+            $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
+            if ($ProxySettings.ProxyEnable)
+            {
+                Write-Warning "Proxy Server $( $ProxySettings.ProxyServer ) configured in Internet Explorer may be used to connect to the OCI server!"
             }
-            else {
-                $PSDefaultParameterValues.'Invoke-RestMethod:SkipCertificateCheck'=$true
-            }
-        }
-    }
-    else {
-        if ($PSVersionTable.PSVersion.Major -ge 6) {
-            $PSDefaultParameterValues.Remove("Invoke-RestMethod:SkipCertificateCheck")
-        }
-    }
-
-    if ([environment]::OSVersion.Platform -match "Win") {
-        # check if proxy is used
-        $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-        $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
-        if ($ProxySettings.ProxyEnable) {
-            Write-Warning "Proxy Server $($ProxySettings.ProxyServer) configured in Internet Explorer may be used to connect to the OCI server!"
-        }
-        if ($ProxySettings.AutoConfigURL) {
-            Write-Warning "Proxy Server defined in automatic proxy configuration script $($ProxySettings.AutoConfigURL) configured in Internet Explorer may be used to connect to the OCI server!"
-        }
-    }
-
-    $Server = New-Object -TypeName PSCustomObject
-    $Server | Add-Member -MemberType NoteProperty -Name Name -Value $Name
-    $Server | Add-Member -MemberType NoteProperty -Name Credential -Value $Credential
-
-    $Body = @{}
-    $Body.username = $Credential.UserName
-    $Body.password = $Credential.GetNetworkCredential().Password
-    $Body.cookie = $True
-    $Body.csrfToken = $True
-
-    if ($AccountId) {
-        $Body.accountId = $AccountId
-        $Server | Add-Member -MemberType NoteProperty -Name AccountId -Value $AccountId
-    }
-
-    $Body = ConvertTo-Json -InputObject $Body
-
-    Write-Verbose "Body:`n$Body"
- 
-    $APIVersion = (Get-SgwVersion -Uri "https://$Name" | Sort-Object | select -Last 1) -replace "\..*",""
-
-    if (!$APIVersion) {
-        Write-Error "API Version could not be retrieved via https://$Name/api/versions"
-        return
-    }
-
-    $BaseURI = "https://$Name/api/v$APIVersion"
-    $Server | Add-Member -MemberType NoteProperty -Name BaseURI -Value $BaseURI
-
-    Try {
-        $Response = Invoke-RestMethod -Session Session -Method POST -Uri "$BaseURI/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
-        if ($Response.status -eq "success") {
-            $Server | Add-Member -MemberType NoteProperty -Name APIVersion -Value $Response.apiVersion
-            $Server | Add-Member -MemberType NoteProperty -Name Headers -Value @{"Authorization"="Bearer $($Response.data)"}
-            $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
-            $Server | Add-Member -MemberType NoteProperty -Name SupportedApiVersions -Value $SupportedApiVersions
-            if (($Session.Cookies.GetCookies($BaseURI) | ? { $_.Name -match "CsrfToken" })) {
-                $XCsrfToken = $Session.Cookies.GetCookies($BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
-                $Server.Headers["X-Csrf-Token"] = $XCsrfToken
+            if ($ProxySettings.AutoConfigURL)
+            {
+                Write-Warning "Proxy Server defined in automatic proxy configuration script $( $ProxySettings.AutoConfigURL ) configured in Internet Explorer may be used to connect to the OCI server!"
             }
         }
-    }
-    Catch {
-        $ResponseBody = ParseErrorForResponseBody $_
-        if ($_.Exception.Message -match "Unauthorized") {                
-            Write-Error "Authorization for $BaseURI/authorize with user $($Credential.UserName) failed"
-            return
-        }
-        elseif ($_.Exception.Message -match "trust relationship") {
-            Write-Error $_.Exception.Message
-            Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
-        }
-        else {
-            Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $($_.Exception.Message)`n $ResponseBody"
-            return
-        }
-    }
 
-    $Server | Add-Member -MemberType NoteProperty -Name Session -Value $Session
+        $Body = @{ }
+        $Body.username = $Credential.UserName
+        $Body.password = $Credential.GetNetworkCredential().Password
+        $Body.cookie = $True
+        $Body.csrfToken = $True
 
-    if (!$Transient) {
-        Set-Variable -Name CurrentSGWServer -Value $Server -Scope Global
+        if ($AccountId)
+        {
+            $Body.accountId = $AccountId
+            $Server | Add-Member -MemberType NoteProperty -Name AccountId -Value $AccountId
+        }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        $APIVersion = (Get-SgwVersion -Server $Server -ErrorAction Stop | Sort-Object | select -Last 1) -replace "\..*", ""
+
+        if (!$APIVersion)
+        {
+            Throw "API Version could not be retrieved via https://$Name/api/versions"
+        }
+
+        $Server.BaseUri="https://$Name/api/v2"
+
+        Try
+        {
+            $Response = Invoke-SgwRequest -SessionVariable "Session" -Method POST -Uri "$($Server.BaseUri)/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck $Server.SkipCertificateCheck
+        }
+        Catch
+        {
+            $ResponseBody = ParseErrorForResponseBody $_
+            if ($_.Exception.Message -match "Unauthorized")
+            {
+                Write-Error "Authorization for $BaseURI/authorize with user $( $Credential.UserName ) failed"
+                return
+            }
+            elseif ($_.Exception.Message -match "trust relationship")
+            {
+                Write-Error $_.Exception.Message
+                Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
+            }
+            else
+            {
+                Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $( $_.Exception.Message )`n $ResponseBody"
+                return
+            }
+        }
+
+        if ($Response.status -ne "success")
+        {
+            Throw "Authorization failed with status $( $Response.status )"
+        }
+
+        $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
+
+        $Server.Session = $Response.Session
+        if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" }))
+        {
+            $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
+            $Server.Headers["X-Csrf-Token"] = $XCsrfToken
+        }
+
+        $Server.ApiVersion = $Response.apiVersion
+
+        $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
+        if (!$SupportedApiVersions.Contains(1))
+        {
+            Write-Warning "API Version 1 not supported. API Version 1 is required to autogenerate S3 credentials for Grid Administrators. If you want to run the S3 Cmdlets as Grid Administrator and let the Cmdlets autogenerate S3 credentials, then enable API Version 1 with`nUpdate-SgwConfigManagement -MinApiVersion 1"
+        }
+        $Server.SupportedApiVersions = $SupportedApiVersions
+
+
+        if (!$Transient)
+        {
+            Set-Variable -Name CurrentSgwServer -Value $Server -Scope Global
+        }
+
+        return $Server
     }
-
-    return $Server
 }
 
 <#
@@ -957,12 +1080,13 @@ function global:Disconnect-SgwServer {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
+            Remove-Variable -Name CurrentSgwServer -Scope Global
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -975,7 +1099,7 @@ function global:Disconnect-SgwServer {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -999,7 +1123,7 @@ function Global:Get-SgwAlarms {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
@@ -1010,7 +1134,7 @@ function Global:Get-SgwAlarms {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1034,7 +1158,7 @@ function Global:Get-SgwAlarms {
         }
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1059,12 +1183,12 @@ function Global:Get-SgwConfig {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1082,7 +1206,7 @@ function Global:Get-SgwConfig {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1105,12 +1229,12 @@ function Global:Get-SgwConfigManagement {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1128,7 +1252,7 @@ function Global:Get-SgwConfigManagement {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1154,13 +1278,13 @@ function Global:Update-SgwConfigManagement {
                    HelpMessage="Minimum API Version.")][Int][ValidateSet(1,2)]$MinApiVersion,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1178,10 +1302,9 @@ function Global:Update-SgwConfigManagement {
         $Method = "PUT"
 
         $Body = ConvertTo-Json -InputObject @{minApiVersion=$MinApiVersion}
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1206,12 +1329,12 @@ function Global:Get-SgwProductVersion {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1229,7 +1352,7 @@ function Global:Get-SgwProductVersion {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1252,18 +1375,12 @@ function Global:Get-SgwVersion {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="Uri of the StorageGRID Server")][String]$Uri
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
-        if ($Uri) {
-            $Server = @{BaseURI="$Uri/api/v2";APIVersion=2}
-        }
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1275,21 +1392,22 @@ function Global:Get-SgwVersion {
         $Method = "GET"
 
         Try {
-            $Response = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            $APIVersions = $Response.APIVersion
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
+            $ApiVersion = $Response.APIVersion
         }
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
             if ($ResponseBody -match "apiVersion") {
-                $APIVersions = ($ResponseBody | ConvertFrom-Json).APIVersion
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
             }
-            elseif ($_.Exception.Message -match "trust relationship") {
-                Write-Error $_.Exception.Message
-                Write-Information "Certificate of the server is not trusted. Use --insecure switch if you want to skip certificate verification."
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use --insecure switch if you want to skip certificate verification."
+                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
             }
         }
        
-        Write-Output $APIVersions        
+        Write-Output $ApiVersion
     }
 }
 
@@ -1305,12 +1423,12 @@ function Global:Get-SgwVersions {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1322,8 +1440,7 @@ function Global:Get-SgwVersions {
         $Method = "GET"
 
         Try {
-            $Response = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
-            $APIVersions = $Response.APIVersion
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1352,12 +1469,12 @@ function Global:Get-SgwDeactivatedFeatures {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1378,7 +1495,7 @@ function Global:Get-SgwDeactivatedFeatures {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1425,12 +1542,12 @@ function Global:Update-SgwDeactivatedFeatures {
                    HelpMessage="Deactivates managing of own S3 Credentials.")][Boolean]$ManageOwnS3Credentials,
         [parameter(Mandatory=$False,
                    Position=7,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1490,10 +1607,8 @@ function Global:Update-SgwDeactivatedFeatures {
         }
         $Body = ConvertTo-Json -InputObject $Body
 
-        Write-Verbose "Body: $Body"
-
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1518,12 +1633,12 @@ function Global:Get-SgwDNSServers {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1538,7 +1653,7 @@ function Global:Get-SgwDNSServers {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1561,7 +1676,7 @@ function Global:Replace-SgwDNSServers {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="List of IP addresses of the external DNS servers.")][String[]]$DNSServers
@@ -1569,7 +1684,7 @@ function Global:Replace-SgwDNSServers {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1588,7 +1703,7 @@ function Global:Replace-SgwDNSServers {
         Write-Verbose $Body
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1617,12 +1732,12 @@ function Global:Get-SgwEndpointDomainNames {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1637,7 +1752,7 @@ function Global:Get-SgwEndpointDomainNames {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1660,7 +1775,7 @@ function Global:Replace-SgwEndpointDomainNames {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
@@ -1668,7 +1783,7 @@ function Global:Replace-SgwEndpointDomainNames {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1683,10 +1798,9 @@ function Global:Replace-SgwEndpointDomainNames {
         $Method = "PUT"
 
         $Body = ConvertTo-Json -InputObject $EndpointDomainNames
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1715,12 +1829,12 @@ function Global:Stop-SgwExpansion {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1735,7 +1849,7 @@ function Global:Stop-SgwExpansion {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1758,12 +1872,12 @@ function Global:Get-SgwExpansion {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1778,7 +1892,7 @@ function Global:Get-SgwExpansion {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1801,12 +1915,12 @@ function Global:Start-SgwExpansion {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1821,7 +1935,7 @@ function Global:Start-SgwExpansion {
         $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1847,12 +1961,12 @@ function Global:Invoke-SgwExpansion {
                    HelpMessage="StorageGRID Passphrase.")][String]$Passphrase,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1868,10 +1982,8 @@ function Global:Invoke-SgwExpansion {
 
         $Body = ConvertTo-Json -InputObject @{passphrase=$Passphrase}
 
-        Write-Verbose "Body: $Body"
-
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1896,12 +2008,12 @@ function Global:Get-SgwExpansionNodes {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1916,7 +2028,7 @@ function Global:Get-SgwExpansionNodes {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1945,12 +2057,12 @@ function Global:Remove-SgwExpansionNode {
             ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -1965,7 +2077,7 @@ function Global:Remove-SgwExpansionNode {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1994,12 +2106,12 @@ function Global:Get-SgwExpansionNode {
             ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2014,7 +2126,7 @@ function Global:Get-SgwExpansionNode {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2038,12 +2150,12 @@ function Global:New-SgwExpansionNode {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2058,7 +2170,7 @@ function Global:New-SgwExpansionNode {
         $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2087,12 +2199,12 @@ function Global:Reset-SgwExpansionNode {
             ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2107,7 +2219,7 @@ function Global:Reset-SgwExpansionNode {
         $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2132,12 +2244,12 @@ function Global:Get-SgwExpansionSites {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2152,7 +2264,7 @@ function Global:Get-SgwExpansionSites {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2181,12 +2293,12 @@ function Global:New-SgwExpansionSite {
             ValueFromPipelineByPropertyName=$True)][String[]]$Name,
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2201,10 +2313,9 @@ function Global:New-SgwExpansionSite {
         $Method = "POST"
 
         $Body = ConvertTo-Json -InputObject @{name=$Name}
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2233,12 +2344,12 @@ function Global:Remove-SgwExpansionNode {
             ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2253,7 +2364,7 @@ function Global:Remove-SgwExpansionNode {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2282,12 +2393,12 @@ function Global:Get-SgwExpansionSite {
             ValueFromPipelineByPropertyName=$True)][String[]]$id,
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2302,7 +2413,7 @@ function Global:Get-SgwExpansionSite {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2337,12 +2448,12 @@ function Global:Update-SgwExpansionSite {
             HelpMessage="New name for the StorageGRID site.")][String]$Name,
         [parameter(Mandatory=$False,
                    Position=3,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2367,7 +2478,7 @@ function Global:Update-SgwExpansionSite {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2392,12 +2503,12 @@ function Global:Get-SgwGridNetworks {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2412,7 +2523,7 @@ function Global:Get-SgwGridNetworks {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2435,7 +2546,7 @@ function Global:Update-SgwGridNetworks {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
@@ -2446,7 +2557,7 @@ function Global:Update-SgwGridNetworks {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2464,10 +2575,9 @@ function Global:Update-SgwGridNetworks {
         $Body.passphrase = $Passphrase
         $Body.subnets = $Subnets
         $Body = ConvertTo-Json -InputObject $Body
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2493,12 +2603,12 @@ function Global:Get-SgwGroups {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2516,7 +2626,7 @@ function Global:Get-SgwGroups {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2581,12 +2691,12 @@ function Global:New-SgwGroup {
         [parameter(
             Mandatory=$False,
             Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2632,10 +2742,9 @@ function Global:New-SgwGroup {
             }
             
             $Body = ConvertTo-Json -InputObject $Body
-            Write-Verbose "Body: $Body"
 
             try {
-                $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -2664,12 +2773,12 @@ function Global:Get-SgwGroupByShortName {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2687,7 +2796,7 @@ function Global:Get-SgwGroupByShortName {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2715,12 +2824,12 @@ function Global:Get-SgwFederatedGroupByShortName {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2738,7 +2847,7 @@ function Global:Get-SgwFederatedGroupByShortName {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2768,12 +2877,12 @@ function Global:Delete-SgwGroup {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2791,7 +2900,7 @@ function Global:Delete-SgwGroup {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2821,12 +2930,12 @@ function Global:Get-SgwGroup {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2844,7 +2953,7 @@ function Global:Get-SgwGroup {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -2909,12 +3018,12 @@ function Global:Update-SgwGroup {
         [parameter(
             Mandatory=$False,
             Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -2959,10 +3068,9 @@ function Global:Update-SgwGroup {
         }
             
         $Body = ConvertTo-Json -InputObject $Body
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3043,12 +3151,12 @@ function Global:Replace-SgwGroup {
         [parameter(
             Mandatory=$False,
             Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3105,10 +3213,9 @@ function Global:Replace-SgwGroup {
         }
             
         $Body = ConvertTo-Json -InputObject $Body
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3138,12 +3245,12 @@ function Global:Get-SgwAccountGroups {
         [parameter(
             Mandatory=$False,
             Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3161,7 +3268,7 @@ function Global:Get-SgwAccountGroups {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3186,12 +3293,12 @@ function Global:Get-SgwHealth {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3206,7 +3313,7 @@ function Global:Get-SgwHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3229,7 +3336,7 @@ function Global:Get-SgwTopologyHealth {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$False,
                    Position=0,
                    HelpMessage="Topology depth level to provide (default=node).")][String][ValidateSet("grid","site","node","component","subcomponent")]$Depth="node"
@@ -3237,7 +3344,7 @@ function Global:Get-SgwTopologyHealth {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3252,7 +3359,7 @@ function Global:Get-SgwTopologyHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3278,12 +3385,12 @@ function Global:Get-SgwIdentitySources {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3301,7 +3408,7 @@ function Global:Get-SgwIdentitySources {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3383,12 +3490,12 @@ function Global:Update-SgwIdentitySources {
         [parameter(
             Mandatory=$False,
             Position=15,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3430,7 +3537,7 @@ function Global:Update-SgwIdentitySources {
 "@        
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3454,12 +3561,12 @@ function Global:Sync-SgwIdentitySources {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3477,7 +3584,7 @@ function Global:Sync-SgwIdentitySources {
         $Method = "POST"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body ""
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body "" -SkipCertificateCheck $Server.SkipCertificateCheck
             Write-Host "Successfully synchronized users and groups of identity sources"
         }
         catch {
@@ -3514,12 +3621,12 @@ function Global:Invoke-SgwIlmEvaluate {
                    HelpMessage="Switch indicating that ILM evaluation should occur immediately.")][Switch]$Now,
         [parameter(Mandatory=$False,
                    Position=3,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3543,7 +3650,7 @@ function Global:Invoke-SgwIlmEvaluate {
         }
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3569,12 +3676,12 @@ function Global:Get-SgwIlmMetadata {
                    HelpMessage="The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
         [parameter(Mandatory=$False,
                    Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3589,7 +3696,7 @@ function Global:Get-SgwIlmMetadata {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3612,12 +3719,12 @@ function Global:Get-SgwIlmRules {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3632,7 +3739,7 @@ function Global:Get-SgwIlmRules {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3657,12 +3764,12 @@ function Global:Get-SgwLicense {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3677,7 +3784,7 @@ function Global:Get-SgwLicense {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3708,12 +3815,12 @@ function Global:Update-SgwLicense {
                    HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
         [parameter(Mandatory=$False,
                    Position=2,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3732,10 +3839,9 @@ function Global:Update-SgwLicense {
         $Body.license = $License
 
         $Body = ConvertTo-Json -InputObject $Body
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3764,12 +3870,12 @@ function Global:Get-SgwMetricNames {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3784,7 +3890,7 @@ function Global:Get-SgwMetricNames {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3807,7 +3913,7 @@ function Global:Get-SgwMetricQuery {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$True,
                    Position=1,
                    HelpMessage="Prometheus query string.")][String]$Query,
@@ -3821,7 +3927,7 @@ function Global:Get-SgwMetricQuery {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3847,7 +3953,7 @@ function Global:Get-SgwMetricQuery {
 
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3876,12 +3982,12 @@ function Global:Get-SgwNtpServers {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3896,7 +4002,7 @@ function Global:Get-SgwNtpServers {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3925,12 +4031,12 @@ function Global:Update-SgwNtpServers {
                    HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
         [parameter(Mandatory=$False,
                    Position=2,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
            )
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -3949,10 +4055,9 @@ function Global:Update-SgwNtpServers {
         $Body.servers = $Servers
 
         $Body = ConvertTo-Json -InputObject $Body
-        Write-Verbose "Body: $Body"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType application/json
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3995,7 +4100,7 @@ function Global:Get-SgwUsers {
     PARAM (
         [parameter(Mandatory=$False,
                    Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="User type (default local).")][ValidateSet("local","federated")][String]$Type="local",
@@ -4015,7 +4120,7 @@ function Global:Get-SgwUsers {
 
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4046,7 +4151,7 @@ function Global:Get-SgwUsers {
         $Uri += $Query
         
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4093,12 +4198,12 @@ function Global:Get-SgwS3AccessKeys {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4129,7 +4234,7 @@ function Global:Get-SgwS3AccessKeys {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4170,12 +4275,12 @@ function Global:Get-SgwS3AccessKey {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4206,7 +4311,7 @@ function Global:Get-SgwS3AccessKey {
         $Method = "GET"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4246,12 +4351,12 @@ function Global:New-SgwS3AccessKey {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4287,11 +4392,10 @@ function Global:New-SgwS3AccessKey {
         $Body = "{}"
         if ($Expires) { 
             $Body = ConvertTo-Json -InputObject @{"expires"="$ExpirationDate"}
-            Write-Verbose "Body:`n$Body"
         }
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json"
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4333,12 +4437,12 @@ function Global:Remove-SgwS3AccessKey {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4369,7 +4473,7 @@ function Global:Remove-SgwS3AccessKey {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-RestMethod -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4393,7 +4497,7 @@ function Global:Get-SgwReport {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSGWServer object will be used.")][PSCustomObject]$Server,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
             Mandatory=$True,
             Position=1,
@@ -4414,7 +4518,7 @@ function Global:Get-SgwReport {
  
     Begin {
         if (!$Server) {
-            $Server = $Global:CurrentSGWServer
+            $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
@@ -4435,7 +4539,7 @@ function Global:Get-SgwReport {
         $Uri = "https://$($Server.Name)/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
 
         try {
-            $Result = Invoke-RestMethod -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri
+            $Result = Invoke-SgwRequest -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri -SkipCertificateCheck $Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
