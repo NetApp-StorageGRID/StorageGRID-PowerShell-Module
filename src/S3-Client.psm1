@@ -224,7 +224,7 @@ function Global:New-AwsSignatureV2 {
         [parameter(
             Mandatory=$True,
             Position=2,
-            HelpMessage="Endpoint hostname and optional port")][String]$EndpointHost,
+            HelpMessage="Endpoint hostname and optional port")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -272,7 +272,7 @@ function Global:New-AwsSignatureV2 {
         $CanonicalizedResource = ""
         Write-Debug "1. Start with an empty string:`n$CanonicalizedResource"
 
-        if ($Bucket -and $EndpointHost -match "^$Bucket") {
+        if ($Bucket -and $EndpointUrl.Host -match "^$Bucket") {
             $CanonicalizedResource += "/$Bucket"
             Write-Debug "2. Add the bucketname for virtual host style:`n$CanonicalizedResource" 
         }
@@ -339,7 +339,7 @@ function Global:New-AwsSignatureV4 {
         [parameter(
             Mandatory=$True,
             Position=2,
-            HelpMessage="Endpoint hostname and optional port")][String]$EndpointHost,
+            HelpMessage="Endpoint hostname and optional port")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -412,7 +412,7 @@ function Global:New-AwsSignatureV4 {
 
         Write-Debug "3. Canonical query string:`n$CanonicalQueryString"
 
-        if (!$Headers["host"]) { $Headers["host"] = $EndpointHost }
+        if (!$Headers["host"]) { $Headers["host"] = $EndpointUrl.Uri.Authority }
         if (!$Headers["x-amz-date"]) { $Headers["x-amz-date"] = $DateTime }
         if (!$Headers["content-type"] -and $ContentType) { $Headers["content-type"] = $ContentType }
         $SortedHeaders = ConvertTo-SortedDictionary $Headers
@@ -497,7 +497,7 @@ function Global:Invoke-AwsRequest {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Endpoint URL")][String]$EndpointUrl,
+            HelpMessage="Endpoint URL")][System.UriBuilder]$EndpointUrl,
          [parameter(
             Mandatory=$False,
             Position=4,
@@ -609,7 +609,7 @@ function Global:Invoke-AwsRequest {
 
             if ($Credential -and !$EndpointUrl -and $CurrentSgwServer.S3EndpointUrl) {
                 Write-Verbose "EndpointUrl not specified, but discovered S3 Endpoint $($CurrentSgwServer.S3EndpointUrl) from StorageGRID Server"
-                $EndpointUrl = $CurrentSgwServer.S3EndpointUrl
+                $EndpointUrl = [System.UriBuilder]$CurrentSgwServer.S3EndpointUrl
                 if ($CurrentSgwServer.SkipCertificateCheck) {
                     $SkipCertificateCheck = $True
                 }
@@ -687,19 +687,13 @@ function Global:Invoke-AwsRequest {
         }
 
         if (!$EndpointUrl) {
-            if ($Region -eq "us-east-1") {
-                $EndpointUrl = "https://s3.amazonaws.com"
+            if ($Region -eq "us-east-1" -or !$Region) {
+                $EndpointUrl = [System.UriBuilder]::new("https://s3.amazonaws.com")
             }
             else {
-                $EndpointUrl = "https://s3.$Region.amazonaws.com"
+                $EndpointUrl = [System.UriBuilder]::new("https://s3.$Region.amazonaws.com")
             }
         }
-
-        # remove port 80 and port 443 from EndpointUrl as they must not be included
-        $EndpointUrl = $EndpointUrl -replace ':80$','' -replace ':443$',''
-
-        # extract hostname and port from Endpoint URL for signing
-        $EndpointHost = $EndpointUrl -replace '.*://',''
     }
  
     Process {        
@@ -734,7 +728,7 @@ function Global:Invoke-AwsRequest {
             $RequestPayloadHash=Get-AWSHash -StringToHash $RequestPayload
         }
         
-        if (!$Headers["host"]) { $Headers["host"] = $EndpointHost }
+        if (!$Headers["host"]) { $Headers["host"] = $EndpointUrl.Uri.Authority }
         if (!$Headers["x-amz-content-sha256"]) { $Headers["x-amz-content-sha256"] = $RequestPayloadHash }
         if (!$Headers["x-amz-date"]) { $Headers["x-amz-date"] = $DateTime }
         if (!$Headers["content-type"] -and $ContentType) { $Headers["content-type"] = $ContentType }
@@ -745,7 +739,7 @@ function Global:Invoke-AwsRequest {
 
         if ($SingerType = "AWS4") {
             Write-Verbose "Using AWS Signature Version 4"
-            $Signature = New-AwsSignatureV4 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointHost $EndpointHost -Uri $Uri -CanonicalQueryString $CanonicalQueryString -HTTPRequestMethod $HTTPRequestMethod -RequestPayloadHash $RequestPayloadHash -DateTime $DateTime -DateString $DateString -Headers $Headers
+            $Signature = New-AwsSignatureV4 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -CanonicalQueryString $CanonicalQueryString -HTTPRequestMethod $HTTPRequestMethod -RequestPayloadHash $RequestPayloadHash -DateTime $DateTime -DateString $DateString -Headers $Headers
             Write-Debug "Task 4: Add the Signing Information to the Request"
             # http://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
             $Headers["Authorization"]="AWS4-HMAC-SHA256 Credential=$AccessKey/$DateString/$Region/$Service/aws4_request,SignedHeaders=$SignedHeaders,Signature=$Signature"
@@ -753,45 +747,41 @@ function Global:Invoke-AwsRequest {
         }
         else {
             Write-Verbose "Using AWS Signature Version 2"
-            $Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointHost $EndpointHost -Uri $Uri -HTTPRequestMethod $HTTPRequestMethod -ContentMD5 $ContentMd5 -ContentType $ContentType -Date $DateTime -Bucket $Bucket -QueryString $QueryString
+            $Signature = New-AwsSignatureV2 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -HTTPRequestMethod $HTTPRequestMethod -ContentMD5 $ContentMd5 -ContentType $ContentType -Date $DateTime -Bucket $Bucket -QueryString $QueryString
         }
 
-        if ($CanonicalQueryString) {
-            $Url = $EndpointUrl + $Uri + "?" + $CanonicalQueryString
-        }
-        else {
-            $Url = $EndpointUrl + $Uri
-        }
+        $EndpointUrl.Path = $Uri
+        $EndpointUrl.Query = $CanonicalQueryString
 
         try {            
             if ($RequestPayload) {
                 if ($OutFile) {
                     Write-Verbose "RequestPayload:`n$RequestPayload"
                     Write-Verbose "Saving output in file $OutFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload -OutFile $OutFile
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile
                 }                
                 else {
                     Write-Verbose "RequestPayload:`n$RequestPayload"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -Body $RequestPayload
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload
                 }
             }
             else {
                 if ($OutFile) {
                     Write-Verbose "Saving output in file $OutFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -OutFile $OutFile
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -OutFile $OutFile
                 }
                 elseif ($InFile) {
                     Write-Verbose "InFile:`n$InFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers -InFile $InFile
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -InFile $InFile
                 }
                 else {
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $Url -Headers $Headers
+                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers
                 }
             }
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$HTTPRequestMethod to $Url failed with Exception $($_.Exception.Message) `n $ResponseBody"
+            Write-Error "$HTTPRequestMethod to $EndpointUrl failed with Exception $($_.Exception.Message) `n $ResponseBody"
         }
 
         Write-Output $Result
@@ -830,7 +820,7 @@ function Global:Add-AwsCredentials {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Custom endpoint URL if different than AWS URL")][String]$EndpointUrl
+            HelpMessage="Custom endpoint URL if different than AWS URL")][System.UriBuilder]$EndpointUrl
     )
  
     Process {
@@ -858,7 +848,7 @@ function Global:Get-S3Buckets {
         [parameter(
             Mandatory=$False,
             Position=0,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=1,
@@ -962,7 +952,7 @@ function Global:Get-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1019,10 +1009,7 @@ function Global:Get-S3Bucket {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1121,7 +1108,7 @@ function Global:New-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1150,10 +1137,7 @@ function Global:New-S3Bucket {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1218,7 +1202,7 @@ function Global:Remove-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1239,10 +1223,7 @@ function Global:Remove-S3Bucket {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1306,7 +1287,7 @@ function Global:Read-S3Object {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1340,10 +1321,7 @@ function Global:Read-S3Object {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1427,7 +1405,7 @@ function Global:Write-S3Object {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1457,10 +1435,7 @@ function Global:Write-S3Object {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1529,7 +1504,7 @@ function Global:Remove-S3Object {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1555,10 +1530,7 @@ function Global:Remove-S3Object {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1619,7 +1591,7 @@ function Global:Get-S3BucketConsistency {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1639,10 +1611,7 @@ function Global:Get-S3BucketConsistency {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1705,7 +1674,7 @@ function Global:Update-S3BucketConsistency {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1729,10 +1698,7 @@ function Global:Update-S3BucketConsistency {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1791,7 +1757,7 @@ function Global:Get-S3StorageUsage {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1858,7 +1824,7 @@ function Global:Get-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1878,10 +1844,7 @@ function Global:Get-S3BucketLastAccessTime {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -1944,7 +1907,7 @@ function Global:Enable-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -1964,10 +1927,7 @@ function Global:Enable-S3BucketLastAccessTime {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"
@@ -2026,7 +1986,7 @@ function Global:Disable-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=2,
-            HelpMessage="EndpointUrl")][String]$EndpointUrl,
+            HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
         [parameter(
             Mandatory=$False,
             Position=3,
@@ -2046,10 +2006,7 @@ function Global:Disable-S3BucketLastAccessTime {
     Process {
         if ($UrlStyle -eq "virtual-hosted") {
             Write-Verbose "Using virtual-hosted style URL"
-            $Uri = "/"
-            $Protocol = $EndpointUrl -replace '://.*','://'
-            $EndpointHost  = $EndpointUrl -replace '(.+://)',''
-            $EndpointUrl = $Protocol + $Bucket + '.' + $EndpointHost
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
         }
         else {
             Write-Verbose "Using path style URL"

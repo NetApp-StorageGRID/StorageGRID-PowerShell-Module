@@ -962,6 +962,10 @@ function Global:Get-SgwAccountUsage {
     By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
     .PARAMETER TemporaryAccessKeyExpirationTime
     Time in seconds until automatically generated temporary S3 Access Keys expire.
+    .PARAMETER S3EndpointUrl
+    S3 Endpoint URL to be used.
+    .PARAMETER SwiftEndpointUrl
+    Swift Endpoint URL to be used.
     .EXAMPLE
     Minimum required information to connect with a StorageGRID Webscale Admin Node
 
@@ -1014,7 +1018,13 @@ function global:Connect-SgwServer {
                 HelpMessage="By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
         [parameter(Position=7,
                 Mandatory=$False,
-                HelpMessage="Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime=3600
+                HelpMessage="Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime=3600,
+        [parameter(Position=8,
+                Mandatory=$False,
+                HelpMessage="S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
+        [parameter(Position=9,
+                Mandatory=$False,
+                HelpMessage="Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
     )
 
     Process {
@@ -1026,8 +1036,8 @@ function global:Connect-SgwServer {
                                     Headers=[Hashtable]::new();
                                     ApiVersion=0;
                                     SupportedApiVersions=@();
-                                    S3EndpointUrl="";
-                                    SwiftEndpointUrl="";
+                                    S3EndpointUrl=$null;
+                                    SwiftEndpointUrl=$null;
                                     DisableAutomaticAccessKeyGeneration=$DisableAutomaticAccessKeyGeneration.isPresent;
                                     TemporaryAccessKeyExpirationTime=$TemporaryAccessKeyExpirationTime;
                                     AccessKeyStore=@{}}
@@ -1117,7 +1127,15 @@ function global:Connect-SgwServer {
         }
         $Server.SupportedApiVersions = $SupportedApiVersions
 
-        if (!$AccountId) {
+        if ($S3EndpointUrl) {
+            $Server.S3EndpointUrl = $S3EndpointUrl
+        }
+
+        if ($SwiftEndpointUrl) {
+            $Server.SwiftEndpointUrl = $SwiftEndpointUrl
+        }
+
+        if (!$AccountId -and !$Server.S3EndpointUrl) {
             # check endpoint urls and try StorageGRID default ports 8082 and 18082 for S3 and 8083 and 18083 for Swift
             $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | % { @("https://$_", "https://${_}:8082", "https://${_}:8083") }
             foreach ($EndpointDomainName in $EndpointDomainNames)
@@ -1132,7 +1150,7 @@ function global:Connect-SgwServer {
                         $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName -UseBasicParsing
                         if ($Response.Headers["x-amz-request-id"])
                         {
-                            $Server.S3EndpointUrl = $EndpointDomainName
+                            $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                             break
                         }
@@ -1145,7 +1163,7 @@ function global:Connect-SgwServer {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing
                         if ($Response.Headers["X-Trans-Id"])
                         {
-                            $Server.SwiftEndpointUrl = $EndpointDomainName
+                            $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                             break
                         }
@@ -1163,7 +1181,7 @@ function global:Connect-SgwServer {
                         if ($Response.Headers["x-amz-request-id"])
                         {
                             Write-Verbose "Test"
-                            $Server.S3EndpointUrl = $EndpointDomainName
+                            $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             break
                         }
                     }
@@ -1175,7 +1193,7 @@ function global:Connect-SgwServer {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck -UseBasicParsing
                         if ($Response.Headers["X-Trans-Id"])
                         {
-                            $Server.SwiftEndpointUrl = $EndpointDomainName
+                            $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             break
                         }
                     }
