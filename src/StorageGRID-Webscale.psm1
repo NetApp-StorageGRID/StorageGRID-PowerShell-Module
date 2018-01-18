@@ -1129,7 +1129,7 @@ function global:Connect-SgwServer {
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName
+                        $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName -UseBasicParsing
                         if ($Response.Headers["x-amz-request-id"])
                         {
                             $Server.S3EndpointUrl = $EndpointDomainName
@@ -1142,7 +1142,7 @@ function global:Connect-SgwServer {
                     }
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info"
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing
                         if ($Response.Headers["X-Trans-Id"])
                         {
                             $Server.SwiftEndpointUrl = $EndpointDomainName
@@ -1159,7 +1159,7 @@ function global:Connect-SgwServer {
                 {
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck -UseBasicParsing
                         if ($Response.Headers["x-amz-request-id"])
                         {
                             Write-Verbose "Test"
@@ -1172,7 +1172,7 @@ function global:Connect-SgwServer {
                     }
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck -UseBasicParsing
                         if ($Response.Headers["X-Trans-Id"])
                         {
                             $Server.SwiftEndpointUrl = $EndpointDomainName
