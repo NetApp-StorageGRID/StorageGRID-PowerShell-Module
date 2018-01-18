@@ -76,12 +76,12 @@ Show help for Cmdlet to connect to StorageGRID Management Server
     Get-Help Connect-SgwServer -Detailed
 ```
 
-Connect to StorageGRID Management Server (use the `-Insecure` switch to skip checking the certificate of the server)
+Connect to StorageGRID Management Server (use the `-SkipCertificateCheck` switch to skip checking the certificate of the server)
 
 ```powershell
     $Credential = Get-Credential
-    $Server = "nms.mydomain.tld"
-    Connect-SgwServer -Name $Server -Credential $Credential -Insecure
+    $Name = "admin-node.example.org"
+    Connect-SgwServer -Name $Name -Credential $Credential -SkipCertificateCheck
 ```
 
 List all StorageGRID-Webscale Accounts
