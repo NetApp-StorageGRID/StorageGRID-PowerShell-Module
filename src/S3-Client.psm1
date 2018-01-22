@@ -120,7 +120,7 @@ function ConvertFrom-AwsConfigFile {
         # remove empty lines
         $Content = $Content -replace "(`n$)*",""
         # convert to JSON structure
-        $Json = $Content  -replace "profile ","" -replace "`n([^\[])",',$1' -replace "\[","`"" -replace "],","`":{`"" -replace "\s*=\s*","`":`"" -replace ",","`",`"" -replace "`n","`"}," -replace "^","{" -replace "$","`"}}"
+        $Json = $Content  -replace "profile ","" -replace "`n([^\[])",',$1' -replace "\[","`"" -replace "]$","`":{" -replace "],","`":{`"" -replace "\s*=\s*","`":`"" -replace ",","`",`"" -replace "`n","`"}," -replace "^","{" -replace "$","`"}}" -replace "{`"}","{}"
         # parse JSON to Hashtable
 
         if ($PSVersionTable.PSVersion.Major -lt 6) {
