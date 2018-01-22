@@ -357,30 +357,38 @@ function Global:New-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
             HelpMessage="Name of the StorageGRID Webscale Account to be created.",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)][String]$Name,
         [parameter(
             Mandatory=$True,
-            Position=1,
+            Position=2,
             HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
-            Position=2,
+            Position=3,
             HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
         [parameter(
             Mandatory=$False,
-            Position=3,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
-        [parameter(
-            Mandatory=$False,
             Position=4,
-            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password,
+            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
         [parameter(
             Mandatory=$False,
             Position=5,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
             HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
  
@@ -396,6 +404,12 @@ function Global:New-SgwAccount {
         }
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
+        if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
+        }
+        if ($Server.APIVersion -lt 2.1 -and $AllowPlatformServices.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 11.0"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -418,6 +432,9 @@ function Global:New-SgwAccount {
         if ($Server.APIVersion -ge 2) {
             $Body.password = $Password
             $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            if ($Server.APIVersion -ge 2.1) {
+                $Body.policy["allowPlatformServices"] = $AllowPlatformServices
+            }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
             }
@@ -573,31 +590,35 @@ function Global:Update-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
+            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
             HelpMessage="ID of a StorageGRID Webscale Account to update.",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$False,
-            Position=1,
+            Position=2,
             HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
-            Position=2,
+            Position=3,
             HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
         [parameter(
             Mandatory=$False,
-            Position=3,
+            Position=4,
             HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
         [parameter(
             Mandatory=$False,
-            Position=4,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+            Position=5,
+            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
         [parameter(
             Mandatory=$False,
-            Position=5,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+            Position=6,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota
     )
  
     Begin {
@@ -610,6 +631,12 @@ function Global:Update-SgwAccount {
         
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+        }
+        if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
+        }
+        if ($Server.APIVersion -lt 2.1 -and $AllowPlatformServices.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 11.0"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -630,6 +657,9 @@ function Global:Update-SgwAccount {
 
         if ($Server.APIVersion -ge 2) {
             $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            if ($Server.APIVersion -ge 2.1) {
+                $Body.policy["allowPlatformServices"] = $AllowPlatformServices
+            }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
             }
@@ -665,31 +695,35 @@ function Global:Replace-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
+        HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
             HelpMessage="ID of a StorageGRID Webscale Account to update.",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$False,
-            Position=1,
+            Position=2,
             HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
-            Position=2,
+            Position=3,
             HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
         [parameter(
             Mandatory=$False,
-            Position=3,
+            Position=4,
             HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
         [parameter(
             Mandatory=$False,
-            Position=4,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+            Position=5,
+            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
         [parameter(
             Mandatory=$False,
-            Position=5,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+            Position=6,
+            HelpMessage="Quota for tenant in bytes.")][Long]$Quota
     )
  
     Begin {
@@ -703,13 +737,19 @@ function Global:Replace-SgwAccount {
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
         }
+        if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
+        }
+        if ($Server.APIVersion -lt 2.1 -and $AllowPlatformServices.isPresent) {
+            Write-Warning "Use Account Services is only Supported from StorageGRID 11.0"
+        }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
  
     Process {
-                $Body = @{}
+        $Body = @{}
         if ($Name) {
             $Body.name = $Name
         }
@@ -719,6 +759,9 @@ function Global:Replace-SgwAccount {
 
         if ($Server.APIVersion -ge 2) {
             $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            if ($Server.APIVersion -ge 2.1) {
+                $Body.policy["allowPlatformServices"] = $AllowPlatformServices
+            }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
             }
@@ -828,7 +871,7 @@ function Global:Update-SgwPassword {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale Account to update.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+            ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(
             Mandatory=$True,
             Position=1,
@@ -859,27 +902,24 @@ function Global:Update-SgwPassword {
     }
  
     Process {
-        $Id = @($Id)
-        foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id/change-password"
-            $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id/change-password"
+        $Method = "POST"
 
-            $Body = @"
+        $Body = @"
 {
   "password": "$NewPassword",
   "currentPassword": "$OldPassword"
 }
 "@
-            try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
-            }
-            catch {
-                $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Result.data
     }
 }
 
