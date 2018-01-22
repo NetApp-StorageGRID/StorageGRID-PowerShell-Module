@@ -1137,7 +1137,7 @@ function global:Connect-SgwServer {
 
         if (!$AccountId -and !$Server.S3EndpointUrl) {
             # check endpoint urls and try StorageGRID default ports 8082 and 18082 for S3 and 8083 and 18083 for Swift
-            $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | % { @("https://$_", "https://${_}:8082", "https://${_}:8083") }
+            $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | % { @("https://$_", "https://${_}:8082", "https://${_}:18082", "https://${_}:8083", "https://${_}:18083") }
             foreach ($EndpointDomainName in $EndpointDomainNames)
             {
                 Write-Verbose "Endpoint domain name: $EndpointDomainName"
