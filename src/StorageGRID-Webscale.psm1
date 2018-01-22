@@ -1147,7 +1147,7 @@ function global:Connect-SgwServer {
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName -UseBasicParsing
+                        $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName -UseBasicParsing -TimeoutSec 3
                         if ($Response.Headers["x-amz-request-id"])
                         {
                             $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
@@ -1160,7 +1160,7 @@ function global:Connect-SgwServer {
                     }
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing -TimeoutSec 3
                         if ($Response.Headers["X-Trans-Id"])
                         {
                             $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
@@ -1177,7 +1177,7 @@ function global:Connect-SgwServer {
                 {
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck -UseBasicParsing
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 3
                         if ($Response.Headers["x-amz-request-id"])
                         {
                             Write-Verbose "Test"
@@ -1190,7 +1190,7 @@ function global:Connect-SgwServer {
                     }
                     try
                     {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck -UseBasicParsing
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 3
                         if ($Response.Headers["X-Trans-Id"])
                         {
                             $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
