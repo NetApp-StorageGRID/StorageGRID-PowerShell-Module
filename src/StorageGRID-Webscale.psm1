@@ -385,11 +385,7 @@ function Global:New-SgwAccount {
         [parameter(
             Mandatory=$False,
             Position=6,
-            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password,
-        [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password
     )
  
     Begin {
