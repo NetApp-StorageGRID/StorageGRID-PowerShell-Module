@@ -1107,6 +1107,7 @@ function global:Connect-SgwServer {
         {
             $Body.accountId = $AccountId
             $Server | Add-Member -MemberType NoteProperty -Name AccountId -Value $AccountId
+            $Server | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
         }
 
         $Body = ConvertTo-Json -InputObject $Body
