@@ -171,7 +171,7 @@ function Invoke-SgwRequest {
                 HelpMessage="Body")][Object]$Body,
         [parameter(Mandatory=$False,
                 Position=5,
-                HelpMessage="Content Type")][String]$ContentType,
+                HelpMessage="Content Type")][String]$ContentType="application/json",
         [parameter(Mandatory=$False,
                 Position=6,
                 HelpMessage="Variable to store session details in")][String]$SessionVariable,
@@ -1636,7 +1636,619 @@ function Global:Get-SgwVersions {
 
 ## containers ##
 
-# TODO: Implement container cmdlets
+Set-Alias -Name Get-SgwBuckets -Value Get-SgwContainers
+<#
+    .SYNOPSIS
+    Lists the S3 buckets or Swift containers for a tenant account
+    .DESCRIPTION
+    Lists the S3 buckets or Swift containers for a tenant account
+#>
+function Global:Get-SgwContainers {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Get-SgwBucketConsistency -Value Get-SgwContainerConsistency
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Get-SgwContainerConsistency {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+            Position=1,
+            HelpMessage="Swift Container or S3 Bucket name.",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/consistency"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Update-SgwBucketConsistency -Value Update-SgwContainerConsistency
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Update-SgwContainerConsistency {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$True,
+                Position=2,
+                HelpMessage="Consistency level.")][ValidateSet("all","strong-global","strong-site","default","available","weak")][String]$Consistency
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/consistency"
+        $Method = "PUT"
+
+        $Body = @{consistency=$Consistency}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Get-SgwBucketLastAccessTime -Value Get-SgwContainerLastAccessTime
+<#
+    .SYNOPSIS
+    Determines if last access time is enabled for an S3 bucket
+    .DESCRIPTION
+    Determines if last access time is enabled for an S3 bucket
+#>
+function Global:Get-SgwContainerLastAccessTime {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/last-access-time"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Enable-SgwBucketLastAccessTime -Value Enable-SgwContainerLastAccessTime
+<#
+    .SYNOPSIS
+    Enables last access time updates for an S3 bucket
+    .DESCRIPTION
+    Enables last access time updates for an S3 bucket
+#>
+function Global:Enable-SgwContainerLastAccessTime {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/last-access-time"
+        $Method = "PUT"
+
+        $Body = @{lastAccessTime="enabled"}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Disable-SgwBucketLastAccessTime -Value Disable-SgwContainerLastAccessTime
+<#
+    .SYNOPSIS
+    Disables last access time updates for an S3 bucket
+    .DESCRIPTION
+    Disables last access time updates for an S3 bucket
+#>
+function Global:Disable-SgwContainerLastAccessTime {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/last-access-time"
+        $Method = "PUT"
+
+        $Body = @{lastAccessTime="disabled"}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+Set-Alias -Name Get-SgwBucketMetadataNotification -Value Get-SgwContainerMetadataNotification
+Set-Alias -Name Get-SgwBucketMetadataNotificationRules -Value Get-SgwContainerMetadataNotification
+Set-Alias -Name Get-SgwContainerMetadataNotificationRules -Value Get-SgwContainerMetadataNotification
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Get-SgwContainerMetadataNotification {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/metadata-notification"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.metadataNotification) {
+            $Xml = [xml]$Response.data.metadataNotification
+            foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketMetadataNotification -Value Remove-SgwContainerMetadataNotification
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Remove-SgwContainerMetadataNotification {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/metadata-notification"
+        $Method = "PUT"
+
+        $Body = @{}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+    }
+}
+
+Set-Alias -Name Update-SgwBucketMetadataNotificationRule -Value Add-SgwContainerMetadataNotificationRule
+Set-Alias -Name Update-SgwContainerMetadataNotificationRule -Value Add-SgwContainerMetadataNotificationRule
+Set-Alias -Name Add-SgwBucketMetadataNotificationRule -Value Add-SgwContainerMetadataNotificationRule
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Add-SgwContainerMetadataNotificationRule {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Int]$Id,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
+        [parameter(Mandatory=$False,
+                Position=3,
+                HelpMessage="S3 Key Prefix.")][String]$Prefix="",
+        [parameter(Mandatory=$True,
+                Position=4,
+                HelpMessage="URN of the Destination.")][Alias("Urn")][System.UriBuilder]$DestinationUrn
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/metadata-notification"
+        $Method = "PUT"
+
+        $MetadataNotificationRules = [System.Collections.ArrayList]::new()
+        $MetadataNotification = Get-SgwContainerMetadataNotification -Server $Server -Name $Name
+        foreach ($MetadataNotificationRule in $MetadataNotification) {
+            $Null = $MetadataNotificationRules.Add($MetadataNotificationRule)
+        }
+
+        if (($MetadataNotificationRules | Where-Object { $_.Id -eq $Id})) {
+            $MetadataNotificationRule = $MetadataNotificationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
+            if ($Status) { $MetadataNotificationRule.Status = $Status }
+            if ($Prefix) { $MetadataNotificationRule.Prefix = $Prefix }
+            if ($DestinationUrn) { $MetadataNotificationRule.DestinationUrn = $DestinationUrn }
+        }
+        else {
+            $MetadataNotificationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn }
+            $Null = $MetadataNotificationRules.Add($MetadataNotificationRule)
+        }
+
+        $MetadataNotificationConfiguration = "<MetadataNotificationConfiguration>"
+        foreach ($MetadataNotificationRule in $MetadataNotificationRules) {
+            $MetadataNotificationConfiguration += "<Rule><ID>$($MetadataNotificationRule.Id)</ID><Status>$($MetadataNotificationRule.Status)</Status><Prefix>$($MetadataNotificationRule.Prefix)</Prefix><Destination><Urn>$($MetadataNotificationRule.DestinationUrn)</Urn></Destination></Rule>"
+        }
+        $MetadataNotificationConfiguration += "</MetadataNotificationConfiguration>"
+
+        $Body = @{metadataNotification=$MetadataNotificationConfiguration}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.metadataNotification) {
+            $Xml = [xml]$Response.data.metadataNotification
+            foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketMetadataNotificationRule -Value Remove-SgwContainerMetadataNotificationRule
+<#
+    .SYNOPSIS
+    Gets the consistency level for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the consistency level for an S3 bucket or Swift container
+#>
+function Global:Remove-SgwContainerMetadataNotificationRule {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Int]$Id
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/metadata-notification"
+        $Method = "PUT"
+
+        $MetadataNotificationRules = [System.Collections.ArrayList]::new()
+        $MetadataNotification = Get-SgwContainerMetadataNotification -Server $Server -Name $Name
+        foreach ($MetadataNotificationRule in $MetadataNotification) {
+            if ($MetadataNotificationRule.id -ne $Id) {
+                $Null = $MetadataNotificationRules.Add($MetadataNotificationRule)
+            }
+        }
+
+        $MetadataNotification = "<MetadataNotificationConfiguration>"
+        foreach ($MetadataNotificationRule in $MetadataNotificationRules) {
+            $MetadataNotification += "<Rule><ID>$($MetadataNotificationRule.Id)</ID><Status>$($MetadataNotificationRule.Status)</Status><Prefix>$($MetadataNotificationRule.Prefix)</Prefix><Destination><Urn>$($MetadataNotificationRule.DestinationUrn)</Urn></Destination></Rule>"
+        }
+        $MetadataNotification += "</MetadataNotificationConfiguration>"
+
+        Write-Verbose $MetadataNotification
+
+        $Body = @{metadataNotification=$MetadataNotification}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.metadataNotification) {
+            $Xml = [xml]$Response.data.metadataNotification
+            foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
 
 ## deactivated-features ##
 
@@ -1899,7 +2511,347 @@ function Global:Replace-SgwDNSServers {
 
 ## endpoints ##
 
-# TODO: Implement endpoints cmdlets
+<#
+    .SYNOPSIS
+    Gets the list of endpoints
+    .DESCRIPTION
+    Gets the list of endpoints
+#>
+function Global:Get-SgwEndpoints {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Creates a new endpoint
+    .DESCRIPTION
+    Creates a new endpoint
+#>
+function Global:Add-SgwEndpoint {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory=$True,
+                Position=2,
+                HelpMessage="URI of the Endpoint.")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory=$True,
+                Position=3,
+                HelpMessage="URN of the Endpoint.")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory=$False,
+                Position=4,
+                HelpMessage="URN of the Endpoint.")][String]$CaCert,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory=$True,
+                Position=6,
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+        [parameter(Mandatory=$True,
+                Position=7,
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory=$False,
+                Position=8,
+                HelpMessage="Test the validity of the endpoint but do not save it.",
+                ParameterSetName="test")][Switch]$Test,
+        [parameter(Mandatory=$False,
+                Position=9,
+                HelpMessage="Force saving without endpoint validation.",
+                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints"
+        $Method = "POST"
+
+        if ($Test.isPresent) {
+            $Uri += "?test=true"
+        }
+        elseif ($Force.isPresent) {
+            $Uri += "?forceSave=true"
+        }
+
+        $Body = @{}
+        $Body.displayName = $DisplayName
+        $Body.endpointURI = $EndpointUri.Uri
+        $Body.endpointURN = $EndpointUrn.Uri
+        $Body.caCert = $CaCert
+        $Body.insecureTLS = $SkipCertificateCheck.isPresent
+        $Body.credentials = @{}
+        $Body.credentials.accessKeyId = $AccessKey
+        $Body.credentials.secretAccessKey = $SecretAccessKey
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deletes a single endpoint
+    .DESCRIPTION
+    Deletes a single endpoint
+#>
+function Global:Remove-SgwEndpoint {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Endpoint ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints/$Id"
+        $Method = "DELETE"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a single endpoint
+    .DESCRIPTION
+    Retrieves a single endpoint
+#>
+function Global:Get-SgwEndpoint {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Endpoint ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints/$Id"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replaces a single endpoint
+    .DESCRIPTION
+    Replaces a single endpoint
+#>
+function Global:Update-SgwEndpoint {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Endpoint ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id,
+        [parameter(Mandatory=$True,
+                Position=2,
+                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory=$True,
+                Position=3,
+                HelpMessage="URI of the Endpoint.")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory=$True,
+                Position=4,
+                HelpMessage="URN of the Endpoint.")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="URN of the Endpoint.")][String]$CaCert,
+        [parameter(Mandatory=$False,
+                Position=6,
+                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory=$True,
+                Position=7,
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+        [parameter(Mandatory=$True,
+                Position=8,
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory=$False,
+                Position=9,
+                HelpMessage="Test the validity of the endpoint but do not save it.",
+                ParameterSetName="test")][Switch]$Test,
+        [parameter(Mandatory=$False,
+                Position=10,
+                HelpMessage="Force saving without endpoint validation.",
+                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints/$id"
+        $Method = "PUT"
+
+        if ($Test.isPresent) {
+            $Uri += "?test=true"
+        }
+        elseif ($Force.isPresent) {
+            $Uri += "?forceSave=true"
+        }
+
+        $Body = @{}
+        $Body.displayName = $DisplayName
+        $Body.endpointURI = $EndpointUri.Uri
+        $Body.endpointURN = $EndpointUrn.Uri
+        $Body.caCert = $CaCert
+        $Body.insecureTLS = $SkipCertificateCheck.isPresent
+        $Body.credentials = @{}
+        $Body.credentials.accessKeyId = $AccessKey
+        $Body.credentials.secretAccessKey = $SecretAccessKey
+        $Body.id = $Id
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
 
 ## endpoint-domain-names ##
 
@@ -2237,7 +3189,7 @@ function Global:Remove-SgwExpansionNode {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale node to remove from expansion.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
@@ -2286,7 +3238,7 @@ function Global:Get-SgwExpansionNode {
             Position=0,
             HelpMessage="ID of a StorageGRID node eligible for expansion.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(Mandatory=$False,
                    Position=0,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
@@ -2379,7 +3331,7 @@ function Global:Reset-SgwExpansionNode {
             Position=0,
             HelpMessage="ID of a StorageGRID node eligible for expansion.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
@@ -2473,7 +3425,7 @@ function Global:New-SgwExpansionSite {
             Position=0,
             HelpMessage="Name of new site.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Name,
+            ValueFromPipelineByPropertyName=$True)][String]$Name,
         [parameter(Mandatory=$False,
                    Position=0,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
@@ -2524,7 +3476,7 @@ function Global:Remove-SgwExpansionNode {
             Position=0,
             HelpMessage="ID of a StorageGRID Webscale site to remove from expansion.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(Mandatory=$False,
                    Position=1,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
@@ -2573,7 +3525,7 @@ function Global:Get-SgwExpansionSite {
             Position=0,
             HelpMessage="ID of a StorageGRID site.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$id,
+            ValueFromPipelineByPropertyName=$True)][String]$id,
         [parameter(Mandatory=$False,
                    Position=0,
                    HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
