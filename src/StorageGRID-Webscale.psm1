@@ -2227,8 +2227,6 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         }
         $MetadataNotification += "</MetadataNotificationConfiguration>"
 
-        Write-Verbose $MetadataNotification
-
         $Body = @{metadataNotification=$MetadataNotification}
         $Body = ConvertTo-Json -InputObject $Body
 
@@ -2243,6 +2241,307 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         if ($Response.data.metadataNotification) {
             $Xml = [xml]$Response.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Get-SgwBucketReplication -Value Get-SgwContainerReplication
+Set-Alias -Name Get-SgwBucketReplicationRules -Value Get-SgwContainerReplication
+Set-Alias -Name Get-SgwContainerReplicationRules -Value Get-SgwContainerReplication
+<#
+    .SYNOPSIS
+    Gets the replication configuration for an S3 bucket or Swift container
+    .DESCRIPTION
+    Gets the replication configuration for an S3 bucket or Swift container
+#>
+function Global:Get-SgwContainerReplication {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/replication"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.metadataNotification) {
+            $Xml = [xml]$Response.data.metadataNotification
+            foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketReplication -Value Remove-SgwContainerReplication
+<#
+    .SYNOPSIS
+    Removes the replication configuration for an S3 bucket or Swift container
+    .DESCRIPTION
+    Removes the replication configuration for an S3 bucket or Swift container
+#>
+function Global:Remove-SgwContainerReplication {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/replication"
+        $Method = "PUT"
+
+        $Body = @{}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+    }
+}
+
+Set-Alias -Name Update-SgwBucketReplicationRule -Value Add-SgwContainerReplicationRule
+Set-Alias -Name Update-SgwBucketReplicationRule -Value Add-SgwContainerReplicationRule
+Set-Alias -Name Add-SgwBucketReplicationRule -Value Add-SgwContainerReplicationRule
+<#
+    .SYNOPSIS
+    Adds a replication configuration rule for an S3 bucket or Swift container
+    .DESCRIPTION
+    Adds a replication configuration rule for an S3 bucket or Swift container
+#>
+function Global:Add-SgwContainerReplicationRule {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Int]$Id,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
+        [parameter(Mandatory=$False,
+                Position=3,
+                HelpMessage="S3 Key Prefix.")][String]$Prefix="",
+        [parameter(Mandatory=$True,
+                Position=4,
+                HelpMessage="Destination Bucket name.")][System.UriBuilder]$DestinationBucket,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Destination Storage Class.")][ValidateSet("STANDARD","STANDARD_IA","RRS")][System.UriBuilder]$DestinationStorageClass="STANDARD",
+        [parameter(Mandatory=$False,
+                Position=6,
+                HelpMessage="IAM Role.")][Alias("Urn")][System.UriBuilder]$Role
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/replication"
+        $Method = "PUT"
+
+        $ReplicationRules = [System.Collections.ArrayList]::new()
+        $Replication = Get-SgwContainerReplication -Server $Server -Name $Name
+        foreach ($ReplicationRule in $Replication) {
+            $Null = $ReplicationRules.Add($ReplicationRule)
+        }
+
+        if (($ReplicationRules | Where-Object { $_.Id -eq $Id})) {
+            $ReplicationRule = $ReplicationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
+            if ($Status) { $ReplicationRule.Status = $Status }
+            if ($Prefix) { $ReplicationRule.Prefix = $Prefix }
+            if ($DestinationBucket) { $ReplicationRule.DestinationBucket = $DestinationBucket }
+            if ($DestinationStorageClass) { $ReplicationRule.DestinationStorageClass = $DestinationStorageClass }
+            if ($Role) { $ReplicationRule.Role = $Role }
+        }
+        else {
+            $ReplicationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationBucket = $DestinationBucket; DestinationStorageClass = $DestinationStorageClass; Role = $Role }
+            $Null = $ReplicationRules.Add($ReplicationRule)
+        }
+
+        $ReplicationConfiguration = "<ReplicationConfiguration>"
+        foreach ($ReplicationRule in $ReplicationRules) {
+            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationBucket)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+        }
+        $ReplicationConfiguration += "</ReplicationConfiguration>"
+
+        $Body = @{replication=$ReplicationConfiguration}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.replication) {
+            $Xml = [xml]$Response.data.replication
+            foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketReplicationRule -Value Remove-SgwContainerReplicationRule
+<#
+    .SYNOPSIS
+    Removes a replication configuration rule for an S3 bucket or Swift container
+    .DESCRIPTION
+    Removes a replication configuration rule for an S3 bucket or Swift container
+#>
+function Global:Remove-SgwContainerReplicationRule {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Rule ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Int]$Id
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/replication"
+        $Method = "PUT"
+
+        $ReplicationRules = [System.Collections.ArrayList]::new()
+        $Replication = Get-SgwContainerReplication -Server $Server -Name $Name
+        foreach ($ReplicationRule in $Replication) {
+            if ($ReplicationRule.id -ne $Id) {
+                $Null = $ReplicationRules.Add($ReplicationRule)
+            }
+        }
+
+        $ReplicationConfiguration = "<ReplicationConfiguration>"
+        foreach ($ReplicationRule in $ReplicationRules) {
+            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationBucket)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+        }
+        $ReplicationConfiguration += "</ReplicationConfiguration>"
+
+        $Body = @{replication=$Replication}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.replication) {
+            $Xml = [xml]$Response.data.replication
+            foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
             }
