@@ -1960,9 +1960,9 @@ Set-Alias -Name Get-SgwBucketMetadataNotificationRules -Value Get-SgwContainerMe
 Set-Alias -Name Get-SgwContainerMetadataNotificationRules -Value Get-SgwContainerMetadataNotification
 <#
     .SYNOPSIS
-    Gets the consistency level for an S3 bucket or Swift container
+    Gets the metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
-    Gets the consistency level for an S3 bucket or Swift container
+    Gets the metadata notification (search) configuration for an S3 bucket
 #>
 function Global:Get-SgwContainerMetadataNotification {
     [CmdletBinding()]
@@ -2018,9 +2018,9 @@ function Global:Get-SgwContainerMetadataNotification {
 Set-Alias -Name Remove-SgwBucketMetadataNotification -Value Remove-SgwContainerMetadataNotification
 <#
     .SYNOPSIS
-    Gets the consistency level for an S3 bucket or Swift container
+    Romoves the metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
-    Gets the consistency level for an S3 bucket or Swift container
+    Removes the metadata notification (search) configuration for an S3 bucket
 #>
 function Global:Remove-SgwContainerMetadataNotification {
     [CmdletBinding()]
@@ -2073,9 +2073,9 @@ Set-Alias -Name Update-SgwContainerMetadataNotificationRule -Value Add-SgwContai
 Set-Alias -Name Add-SgwBucketMetadataNotificationRule -Value Add-SgwContainerMetadataNotificationRule
 <#
     .SYNOPSIS
-    Gets the consistency level for an S3 bucket or Swift container
+    Adds a new rule for metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
-    Gets the consistency level for an S3 bucket or Swift container
+    Adds a new rule for metadata notification (search) configuration for an S3 bucket
 #>
 function Global:Add-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
@@ -2093,7 +2093,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Int]$Id,
+                ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(Mandatory=$False,
                 Position=2,
                 HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
@@ -2171,9 +2171,9 @@ function Global:Add-SgwContainerMetadataNotificationRule {
 Set-Alias -Name Remove-SgwBucketMetadataNotificationRule -Value Remove-SgwContainerMetadataNotificationRule
 <#
     .SYNOPSIS
-    Gets the consistency level for an S3 bucket or Swift container
+    Removes a rule for metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
-    Gets the consistency level for an S3 bucket or Swift container
+    Removes a rule for metadata notification (search) configuration for an S3 bucket
 #>
 function Global:Remove-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
@@ -2191,7 +2191,7 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Int]$Id
+                ValueFromPipelineByPropertyName=$True)][String]$Id
     )
 
     Begin {
@@ -2243,6 +2243,331 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
+            }
+        }
+    }
+}
+
+Set-Alias -Name Get-SgwBucketNotification -Value Get-SgwContainerNotification
+Set-Alias -Name Get-SgwBucketNotificationRules -Value Get-SgwContainerNotification
+Set-Alias -Name Get-SgwBucketNotificationTopics -Value Get-SgwContainerNotification
+Set-Alias -Name Get-SgwContainerNotificationRules -Value Get-SgwContainerNotification
+Set-Alias -Name Get-SgwContainerNotificationTopics -Value Get-SgwContainerNotification
+<#
+    .SYNOPSIS
+    Gets the notification configuration for an S3 bucket
+    .DESCRIPTION
+    Gets the notification configuration for an S3 bucket
+#>
+function Global:Get-SgwContainerNotification {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/notification"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.notification) {
+            Write-Verbose $Response.data.notification
+            $Xml = [xml]$Response.data.notification
+            foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
+                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                Write-Output $Topic
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketNotification -Value Remove-SgwContainerNotification
+<#
+    .SYNOPSIS
+    Remove the notification configuration for an S3 bucket
+    .DESCRIPTION
+    Remove the notification configuration for an S3 bucket
+#>
+function Global:Remove-SgwContainerNotification {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/notification"
+        $Method = "PUT"
+
+        $Body = @{}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+    }
+}
+
+Set-Alias -Name Add-SgwBucketNotificationRule -Value Add-SgwContainerNotificationTopic
+Set-Alias -Name Add-SgwBucketNotificationTopic -Value Add-SgwContainerNotificationTopic
+Set-Alias -Name Add-SgwContainerNotificationRule -Value Add-SgwContainerNotificationTopic
+<#
+    .SYNOPSIS
+    Add a topic to the notification configuration for an S3 bucket
+    .DESCRIPTION
+    Add a topic to the notification configuration for an S3 bucket
+#>
+function Global:Add-SgwContainerNotificationTopic {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$True,
+                Position=2,
+                HelpMessage="Topic ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id,
+        [parameter(Mandatory=$True,
+                Position=3,
+                HelpMessage="URN of the Topic.")][Alias("TopicUrn","Urn")][System.UriBuilder]$Topic,
+        [parameter(Mandatory=$False,
+                Position=4,
+                HelpMessage="Event to trigger notifications for.")][Alias("Event")][String[]]$Events,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Prefix filter.")][String]$Prefix,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Suffix filter.")][String]$Suffix
+
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/notification"
+        $Method = "PUT"
+
+        $NotificationTopics = [System.Collections.ArrayList]::new()
+        $Notifications = Get-SgwContainerNotification -Server $Server -Name $Name
+        foreach ($NotificationTopic in $Notifications) {
+            $Null = $NotificationTopics.Add($NotificationTopic)
+        }
+
+        if (($NotificationTopics | Where-Object { $_.Id -eq $Id})) {
+            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
+            if ($Topic) { $NotificationTopic.Topic = $Topic }
+            if ($Events) { $NotificationTopic.Events = $Events }
+            if ($Prefix) { $NotificationTopic.Prefix = $Prefix }
+            if ($Suffix) { $NotificationTopic.Suffix = $Suffix }
+        }
+        else {
+            $NotificationTopic = [PSCustomObject]@{Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
+            $Null = $NotificationTopics.Add($NotificationTopic)
+        }
+
+        $NotificationConfiguration = "<NotificationConfiguration>"
+        foreach ($NotificationTopic in $NotificationTopics) {
+            $NotificationConfiguration += "<TopicConfiguration><Id>$($NotificationTopic.Id)</Id><Topic>$($NotificationTopic.Topic)</Topic>"
+            foreach ($Event in $Events) {
+                $NotificationConfiguration += "<Event>$Event</Event>"
+            }
+            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$($NotificationTopic.Prefix)</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$($NotificationTopic.Suffix)</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
+        }
+        $NotificationConfiguration += "</NotificationConfiguration>"
+
+        $Body = @{notification=$NotificationConfiguration}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.notification) {
+            Write-Verbose $Response.data.notification
+            $Xml = [xml]$Response.data.notification
+            foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
+                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                Write-Output $Topic
+            }
+        }
+    }
+}
+
+Set-Alias -Name Remove-SgwBucketNotificationRule -Value Remove-SgwContainerNotificationTopic
+Set-Alias -Name Remove-SgwBucketNotificationTopic -Value Remove-SgwContainerNotificationTopic
+Set-Alias -Name Remove-SgwContainerNotificationRule -Value Remove-SgwContainerNotificationTopic
+<#
+    .SYNOPSIS
+    Remove a topic from the notification configuration for an S3 bucket
+    .DESCRIPTION
+    Remove a topic from the notification configuration for an S3 bucket
+#>
+function Global:Remove-SgwContainerNotificationTopic {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=2,
+                HelpMessage="Topic ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/notification"
+        $Method = "PUT"
+
+        $NotificationTopics = [System.Collections.ArrayList]::new()
+        $Notifications = Get-SgwContainerNotification -Server $Server -Name $Name
+        foreach ($NotificationTopic in $Notifications) {
+            if ($NotificationTopic.id -ne $Id) {
+                $Null = $NotificationTopics.Add($NotificationTopic)
+            }
+        }
+
+        if (($NotificationTopics | Where-Object { $_.Id -eq $Id})) {
+            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
+            if ($Topic) { $NotificationTopic.Topic = $Topic }
+            if ($Events) { $NotificationTopic.Events = $Events }
+            if ($Prefix) { $NotificationTopic.Prefix = $Prefix }
+            if ($Suffix) { $NotificationTopic.Suffix = $Suffix }
+        }
+        else {
+            $NotificationTopic = [PSCustomObject]@{Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
+            $Null = $NotificationTopics.Add($NotificationTopic)
+        }
+
+        $NotificationConfiguration = "<NotificationConfiguration>"
+        foreach ($NotificationTopic in $NotificationTopics) {
+            $NotificationConfiguration += "<TopicConfiguration><Id>$($NotificationTopic.Id)</Id><Topic>$($NotificationTopic.Topic)</Topic>"
+            foreach ($Event in $Events) {
+                $NotificationConfiguration += "<Event>$Event</Event>"
+            }
+            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$($NotificationTopic.Prefix)</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$($NotificationTopic.Suffix)</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
+        }
+        $NotificationConfiguration += "</NotificationConfiguration>"
+
+        $Body = @{metadataNotification=$MetadataNotification}
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        if ($Response.data.notification) {
+            Write-Verbose $Response.data.notification
+            $Xml = [xml]$Response.data.notification
+            foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
+                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                Write-Output $Topic
             }
         }
     }
@@ -2386,7 +2711,7 @@ function Global:Add-SgwContainerReplicationRule {
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Int]$Id,
+                ValueFromPipelineByPropertyName=$True)][String]$Id,
         [parameter(Mandatory=$False,
                 Position=2,
                 HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
@@ -2492,7 +2817,7 @@ function Global:Remove-SgwContainerReplicationRule {
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Int]$Id
+                ValueFromPipelineByPropertyName=$True)][String]$Id
     )
 
     Begin {
@@ -2856,6 +3181,7 @@ function Global:Get-SgwEndpoints {
     }
 }
 
+Set-Alias -Name New-SgwEndpoint -Value Add-SgwEndpoint
 <#
     .SYNOPSIS
     Creates a new endpoint
