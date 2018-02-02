@@ -2626,10 +2626,10 @@ function Global:Get-SgwContainerReplication {
             Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
         }
 
-        if ($Response.data.metadataNotification) {
-            $Xml = [xml]$Response.data.metadataNotification
-            foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+        if ($Response.data.replication) {
+            $Xml = [xml]$Response.data.replication
+            foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
                 Write-Output $Rule
             }
         }
@@ -2699,7 +2699,7 @@ Set-Alias -Name Add-SgwBucketReplicationRule -Value Add-SgwContainerReplicationR
     Adds a replication configuration rule for an S3 bucket or Swift container
 #>
 function Global:Add-SgwContainerReplicationRule {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="bucket")]
 
     PARAM (
         [parameter(Mandatory=$False,
@@ -2710,7 +2710,7 @@ function Global:Add-SgwContainerReplicationRule {
                 HelpMessage="Swift Container or S3 Bucket name to be replicated.",
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
@@ -2723,13 +2723,18 @@ function Global:Add-SgwContainerReplicationRule {
                 HelpMessage="S3 Key Prefix.")][String]$Prefix="",
         [parameter(Mandatory=$True,
                 Position=4,
-                HelpMessage="Destination Bucket name.")][System.UriBuilder]$DestinationBucket,
+                ParameterSetName="bucket",
+                HelpMessage="Destination Bucket name.")][String]$DestinationBucket,
+        [parameter(Mandatory=$True,
+                Position=4,
+                ParameterSetName="urn",
+                HelpMessage="Destination Bucket name.")][String]$DestinationUrn,
         [parameter(Mandatory=$False,
                 Position=5,
-                HelpMessage="Destination Storage Class.")][ValidateSet("STANDARD","STANDARD_IA","RRS")][System.UriBuilder]$DestinationStorageClass="STANDARD",
+                HelpMessage="Destination Storage Class.")][ValidateSet("STANDARD","STANDARD_IA","RRS")][String]$DestinationStorageClass="STANDARD",
         [parameter(Mandatory=$False,
                 Position=6,
-                HelpMessage="IAM Role.")][Alias("Urn")][System.UriBuilder]$Role
+                HelpMessage="IAM Role.")][String]$Role
     )
 
     Begin {
@@ -2757,22 +2762,26 @@ function Global:Add-SgwContainerReplicationRule {
             $Null = $ReplicationRules.Add($ReplicationRule)
         }
 
+        if ($DestinationBucket) {
+            $DestinationUrn = Get-SgwEndpoints | Where-Object { $_.endpointURN -match ":$DestinationBucket$" } | Select-Object -ExpandProperty endpointURN -First 1
+        }
+
         if (($ReplicationRules | Where-Object { $_.Id -eq $Id})) {
             $ReplicationRule = $ReplicationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
             if ($Status) { $ReplicationRule.Status = $Status }
             if ($Prefix) { $ReplicationRule.Prefix = $Prefix }
-            if ($DestinationBucket) { $ReplicationRule.DestinationBucket = $DestinationBucket }
+            $ReplicationRule.DestinationUrn = $DestinationUrn
             if ($DestinationStorageClass) { $ReplicationRule.DestinationStorageClass = $DestinationStorageClass }
             if ($Role) { $ReplicationRule.Role = $Role }
         }
         else {
-            $ReplicationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationBucket = $DestinationBucket; DestinationStorageClass = $DestinationStorageClass; Role = $Role }
+            $ReplicationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn; DestinationStorageClass = $DestinationStorageClass; Role = $Role }
             $Null = $ReplicationRules.Add($ReplicationRule)
         }
 
         $ReplicationConfiguration = "<ReplicationConfiguration>"
         foreach ($ReplicationRule in $ReplicationRules) {
-            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationBucket)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationUrn)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
         }
         $ReplicationConfiguration += "</ReplicationConfiguration>"
 
@@ -2790,7 +2799,7 @@ function Global:Add-SgwContainerReplicationRule {
         if ($Response.data.replication) {
             $Xml = [xml]$Response.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
                 Write-Output $Rule
             }
         }
@@ -2816,7 +2825,7 @@ function Global:Remove-SgwContainerReplicationRule {
                 HelpMessage="Swift Container or S3 Bucket name.",
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 HelpMessage="Rule ID.",
                 ValueFromPipeline=$True,
@@ -2852,11 +2861,11 @@ function Global:Remove-SgwContainerReplicationRule {
 
         $ReplicationConfiguration = "<ReplicationConfiguration>"
         foreach ($ReplicationRule in $ReplicationRules) {
-            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationBucket)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationUrn)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
         }
         $ReplicationConfiguration += "</ReplicationConfiguration>"
 
-        $Body = @{replication=$Replication}
+        $Body = @{replication=$ReplicationConfiguration}
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2870,7 +2879,7 @@ function Global:Remove-SgwContainerReplicationRule {
         if ($Response.data.replication) {
             $Xml = [xml]$Response.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
                 Write-Output $Rule
             }
         }
