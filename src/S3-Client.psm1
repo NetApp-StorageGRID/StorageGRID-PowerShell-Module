@@ -1579,13 +1579,27 @@ function Global:Write-S3Object {
         [parameter(
             Mandatory=$False,
             Position=6,
+            ParameterSetName="file",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key. If not provided, filename will be used")]
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ParameterSetName="content",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")][Alias("Object","Name")][String]$Key,
         [parameter(
+            Mandatory=$True,
+            Position=7,
+            ParameterSetName="file",
+            HelpMessage="Path where object should be stored")][Alias("Path","File")][System.IO.FileInfo]$InFile,
+        [parameter(
             Mandatory=$False,
             Position=7,
-            HelpMessage="Path where object should be stored")][Alias("Path")][System.IO.FileInfo]$InFile
+            ParameterSetName="content",
+            HelpMessage="Content of object")][Alias("InputObject")][String]$Content
     )
  
     Process {
@@ -1598,7 +1612,7 @@ function Global:Write-S3Object {
             $Uri = "/$Bucket/"
         }
 
-        if (!$InFile.Exists) {
+        if ($InFile -and !$InFile.Exists) {
             Throw "File $InFile does not exist"
         }
 
@@ -1610,17 +1624,33 @@ function Global:Write-S3Object {
 
         $HTTPRequestMethod = "PUT"
 
-        if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
-        }
-        elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -OutFile $InFile -ErrorAction Stop
-        }
-        elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+        if ($InFile) {
+            if ($Profile) {
+                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+            }
+            elseif ($AccessKey) {
+                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+            }
+            elseif ($AccountId) {
+                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+            }
+            else {
+                $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+            }
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+            if ($Profile) {
+                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+            }
+            elseif ($AccessKey) {
+                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+            }
+            elseif ($AccountId) {
+                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+            }
+            else {
+                $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+            }
         }
 
         Write-Output $Result
