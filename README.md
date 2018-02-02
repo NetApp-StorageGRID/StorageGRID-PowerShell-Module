@@ -8,9 +8,9 @@ See the sections below for [Installation](#Installation) and [Update](#Update) I
 Installation
 ------------
 
-The recommended way to install the PowerShell Module is through the new Install-Module Cmdlet available in PowerShell 5. Consider installing [PowerShell 5](https://www.microsoft.com/en-us/download/details.aspx?id=50395) or [PowerShell 6](https://github.com/PowerShell/PowerShell#get-powershell) which supports Linux, Mac OS X and Windows. 
+The recommended way to install the PowerShell Module is through the new Install-Module Cmdlet available since PowerShell 5. Consider installing [PowerShell 5](https://www.microsoft.com/en-us/download/details.aspx?id=50395) or [PowerShell 6](https://github.com/PowerShell/PowerShell#get-powershell). PowerShell 6 now supports Linux, Mac OS X and Windows. 
 
-To install the Cmdlets for the current user only run
+To install the Cmdlets only for the current user run
 
 ```powershell
 Install-Module -Name StorageGRID-Webscale -Scope CurrentUser
@@ -24,7 +24,7 @@ Install-Module -Name StorageGRID-Webscale
 
 The StorageGRID Webscale PowerShell Cmdlets require at least PowerShell 4.0 and .NET 4.5. 
 
-If you can't install via `Install-Module` you can download the latest version of OnCommand-Insight.zip from the [GitHub Release page](https://github.com/ffeldhaus/StorageGRID-Webscale/releases/latest). Then extract StorageGRID-Webscale.zip to your preferred PowerShell Module location. For the current user to 
+If you can't install via `Install-Module` you can download the latest version of StorageGRID-Webscale.zip from the [GitHub Release page](https://github.com/ffeldhaus/StorageGRID-Webscale/releases/latest). Then extract StorageGRID-Webscale.zip to your preferred PowerShell Module location. For the current user to 
     
     $HOME\WindowsPowershell\Documents\WindowsPowerShell\Modules
     
@@ -64,7 +64,7 @@ List all Cmdlets included in the StorageGRID-Webscale Module
     Get-Command -Module StorageGRID-Webscale
 ```
 
-List all Cmdlets included in the S3 Client
+List all Cmdlets included in the S3 Client (this command only works with PowerShell 6 and later)
 
 ```powershell
     Get-Command -Module S3-Client  
