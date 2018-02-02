@@ -1240,6 +1240,9 @@ function global:Connect-SgwServer {
                 }
             }
         }
+        elseif (!$Server.S3EndpointUrl -and $CurrentSgwServer.Name -eq $Name) {
+            $Server.S3EndpointUrl = $CurrentSgwServer.S3EndpointUrl
+        }
 
         if (!$Transient)
         {
