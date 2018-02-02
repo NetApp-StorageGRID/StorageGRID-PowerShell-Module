@@ -2704,7 +2704,7 @@ function Global:Add-SgwContainerReplicationRule {
                 HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory=$True,
                 Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
+                HelpMessage="Swift Container or S3 Bucket name to be replicated.",
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
         [parameter(Mandatory=$False,
@@ -3027,7 +3027,7 @@ function Global:Update-SgwDeactivatedFeatures {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -3189,7 +3189,7 @@ Set-Alias -Name New-SgwEndpoint -Value Add-SgwEndpoint
     Creates a new endpoint
 #>
 function Global:Add-SgwEndpoint {
-    [CmdletBinding(DefaultParameterSetName="none")]
+    [CmdletBinding(DefaultParameterSetName="NameOnlyAndProfile")]
 
     PARAM (
         [parameter(Mandatory=$False,
@@ -3198,75 +3198,75 @@ function Global:Add-SgwEndpoint {
         [parameter(Mandatory=$True,
                 Position=1,
                 HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="UriAndUrnAndProfile",
                 HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="UriAndUrnAndKey",
                 HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="UriAndNameAndProfile",
                 HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="UriAndNameAndKey",
                 HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="UriAndUrnAndProfile",
                 HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="UriAndUrnAndKey",
                 HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="RegionAndUrnAndProfile",
                 HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="RegionAndUrnAndKey",
                 HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="RegionAndUrnAndProfile",
                 HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="RegionAndUrnAndKey",
                 HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="RegionAndNameAndProfile",
                 HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=2,
                 ParameterSetName="RegionAndNameAndKey",
                 HelpMessage="Region.")][String]$Region,
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="RegionAndNameAndProfile",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="RegionAndNameAndKey",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="UriAndNameAndProfile",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="UriAndNameAndKey",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="NameOnlyAndProfile",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
+        [parameter(Mandatory=$True,
                 Position=3,
                 ParameterSetName="NameOnlyAndKey",
                 HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket","Topic","Domain")][String]$Name,
@@ -3299,23 +3299,23 @@ function Global:Add-SgwEndpoint {
         [parameter(Mandatory=$False,
                 Position=6,
                 ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+                HelpMessage="S3 Access Key authorized to use the endpoint.")]
         [parameter(Mandatory=$False,
                 Position=6,
                 ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+                HelpMessage="S3 Access Key authorized to use the endpoint.")]
         [parameter(Mandatory=$False,
                 Position=6,
                 ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+                HelpMessage="S3 Access Key authorized to use the endpoint.")]
         [parameter(Mandatory=$False,
                 Position=6,
                 ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+                HelpMessage="S3 Access Key authorized to use the endpoint.")]
         [parameter(Mandatory=$False,
                 Position=6,
                 ParameterSetName="NameOnlyAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
         [parameter(Mandatory=$False,
                 Position=7,
                 ParameterSetName="UriAndUrnAndKey",
@@ -3383,10 +3383,10 @@ function Global:Add-SgwEndpoint {
                 if ($Config.Region) {
                     $Region = $Config.Region
                     if ($Region -eq "us-east-1" -and !$Config.endpoint_url) {
-                        $EndpointUri = "s3.amazonaws.com"
+                        $EndpointUri = "https://s3.amazonaws.com"
                     }
                     elseif (!$Config.endpoint_url) {
-                        $EndpointUri = "s3.$Region.amazonaws.com"
+                        $EndpointUri = "https://s3.$Region.amazonaws.com"
                     }
                     else {
                         $EndpointUri = [System.UriBuilder]$Config.endpoint_url
@@ -3832,6 +3832,8 @@ function Global:Get-SgwEndpointDomainNames {
     }
 }
 
+Set-Alias -Name Add-SgwEndpointDomainNames -Value Replace-SgwEndpointDomainNames
+Set-Alias -Name New-SgwEndpointDomainNames -Value Replace-SgwEndpointDomainNames
 <#
     .SYNOPSIS
     Change the endpoint domain names
@@ -3869,7 +3871,7 @@ function Global:Replace-SgwEndpointDomainNames {
         $Body = ConvertTo-Json -InputObject $EndpointDomainNames
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4384,7 +4386,7 @@ function Global:New-SgwExpansionSite {
         $Body = ConvertTo-Json -InputObject @{name=$Name}
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4646,7 +4648,7 @@ function Global:Update-SgwGridNetworks {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -4813,7 +4815,7 @@ function Global:New-SgwGroup {
             $Body = ConvertTo-Json -InputObject $Body
 
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -5139,7 +5141,7 @@ function Global:Update-SgwGroup {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -5284,7 +5286,7 @@ function Global:Replace-SgwGroup {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -5719,7 +5721,7 @@ function Global:Invoke-SgwIlmEvaluate {
         }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -5910,7 +5912,7 @@ function Global:Update-SgwLicense {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -6126,7 +6128,7 @@ function Global:Update-SgwNtpServers {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType"application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
