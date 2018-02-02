@@ -16,7 +16,7 @@ List all Cmdlets included in the StorageGRID-Webscale Module
 Get-Command -Module StorageGRID-Webscale
 ```
 
-List all Cmdlets included in the S3 Client
+List all Cmdlets included in the S3 Client (this command only works with PowerShell 6 and later)
 
 ```powershell
 Get-Command -Module S3-Client
@@ -28,7 +28,7 @@ Show the syntax of all Cmdlets from the StorageGRID-Webscale Module
 Get-Command -Module StorageGRID-Webscale -Syntax
 ```
 
-Show the syntax of all Cmdlets from the StorageGRID-Webscale Module
+Show the syntax of all Cmdlets from the StorageGRID-Webscale Module (this command only works with PowerShell 6 and later)
 
 ```powershell
 Get-Command -Module S3-Client -Syntax
@@ -329,6 +329,76 @@ Downloading objects can be done with
 
 ```powershell
 Read-S3Object -Bucket "MyBucket" -Key "test" -OutFile "$HOME\test"
+```
+
+## Platform Services
+
+### CloudMirror - Bucket Replication
+
+Connected as a grid administrator, create a new tenant which is has S3 capabilities and is allowed to use platform services
+
+```powershell
+$Credential = Get-Credential -UserName "root"
+$Account = New-SgwAccount -Name "platformservices" -Capabilities "s3","management" -Password $Credential.GetNetworkCredential().Password -AllowPlatformServices $true
+```
+
+Connect as tenant root user
+
+```powershell
+$Account | Connect-SgwServer -Name $Name -Credential $Credential
+```
+
+Create a bucket on StorageGRID to be mirrored to AWS
+
+```powershell
+$SourceBucket = "$($Account.Name)-replication-source"
+New-S3Bucket -Name $SourceBucket
+Get-S3Buckets
+```
+
+To create a bucket on AWS the AWS credentials are required. If there is no AWS Profile yet, create a new profile configuration and add AWS Credentials retrieved from AWS IAM and a preferred region with
+```powershell
+Add-AwsConfig -Profile "AWS" -AccessKey "REPLACEME" -SecretAccessKey "REPLACEME" -Region "us-east-1"
+```
+
+Create the destination bucket on AWS using the AWS Profile
+
+```powershell
+$DestinationBucket = "$($Account.Name)-replication-destination"
+New-S3Bucket -Name $DestinationBucket -Profile "AWS"
+Get-S3Buckets -Profile "AWS"
+```
+
+Configure the AWS destination bucket as Endpoint in StorageGRID
+
+```powershell
+Add-SgwEndpoint -DisplayName "AWS S3 endpoint" -Bucket $DestinationBucket -Profile "AWS"
+```
+
+Add a bucket replication rule which defines which source bucket (on StorageGRID) should be replicated to which destination bucket (on AWS)
+
+```powershell
+Add-SgwBucketReplicationRule -Bucket $SourceBucket -DestinationBucket $DestinationBucket -Id "AWS Replication of bucket $SourceBucket"
+```
+
+Write an object to the source bucket on StorageGRID
+
+```powershell
+$Key = "testobject"
+$Content = "Hello World!"
+Write-S3Object -Bucket $SourceBucket -Key $Key -Content $Content
+```
+
+Read the object from the source bucket
+
+```powershell
+Read-S3Object -Bucket $SourceBucket -Key $Key
+```
+
+Read the object from the destination bucket (you can add `-verbose` to verify that the REST call is indeed sent to AWS)
+
+```powershell
+Read-S3Object -Bucket $DestinationBucket -Key $Key -Profile "AWS"
 ```
 
 ## Creating AWS Signatures
