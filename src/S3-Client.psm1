@@ -1372,7 +1372,11 @@ function Global:Remove-S3Bucket {
             Position=5,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            HelpMessage="Force deletion even if bucket is not empty.")][Switch]$Force
 
     )
  
@@ -1384,6 +1388,10 @@ function Global:Remove-S3Bucket {
         else {
             Write-Verbose "Using path style URL"
             $Uri = "/$Bucket/"
+        }
+
+        if ($Force) {
+            Get-S3Bucket -Name $Bucket -Profile $Profile | Remove-S3Object -Profile $Profile
         }
 
         $HTTPRequestMethod = "DELETE"
@@ -1402,6 +1410,256 @@ function Global:Remove-S3Bucket {
         }
 
         Write-Output $Result
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get S3 Bucket Versioning
+    .DESCRIPTION
+    Get S3 Bucket Versioning
+#>
+function Global:Get-S3BucketVersioning {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=5,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+
+    )
+
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $Query = @{versioning=""}
+
+        $HTTPRequestMethod = "GET"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccountId) {
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+
+        Write-Output $Result.VersioningConfiguration.Status
+    }
+}
+
+<#
+    .SYNOPSIS
+    Enable S3 Bucket Versioning
+    .DESCRIPTION
+    Enable S3 Bucket Versioning
+#>
+function Global:Enable-S3BucketVersioning {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=5,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+
+    )
+
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $Query = @{versioning=""}
+
+        $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Enabled</Status></VersioningConfiguration>"
+
+        $HTTPRequestMethod = "PUT"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccountId) {
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+
+        Write-Output $Result.VersioningConfiguration.Status
+    }
+}
+
+<#
+    .SYNOPSIS
+    Suspend S3 Bucket Versioning
+    .DESCRIPTION
+    Suspend S3 Bucket Versioning
+#>
+function Global:Suspend-S3BucketVersioning {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=5,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+
+    )
+
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $Query = @{versioning=""}
+
+        $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Suspended</Status></VersioningConfiguration>"
+
+        $HTTPRequestMethod = "PUT"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        elseif ($AccountId) {
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+        }
+
+        Write-Output $Result.VersioningConfiguration.Status
     }
 }
 
@@ -1659,9 +1917,9 @@ function Global:Write-S3Object {
 
 <#
     .SYNOPSIS
-    Get S3 Bucket
+    Remove S3 Object
     .DESCRIPTION
-    Get S3 Bucket
+    Remove S3 Object
 #>
 function Global:Remove-S3Object {
     [CmdletBinding(DefaultParameterSetName="none")]
