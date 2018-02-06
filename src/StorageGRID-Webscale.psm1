@@ -3201,7 +3201,7 @@ Set-Alias -Name New-SgwEndpoint -Value Add-SgwEndpoint
     Creates a new endpoint
 #>
 function Global:Add-SgwEndpoint {
-    [CmdletBinding(DefaultParameterSetName="NameOnlyAndProfile")]
+    [CmdletBinding()]
 
     PARAM (
         [parameter(Mandatory=$False,
@@ -3212,76 +3212,10 @@ function Global:Add-SgwEndpoint {
                 HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
         [parameter(Mandatory=$True,
                 Position=2,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="UriAndNameAndKey",
                 HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
         [parameter(Mandatory=$True,
                 Position=3,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndKey",
                 HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Region.")][String]$Region,
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="NameOnlyAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket","Topic","Domain")][String]$Name,
         [parameter(Mandatory=$False,
                 Position=4,
                 HelpMessage="CA Certificate String.")][String]$CaCert,
@@ -3290,72 +3224,19 @@ function Global:Add-SgwEndpoint {
                 HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
         [parameter(Mandatory=$False,
                 Position=6,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="NameOnlyAndProfile",
                 HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
         [parameter(Mandatory=$False,
                 Position=6,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="NameOnlyAndKey",
                 HelpMessage="S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
         [parameter(Mandatory=$False,
                 Position=7,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnlyAndKey",
                 HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
         [parameter(Mandatory=$False,
                 Position=8,
-                HelpMessage="Test the validity of the endpoint but do not save it.",
-                ParameterSetName="test")][Switch]$Test,
+                HelpMessage="Test the validity of the endpoint but do not save it.")][Switch]$Test,
         [parameter(Mandatory=$False,
                 Position=9,
-                HelpMessage="Force saving without endpoint validation.",
-                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+                HelpMessage="Force saving without endpoint validation.")][Alias("ForceSave")][Switch]$Force
     )
 
     Begin {
@@ -3384,41 +3265,6 @@ function Global:Add-SgwEndpoint {
             $Uri += "?forceSave=true"
         }
 
-        if ($Profile) {
-            $Config = Get-AwsCredential -Profile $Profile
-            if (!$Config.aws_access_key_id -and !$Config.aws_secret_access_key) {
-                throw "No Credentials found for Profile $Profile. Either add credentials using Add-AwsCredential or specify AccessKey and SecretAccessKey"
-            }
-            $AccessKey = $Config.aws_access_key_id
-            $SecretAccessKey = $Config.aws_secret_access_key
-            if (!$Region -and $Name -and !$EndpointUri) {
-                if ($Config.Region) {
-                    $Region = $Config.Region
-                    if ($Region -eq "us-east-1" -and !$Config.endpoint_url) {
-                        $EndpointUri = "https://s3.amazonaws.com"
-                    }
-                    elseif (!$Config.endpoint_url) {
-                        $EndpointUri = "https://s3.$Region.amazonaws.com"
-                    }
-                    else {
-                        $EndpointUri = [System.UriBuilder]$Config.endpoint_url
-                    }
-                }
-                else {
-                    Throw "No Endpoint URI and Region specified and Region not included in configuration of profile $Profile"
-                }
-            }
-        }
-
-        if ($Name) {
-            if ($EndpointUri -match "amazonaws.com") {
-                $EndpointUrn = "arn:aws:s3:::$Name"
-            }
-            else {
-                $EndpointUrn = "urn:sgws:s3:::$Name"
-            }
-        }
-
         $Body = @{}
         $Body.displayName = $DisplayName
         $Body.endpointURI = $EndpointUri.Uri
@@ -3443,6 +3289,9 @@ function Global:Add-SgwEndpoint {
     }
 }
 
+Set-Alias -Name Remove-SgwS3Endpoint -Value Remove-SgwEndpoint
+Set-Alias -Name Remove-SgwSnsEndpoint -Value Remove-SgwEndpoint
+Set-Alias -Name Remove-SgwEsEndpoint -Value Remove-SgwEndpoint
 <#
     .SYNOPSIS
     Deletes a single endpoint
@@ -3494,6 +3343,9 @@ function Global:Remove-SgwEndpoint {
     }
 }
 
+Set-Alias -Name Get-SgwS3Endpoint -Value Get-SgwEndpoint
+Set-Alias -Name Get-SgwSnsEndpoint -Value Get-SgwEndpoint
+Set-Alias -Name Get-SgwEsEndpoint -Value Get-SgwEndpoint
 <#
     .SYNOPSIS
     Retrieves a single endpoint
@@ -3552,6 +3404,391 @@ function Global:Get-SgwEndpoint {
     Replaces a single endpoint
 #>
 function Global:Update-SgwEndpoint {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Endpoint ID.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Id,
+        [parameter(Mandatory=$True,
+                Position=2,
+                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="UriAndUrnAndProfile",
+                HelpMessage="URI of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="UriAndUrnAndKey",
+                HelpMessage="URI of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="UriAndNameAndProfile",
+                HelpMessage="URI of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="UriAndNameAndKey",
+                HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="UriAndUrnAndProfile",
+                HelpMessage="URN of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="UriAndUrnAndKey",
+                HelpMessage="URN of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="RegionAndUrnAndProfile",
+                HelpMessage="URN of the Endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="RegionAndUrnAndKey",
+                HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="RegionAndUrnAndProfile",
+                HelpMessage="Region.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="RegionAndUrnAndKey",
+                HelpMessage="Region.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="RegionAndNameAndProfile",
+                HelpMessage="Region.")]
+        [parameter(Mandatory=$False,
+                Position=3,
+                ParameterSetName="RegionAndNameAndKey",
+                HelpMessage="Region.")][String]$Region,
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="RegionAndNameAndProfile",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="RegionAndNameAndKey",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="UriAndNameAndProfile",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="UriAndNameAndKey",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="NameOnlyAndProfile",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory=$False,
+                Position=4,
+                ParameterSetName="NameOnlyAndKey",
+                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket","Topic","Domain")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory=$False,
+                Position=6,
+                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="UriAndUrnAndProfile",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="UriAndNameAndProfile",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="RegionAndUrnAndProfile",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="RegionAndNameAndProfile",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="NameOnlyAndProfile",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="UriAndUrnAndKey",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="UriAndNameAndKey",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="RegionAndUrnAndKey",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="RegionAndNameAndKey",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="NameOnlyAndKey",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+        [parameter(Mandatory=$False,
+                Position=8,
+                ParameterSetName="UriAndUrnAndKey",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=8,
+                ParameterSetName="UriAndNameAndKey",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=8,
+                ParameterSetName="RegionAndUrnAndKey",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=8,
+                ParameterSetName="RegionAndNameAndKey",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=8,
+                ParameterSetName="NameOnlyAndKey",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory=$False,
+                Position=9,
+                HelpMessage="Test the validity of the endpoint but do not save it.",
+                ParameterSetName="test")][Switch]$Test,
+        [parameter(Mandatory=$False,
+                Position=10,
+                HelpMessage="Force saving without endpoint validation.",
+                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.1) {
+            Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/endpoints/$id"
+        $Method = "PUT"
+
+        if ($Test.isPresent) {
+            $Uri += "?test=true"
+        }
+        elseif ($Force.isPresent) {
+            $Uri += "?forceSave=true"
+        }
+
+        if ($Profile) {
+            $Config = Get-AwsCredential -Profile $Profile
+            if (!$Config.aws_access_key_id -and !$Config.aws_secret_access_key) {
+                throw "No Credentials found for Profile $Profile. Either add credentials using Add-AwsCredential or specify AccessKey and SecretAccessKey"
+            }
+            $AccessKey = $Config.aws_access_key_id
+            $SecretAccessKey = $Config.aws_secret_access_key
+            if (!$Region -and $Name -and !$EndpointUri) {
+                if ($Config.Region) {
+                    $Region = $Config.Region
+                    if ($Region -eq "us-east-1" -and !$Config.endpoint_url) {
+                        $EndpointUri = "s3.amazonaws.com"
+                    }
+                    elseif (!$Config.endpoint_url) {
+                        $EndpointUri = "s3.$Region.amazonaws.com"
+                    }
+                    else {
+                        $EndpointUri = [System.UriBuilder]$Config.endpoint_url
+                    }
+                }
+                else {
+                    Throw "No Endpoint URI and Region specified and Region not included in configuration of profile $Profile"
+                }
+            }
+        }
+
+        if ($Name) {
+            if ($EndpointUri -match "amazonaws.com") {
+                $EndpointUrn = "arn:aws:s3:::$Name"
+            }
+            else {
+                $EndpointUrn = "urn:sgws:s3:::$Name"
+            }
+        }
+
+        $Body = @{}
+        $Body.displayName = $DisplayName
+        $Body.endpointURI = $EndpointUri.Uri
+        $Body.endpointURN = $EndpointUrn.Uri
+        $Body.caCert = $CaCert
+        $Body.insecureTLS = $SkipCertificateCheck.isPresent
+        $Body.credentials = @{}
+        $Body.credentials.accessKeyId = $AccessKey
+        $Body.credentials.secretAccessKey = $SecretAccessKey
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Response.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Gets the list of S3 endpoints
+    .DESCRIPTION
+    Gets the list of S3 endpoints
+#>
+function Global:Get-SgwS3Endpoints {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Process {
+        Get-SgwEndpoints | Where-Object { $_.endpointURN -match "[^:]*:[^:]*:s3:" }
+    }
+}
+
+Set-Alias -Name New-SgwS3Endpoint -Value Add-SgwS3Endpoint
+<#
+    .SYNOPSIS
+    Creates a new S3 endpoint
+    .DESCRIPTION
+    Creates a new S3 endpoint
+#>
+function Global:Add-SgwS3Endpoint {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory=$True,
+                Position=2,
+                ParameterSetName="RegionAndName",
+                HelpMessage="Region.")][String]$Region,
+        [parameter(Mandatory=$True,
+                Position=3,
+                ParameterSetName="RegionAndName",
+                HelpMessage="Bucket Name.")]
+        [parameter(Mandatory=$True,
+                Position=3,
+                ParameterSetName="NameOnly",
+                HelpMessage="Bucket Name.")][Alias("Bucket")][String]$Name,
+        [parameter(Mandatory=$False,
+                Position=4,
+                HelpMessage="CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory=$False,
+                Position=5,
+                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory=$False,
+                Position=6,
+                ParameterSetName="RegionAndName",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=6,
+                ParameterSetName="NameOnly",
+                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
+        [parameter(Mandatory=$False,
+                Position=6,
+                ParameterSetName="RegionAndName",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=6,
+                ParameterSetName="NameOnly",
+                HelpMessage="S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="RegionAndName",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory=$False,
+                Position=7,
+                ParameterSetName="NameOnly",
+                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory=$False,
+                Position=8,
+                HelpMessage="Test the validity of the endpoint but do not save it.",
+                ParameterSetName="test")][Switch]$Test,
+        [parameter(Mandatory=$False,
+                Position=9,
+                HelpMessage="Force saving without endpoint validation.",
+                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+    )
+
+    Process {
+        if ($Profile) {
+            $Config = Get-AwsCredential -Profile $Profile
+            if (!$Config.aws_access_key_id -and !$Config.aws_secret_access_key) {
+                throw "No Credentials found for Profile $Profile. Either add credentials using Add-AwsCredential or specify AccessKey and SecretAccessKey"
+            }
+            $AccessKey = $Config.aws_access_key_id
+            $SecretAccessKey = $Config.aws_secret_access_key
+            if (!$Region -and $Config.Region) {
+                $Region = $Config.Region
+            }
+        }
+
+        if (!$Region) {
+            $Region = "us-east-1"
+        }
+
+        if (!$EndpointUri) {
+            if ($Region -eq "us-east-1" -and !$Config.endpoint_url) {
+                $EndpointUri = "https://s3.amazonaws.com"
+            }
+            elseif (!$Config.endpoint_url) {
+                $EndpointUri = "https://s3.$Region.amazonaws.com"
+            }
+            else {
+                $EndpointUri = [System.UriBuilder]$Config.endpoint_url
+            }
+        }
+
+        if ($Name) {
+            if ($EndpointUri -match "amazonaws.com") {
+                $EndpointUrn = "arn:aws:s3:::$Name"
+            }
+            else {
+                $EndpointUrn = "urn:sgws:s3:::$Name"
+            }
+        }
+
+        Add-SgwEndpoint -Server $Server -DisplayName $DisplayName -EndpointUri $EndpointUri -EndpointUrn $EndpointUrn -CaCert $CaCert -SkipCertificateCheck:$SkipCertificateCheck -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -Test:$Test -Force:$Force
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replaces a single endpoint
+    .DESCRIPTION
+    Replaces a single endpoint
+#>
+function Global:Update-SgwS3Endpoint {
     [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
