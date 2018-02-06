@@ -1231,6 +1231,151 @@ function Global:Get-S3Bucket {
     }
 }
 
+Set-Alias -Name Get-S3ObjectVersions -Value Get-S3BucketVersions
+<#
+    .SYNOPSIS
+    Get S3 Bucket
+    .DESCRIPTION
+    Get S3 Bucket
+#>
+function Global:Get-S3BucketVersions {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=5,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
+        [parameter(
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="Maximum Number of keys to return")][Int][ValidateRange(0,1000)]$MaxKeys=0,
+        [parameter(
+                Mandatory=$False,
+                Position=7,
+                HelpMessage="Bucket prefix for filtering")][String]$Prefix,
+        [parameter(
+                Mandatory=$False,
+                Position=8,
+                HelpMessage="Bucket prefix for filtering")][String][ValidateLength(1,1)]$Delimiter,
+        [parameter(
+                Mandatory=$False,
+                Position=9,
+                HelpMessage="Continuation token for keys.")][String]$KeyMarker,
+        [parameter(
+                Mandatory=$False,
+                Position=10,
+                HelpMessage="Continuation token for versions.")][String]$VersionIdMarker,
+        [parameter(
+                Mandatory=$False,
+                Position=11,
+                HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType
+
+    )
+
+    Process {
+        if ($UrlStyle -eq "virtual-hosted") {
+            Write-Verbose "Using virtual-hosted style URL"
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
+        }
+        else {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket/"
+        }
+
+        $HTTPRequestMethod = "GET"
+
+        $Query = @{versions=""}
+
+        if ($Delimiter) { $Query["delimiter"] = $Delimiter }
+        if ($EncodingType) { $Query["encoding-type"] = $EncodingType }
+        if ($MaxKeys -ge 1) {
+            $Query["max-keys"] = $MaxKeys
+        }
+        if ($Prefix) { $Query["prefix"] = $Prefix }
+        if ($KeyMarker) { $Query["key-marker"] = $KeyMarker }
+        if ($VersionIdMarker) { $Query["version-id-marker"] = $VersionIdMarker }
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        elseif ($AccountId) {
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+        }
+
+        $Versions = $Result.ListVersionsResult.Version | ? { $_ }
+        $Versions | Add-Member -MemberType NoteProperty -Name Type -Value "Version"
+        $DeleteMarkers = $Result.ListVersionsResult.DeleteMarker | ? { $_ }
+        $DeleteMarkers | Add-Member -MemberType NoteProperty -Name Type -Value "DeleteMarker"
+        $Versions += $DeleteMarkers
+
+        foreach ($Version in $Versions) {
+            $Version | Add-Member -MemberType NoteProperty -Name OwnerId -Value $Version.Owner.Id
+            $Version | Add-Member -MemberType NoteProperty -Name OwnerDisplayName -Value $Version.Owner.DisplayName
+            $Version.PSObject.Members.Remove("Owner")
+        }
+        $Versions | Add-Member -MemberType NoteProperty -Name Bucket -Value $Result.ListVersionsResult.Name
+
+        Write-Output $Versions
+
+        if ($Result.ListVersionsResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
+            Write-Verbose "1000 Versions were returned and max keys was not limited so continuing to get all Versions"
+            if ($Profile) {
+                Get-S3BucketVersions -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+            }
+            elseif ($AccessKey) {
+                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+            }
+            elseif ($AccountId) {
+                Get-S3BucketVersions -AccountId $AccountId -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+            }
+            else {
+                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+            }
+        }
+    }
+}
+
 <#
     .SYNOPSIS
     Get S3 Bucket
@@ -1797,22 +1942,42 @@ function Global:Write-S3Object {
 
     PARAM (
         [parameter(
-            ParameterSetName="profile",
+            ParameterSetName="ProfileAndFile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="AWS Profile to use which contains AWS sredentials and settings")]
+        [parameter(
+            ParameterSetName="ProfileAndContent",
             Mandatory=$False,
             Position=0,
             HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
         [parameter(
-            ParameterSetName="keys",
+            ParameterSetName="KeyAndFile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="S3 Access Key")]
+        [parameter(
+            ParameterSetName="KeyAndContent",
             Mandatory=$False,
             Position=0,
             HelpMessage="S3 Access Key")][String]$AccessKey,
         [parameter(
-            ParameterSetName="keys",
+            ParameterSetName="KeyAndFile",
+            Mandatory=$False,
+            Position=1,
+            HelpMessage="S3 Secret Access Key")]
+        [parameter(
+            ParameterSetName="KeyAndContent",
             Mandatory=$False,
             Position=1,
             HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
         [parameter(
-            ParameterSetName="account",
+            ParameterSetName="AccountAndFile",
+            Mandatory=$False,
+            Position=0,
+            HelpMessage="StorageGRID account ID to execute this command against")]
+        [parameter(
+            ParameterSetName="AccountAndContent",
             Mandatory=$False,
             Position=0,
             HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
@@ -1837,26 +2002,74 @@ function Global:Write-S3Object {
         [parameter(
             Mandatory=$False,
             Position=6,
-            ParameterSetName="file",
+            ParameterSetName="ProfileAndFile",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key. If not provided, filename will be used")]
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            ParameterSetName="KeyAndFile",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key. If not provided, filename will be used")]
+        [parameter(
+            Mandatory=$False,
+            Position=6,
+            ParameterSetName="AccountAndFile",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$True,
             Position=6,
-            ParameterSetName="content",
+            ParameterSetName="ProfileAndContent",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key. If not provided, filename will be used")]
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ParameterSetName="KeyAndContent",
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key. If not provided, filename will be used")]
+        [parameter(
+            Mandatory=$True,
+            Position=6,
+            ParameterSetName="AccountAndContent",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")][Alias("Object","Name")][String]$Key,
         [parameter(
             Mandatory=$True,
             Position=7,
-            ParameterSetName="file",
+            ParameterSetName="ProfileAndFile",
+            HelpMessage="Path where object should be stored")]
+        [parameter(
+            Mandatory=$True,
+            Position=7,
+            ParameterSetName="KeyAndFile",
+            HelpMessage="Path where object should be stored")]
+        [parameter(
+            Mandatory=$True,
+            Position=7,
+            ParameterSetName="AccountAndFile",
             HelpMessage="Path where object should be stored")][Alias("Path","File")][System.IO.FileInfo]$InFile,
         [parameter(
             Mandatory=$False,
             Position=7,
-            ParameterSetName="content",
+            ParameterSetName="ProfileAndContent",
+            HelpMessage="Content of object")]
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            ParameterSetName="KeyAndContent",
+            HelpMessage="Content of object")]
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            ParameterSetName="AccountAndContent",
             HelpMessage="Content of object")][Alias("InputObject")][String]$Content
     )
  
@@ -1968,7 +2181,13 @@ function Global:Remove-S3Object {
             Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Object key")][Alias("Object","Name")][String]$Key
+            HelpMessage="Object key")][Alias("Object","Name")][String]$Key,
+        [parameter(
+            Mandatory=$False,
+            Position=7,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object version ID")][String]$VersionId
     )
  
     Process {
@@ -1981,21 +2200,25 @@ function Global:Remove-S3Object {
             $Uri = "/$Bucket/"
         }
         
-        $Uri += $Key        
+        $Uri += $Key
+
+        if ($VersionId) {
+            $Query = @{versionId=$VersionId}
+        }
 
         $HTTPRequestMethod = "DELETE"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Outfile $FilePath -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
     }
 }
