@@ -16,7 +16,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
         }
 "@
 
-    # Using .NET JSON Serializer as JSON serialization included in Invoke-RestMethod has a length restriction for JSON content
+    # Using .NET JSON Serializer as JSON serialization included in Invoke-WebRequest has a length restriction for JSON content
     Add-Type -AssemblyName System.Web.Extensions
     $global:javaScriptSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
     $global:javaScriptSerializer.MaxJsonLength = [System.Int32]::MaxValue
@@ -26,7 +26,7 @@ else {
     # unfortunately AWS Authentication is not RFC-7232 compliant (it is using semicolons in the value) 
     # and PowerShell 6 enforces strict header verification by default
     # therefore disabling strict header verification until AWS fixed this
-    $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipHeaderValidation",$true)
+    $PSDefaultParameterValues.Add("Invoke-WebRequest:SkipHeaderValidation",$true)
 }
 
 ### Helper Functions ###
@@ -397,7 +397,7 @@ function Global:New-AwsSignatureV4 {
         [parameter(
             Mandatory=$False,
             Position=9,
-            HelpMessage="Region")][String]$Region="us-east-1",
+            HelpMessage="Region")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=10,
@@ -528,13 +528,17 @@ function Global:Invoke-AwsRequest {
             Mandatory=$False,
             Position=3,
             HelpMessage="Endpoint URL")][System.UriBuilder]$EndpointUrl,
-         [parameter(
+        [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="URL Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+         [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Skip SSL Certificate check")][Switch]$SkipCertificateCheck,
         [parameter(
             Mandatory=$False,
-            Position=5,
+            Position=6,
             HelpMessage="URI")][String]$Uri="/",
         [parameter(
             Mandatory=$False,
@@ -547,11 +551,11 @@ function Global:Invoke-AwsRequest {
         [parameter(
             Mandatory=$False,
             Position=9,
-            HelpMessage="Region")][String]$Region="us-east-1",
+            HelpMessage="Region")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=10,
-            HelpMessage="Region")][String]$Service="s3",
+            HelpMessage="Service")][String]$Service="s3",
         [parameter(
             Mandatory=$False,
             Position=11,
@@ -666,12 +670,15 @@ function Global:Invoke-AwsRequest {
             $Credential = Get-AwsCredential -Profile $Profile
             $AccessKey = $Credential.aws_access_key_id
             $SecretAccessKey = $Credential.aws_secret_access_key
-            if (Test-Path $AWS_CONFIG_FILE) {
+
+            if (!$Region) {
                 $Config = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CONFIG_FILE
-                if (!$Region) {
-                    $Region = $Config[$Profile].region
-                }
+                $Region = $Config[$Profile].region
             }
+        }
+
+        if (!$Region) {
+            $Region = "us-east-1"
         }
 
         if (!$AccessKey) {
@@ -679,29 +686,6 @@ function Global:Invoke-AwsRequest {
         }
         if (!$SecretAccessKey) {
             throw "No Secret Access Key specified"
-        }
-
-        # check if untrusted SSL certificates should be ignored
-        if ($SkipCertificateCheck) {
-            if ($PSVersionTable.PSVersion.Major -lt 6) {
-                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-            }
-            else {
-                if (!"Invoke-RestMethod:SkipCertificateCheck") {
-                    $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true)
-                }
-                else {
-                    $PSDefaultParameterValues.'Invoke-RestMethod:SkipCertificateCheck'=$true
-                }
-            }
-        }
-        else {
-            # currently there is no way to re-enable certificate check for the current session in PowerShell prior to version 6
-            if ($PSVersionTable.PSVersion.Major -ge 6) {
-                if ("Invoke-RestMethod:SkipCertificateCheck") {
-                    $PSDefaultParameterValues.Remove("Invoke-RestMethod:SkipCertificateCheck")
-                }
-            }
         }
 
         if ([environment]::OSVersion.Platform -match "Win") {
@@ -723,6 +707,15 @@ function Global:Invoke-AwsRequest {
             else {
                 $EndpointUrl = [System.UriBuilder]::new("https://s3.$Region.amazonaws.com")
             }
+        }
+
+        if ($UrlStyle -eq "virtual-hosted" -and $Bucket) {
+            Write-Verbose "Using virtual-hosted style URL"
+            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
+        }
+        elseif ($Bucket) {
+            Write-Verbose "Using path style URL"
+            $Uri = "/$Bucket" + $Uri
         }
     }
  
@@ -769,7 +762,7 @@ function Global:Invoke-AwsRequest {
 
         if ($SingerType = "AWS4") {
             Write-Verbose "Using AWS Signature Version 4"
-            $Signature = New-AwsSignatureV4 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Uri $Uri -CanonicalQueryString $CanonicalQueryString -HTTPRequestMethod $HTTPRequestMethod -RequestPayloadHash $RequestPayloadHash -DateTime $DateTime -DateString $DateString -Headers $Headers
+            $Signature = New-AwsSignatureV4 -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -CanonicalQueryString $CanonicalQueryString -HTTPRequestMethod $HTTPRequestMethod -RequestPayloadHash $RequestPayloadHash -DateTime $DateTime -DateString $DateString -Headers $Headers
             Write-Debug "Task 4: Add the Signing Information to the Request"
             # http://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
             $Headers["Authorization"]="AWS4-HMAC-SHA256 Credential=$AccessKey/$DateString/$Region/$Service/aws4_request,SignedHeaders=$SignedHeaders,Signature=$Signature"
@@ -783,29 +776,90 @@ function Global:Invoke-AwsRequest {
         $EndpointUrl.Path = $Uri
         $EndpointUrl.Query = $CanonicalQueryString
 
-        try {            
-            if ($RequestPayload) {
-                if ($OutFile) {
-                    Write-Verbose "RequestPayload:`n$RequestPayload"
-                    Write-Verbose "Saving output in file $OutFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile
-                }                
+        # check if untrusted SSL certificates should be ignored
+        if ($SkipCertificateCheck) {
+            if ($PSVersionTable.PSVersion.Major -lt 6) {
+                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+            }
+            else {
+                if (!"Invoke-WebRequest:SkipCertificateCheck") {
+                    $PSDefaultParameterValues.Add("Invoke-WebRequest:SkipCertificateCheck",$true)
+                }
                 else {
-                    Write-Verbose "RequestPayload:`n$RequestPayload"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload
+                    $PSDefaultParameterValues.'Invoke-WebRequest:SkipCertificateCheck'=$true
+                }
+            }
+        }
+        else {
+            # currently there is no way to re-enable certificate check for the current session in PowerShell prior to version 6
+            if ($PSVersionTable.PSVersion.Major -ge 6) {
+                if ("Invoke-WebRequest:SkipCertificateCheck") {
+                    $PSDefaultParameterValues.Remove("Invoke-WebRequest:SkipCertificateCheck")
+                }
+            }
+        }
+
+        try {
+            # PowerShell 5 and early cannot skip certificate validation per request therefore we need to use a workaround
+            if ($PSVersionTable.PSVersion.Major -lt 6 ) {
+                if ($SkipCertificateCheck.isPresent) {
+                    $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
+                    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+                }
+                if ($RequestPayload) {
+                    if ($OutFile) {
+                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        Write-Verbose "Saving output in file $OutFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile
+                    }
+                    else {
+                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload
+                    }
+                }
+                else {
+                    if ($OutFile) {
+                        Write-Verbose "Saving output in file $OutFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -OutFile $OutFile
+                    }
+                    elseif ($InFile) {
+                        Write-Verbose "InFile:`n$InFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -InFile $InFile
+                    }
+                    else {
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers
+                    }
+                }
+                if ($SkipCertificateCheck.isPresent) {
+                    [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                 }
             }
             else {
-                if ($OutFile) {
-                    Write-Verbose "Saving output in file $OutFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -OutFile $OutFile
-                }
-                elseif ($InFile) {
-                    Write-Verbose "InFile:`n$InFile"
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -InFile $InFile
+                if ($RequestPayload) {
+                    if ($OutFile) {
+                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        Write-Verbose "Saving output in file $OutFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
+                    }
+                    else {
+                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -Body $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck
+                    }
                 }
                 else {
-                    $Result = Invoke-RestMethod -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers
+                    if ($OutFile) {
+                        Write-Verbose "Saving output in file $OutFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
+                    }
+                    elseif ($InFile) {
+                        Write-Verbose "InFile:`n$InFile"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -InFile $InFile -SkipCertificateCheck:$SkipCertificateCheck
+                    }
+                    else {
+                        Write-Verbose "URI:$($EndpointUrl.Uri)"
+                        Write-Verbose "Headers:$($Headers | ConvertTo-Json)"
+                        $Result = Invoke-WebRequest -Method $HTTPRequestMethod -Uri $EndpointUrl.Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck
+                    }
                 }
             }
         }
@@ -938,8 +992,21 @@ function Global:Get-AwsConfig {
     )
 
     Process {
-        $Credentials = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CREDENTIALS_FILE
-        $Config = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CONFIG_FILE
+        $Credentials = @()
+        $Config = @()
+        try {
+            $Credentials = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CREDENTIALS_FILE
+        }
+        catch {
+            Write-Verbose "Retrieving credentials from $AWS_CREDENTIALS_FILE failed"
+        }
+        try {
+            $Config = ConvertFrom-AwsConfigFile -AwsConfigFile $AWS_CONFIG_FILE
+        }
+        catch {
+            Write-Verbose "Retrieving credentials from $AWS_CONFIG_FILE failed"
+        }
+
         foreach ($Credential in $Credentials) {
             $ConfigEntry = $Config | Where-Object { $_.Profile -eq $Credential.Profile } | Select-Object -First 1
             if ($ConfigEntry) {
@@ -956,6 +1023,7 @@ function Global:Get-AwsConfig {
         else {
             Write-Output $Config
         }
+
     }
 }
 
@@ -1060,17 +1128,28 @@ function Global:Get-S3Buckets {
                 $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
             }
         }
-        if ($Result) {
-            $Buckets = @()
-            if ($Result.ListAllMyBucketsResult) {
-                foreach ($Bucket in $Result.ListAllMyBucketsResult.Buckets.ChildNodes) {
-                    $Buckets += [PSCustomObject]@{ Name = $Bucket.Name; CreationDate = $Bucket.CreationDate }
+
+        $Content = [XML]$Result.Content
+
+        if ($Content.ListAllMyBucketsResult) {
+            foreach ($Bucket in $Content.ListAllMyBucketsResult.Buckets.ChildNodes) {
+                if ($Profile) {
+                    $Location = Get-S3BucketLocation -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket.Name -Profile $Profile
                 }
-                $Owner = [PSCustomObject]@{ ID = $Result.ListAllMyBucketsResult.Owner.ID; DisplayName = $Result.ListAllMyBucketsResult.Owner.DisplayName }
+                elseif ($AccessKey) {
+                    $Location = Get-S3BucketLocation -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket.Name -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey
+                }
+                elseif ($AccountId) {
+                    $Location = Get-S3BucketLocation -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket.Name -AccountId $AccountId
+                }
+                else {
+                    $AccountId = $Content.ListAllMyBucketsResult.Owner.ID
+                    $Location = Get-S3BucketLocation -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket.Name -AccountId $AccountId
+                }
+
+                $Bucket = [PSCustomObject]@{ Name = $Bucket.Name; CreationDate = $Bucket.CreationDate; OwnerId = $Content.ListAllMyBucketsResult.Owner.ID; OwnerDisplayName = $Content.ListAllMyBucketsResult.Owner.DisplayName; Region = $Location }
+                Write-Output $Bucket
             }
-            $Buckets | Add-Member -MemberType NoteProperty -Name OwnerId -Value $Owner.ID
-            $Buckets | Add-Member -MemberType NoteProperty -Name OwnerDisplayName -Value $Owner.DisplayName
-            Write-Output $Buckets
         }
     }
 }
@@ -1112,66 +1191,63 @@ function Global:Get-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
             Mandatory=$False,
-            Position=6,
+            Position=7,
             HelpMessage="Maximum Number of keys to return")][Int][ValidateRange(0,1000)]$MaxKeys=0,
         [parameter(
             Mandatory=$False,
-            Position=7,
+            Position=8,
             HelpMessage="Bucket prefix for filtering")][String]$Prefix,
         [parameter(
             Mandatory=$False,
-            Position=8,
+            Position=9,
             HelpMessage="Bucket prefix for filtering")][String][ValidateLength(1,1)]$Delimiter,
         [parameter(
             Mandatory=$False,
-            Position=9,
+            Position=10,
             HelpMessage="Return Owner information (Only valid for list type 2).")][Switch]$FetchOwner=$False,
         [parameter(
             Mandatory=$False,
-            Position=10,
+            Position=11,
             HelpMessage="Return key names after a specific object key in your key space. The S3 service lists objects in UTF-8 character encoding in lexicographical order (Only valid for list type 2).")][String]$StartAfter,
         [parameter(
             Mandatory=$False,
-            Position=11,
+            Position=12,
             HelpMessage="Continuation token (Only valid for list type 1).")][String]$Marker,
        [parameter(
             Mandatory=$False,
-            Position=12,
+            Position=13,
             HelpMessage="Continuation token (Only valid for list type 2).")][String]$ContinuationToken,
         [parameter(
             Mandatory=$False,
-            Position=13,
+            Position=14,
             HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType,
         [parameter(
             Mandatory=$False,
-            Position=14,
+            Position=15,
             HelpMessage="Bucket list type.")][String][ValidateSet(1,2)]$ListType=1
 
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "GET"
 
         $Query = @{}
@@ -1195,37 +1271,40 @@ function Global:Get-S3Bucket {
         }
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
 
-        $Objects = $Result.ListBucketResult.Contents | ? { $_ }
-        $Objects | Add-Member -MemberType NoteProperty -Name Bucket -Value $Result.ListBucketResult.Name
+        $Content = [XML]$Result.Content
+
+        $Objects = $Content.ListBucketResult.Contents | ? { $_ }
+        $Objects | Add-Member -MemberType NoteProperty -Name Bucket -Value $Content.ListBucketResult.Name
+        $Objects | Add-Member -MemberType NoteProperty -Name Region -Value $Region
 
         Write-Output $Objects
 
-        if ($Result.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
+        if ($Content.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
             Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
-            Write-Debug "NextMarker: $($Result.ListBucketResult.NextMarker)"
+            Write-Debug "NextMarker: $($Content.ListBucketResult.NextMarker)"
             if ($Profile) {
-                Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -Profile $Profile -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
             }
             elseif ($AccessKey) {
-                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
             }
             elseif ($AccountId) {
-                Get-S3Bucket -AccountId $AccountId -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -AccountId $AccountId -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
             }
             else {
-                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Result.ListBucketResult.NextContinuationToken -Marker $Result.ListBucketResult.NextMarker
+                Get-S3Bucket -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
             }            
         }   
     }
@@ -1269,54 +1348,51 @@ function Global:Get-S3BucketVersions {
         [parameter(
                 Mandatory=$False,
                 Position=3,
-                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
         [parameter(
                 Mandatory=$False,
                 Position=4,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
                 HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
                 Mandatory=$True,
-                Position=5,
+                Position=6,
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
                 Mandatory=$False,
-                Position=6,
+                Position=7,
                 HelpMessage="Maximum Number of keys to return")][Int][ValidateRange(0,1000)]$MaxKeys=0,
         [parameter(
                 Mandatory=$False,
-                Position=7,
+                Position=8,
                 HelpMessage="Bucket prefix for filtering")][String]$Prefix,
         [parameter(
                 Mandatory=$False,
-                Position=8,
+                Position=9,
                 HelpMessage="Bucket prefix for filtering")][String][ValidateLength(1,1)]$Delimiter,
         [parameter(
                 Mandatory=$False,
-                Position=9,
+                Position=10,
                 HelpMessage="Continuation token for keys.")][String]$KeyMarker,
         [parameter(
                 Mandatory=$False,
-                Position=10,
+                Position=11,
                 HelpMessage="Continuation token for versions.")][String]$VersionIdMarker,
         [parameter(
                 Mandatory=$False,
-                Position=11,
+                Position=12,
                 HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType
 
     )
 
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "GET"
 
         $Query = @{versions=""}
@@ -1331,46 +1407,49 @@ function Global:Get-S3BucketVersions {
         if ($VersionIdMarker) { $Query["version-id-marker"] = $VersionIdMarker }
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
 
-        $Versions = $Result.ListVersionsResult.Version | ? { $_ }
+        $Content = [XML]$Result.Content
+
+        $Versions = $Content.ListVersionsResult.Version | ? { $_ }
         $Versions | Add-Member -MemberType NoteProperty -Name Type -Value "Version"
-        $DeleteMarkers = $Result.ListVersionsResult.DeleteMarker | ? { $_ }
+        $DeleteMarkers = $Content.ListVersionsResult.DeleteMarker | ? { $_ }
         $DeleteMarkers | Add-Member -MemberType NoteProperty -Name Type -Value "DeleteMarker"
         $Versions += $DeleteMarkers
 
         foreach ($Version in $Versions) {
             $Version | Add-Member -MemberType NoteProperty -Name OwnerId -Value $Version.Owner.Id
             $Version | Add-Member -MemberType NoteProperty -Name OwnerDisplayName -Value $Version.Owner.DisplayName
+            $Version | Add-Member -MemberType NoteProperty -Name Region -Value $Region
             $Version.PSObject.Members.Remove("Owner")
         }
-        $Versions | Add-Member -MemberType NoteProperty -Name Bucket -Value $Result.ListVersionsResult.Name
+        $Versions | Add-Member -MemberType NoteProperty -Name Bucket -Value $Content.ListVersionsResult.Name
 
         Write-Output $Versions
 
-        if ($Result.ListVersionsResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
+        if ($Content.ListVersionsResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
             Write-Verbose "1000 Versions were returned and max keys was not limited so continuing to get all Versions"
             if ($Profile) {
-                Get-S3BucketVersions -Profile $Profile -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+                Get-S3BucketVersions -Profile $Profile -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
             }
             elseif ($AccessKey) {
-                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
             }
             elseif ($AccountId) {
-                Get-S3BucketVersions -AccountId $AccountId -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+                Get-S3BucketVersions -AccountId $AccountId -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
             }
             else {
-                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Result.ListVersionsResult.NextKeyMarker -VersionIdMarker $Result.ListVersionsResult.NextVersionIdMarker
+                Get-S3BucketVersions -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -EndpointUrl $EndpointUrl -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
             }
         }
     }
@@ -1378,9 +1457,9 @@ function Global:Get-S3BucketVersions {
 
 <#
     .SYNOPSIS
-    Get S3 Bucket
+    Create S3 Bucket
     .DESCRIPTION
-    Get S3 Bucket
+    Create S3 Bucket
 #>
 function Global:New-S3Bucket {
     [CmdletBinding(DefaultParameterSetName="none")]
@@ -1431,20 +1510,11 @@ function Global:New-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=7,
-            HelpMessage="Canned ACL")][Alias("Location","LocationConstraint")][String]$Region
+            HelpMessage="Region to create bucket in")][Alias("Location","LocationConstraint")][String]$Region
 
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "PUT"
 
         if ($Region) {
@@ -1454,19 +1524,17 @@ function Global:New-S3Bucket {
         $Query = @{}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $RequestPayload -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
-
-        Write-Output $Result
     }
 }
 
@@ -1507,54 +1575,50 @@ function Global:Remove-S3Bucket {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
             Mandatory=$False,
-            Position=6,
+            Position=7,
             HelpMessage="Force deletion even if bucket is not empty.")][Switch]$Force
 
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         if ($Force) {
+            Write-Verbose "Force parameter specified, removing all objects in the bucket before removing the bucket"
             Get-S3Bucket -Name $Bucket -Profile $Profile | Remove-S3Object -Profile $Profile
         }
 
         $HTTPRequestMethod = "DELETE"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
-
-        Write-Output $Result
     }
 }
 
@@ -1595,14 +1659,20 @@ function Global:Get-S3BucketVersioning {
         [parameter(
                 Mandatory=$False,
                 Position=3,
-                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
         [parameter(
                 Mandatory=$False,
                 Position=4,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
                 HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
                 Mandatory=$True,
-                Position=5,
+                Position=6,
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket
@@ -1610,33 +1680,32 @@ function Global:Get-S3BucketVersioning {
     )
 
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $Query = @{versioning=""}
 
         $HTTPRequestMethod = "GET"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
 
-        Write-Output $Result.VersioningConfiguration.Status
+        # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
+        if (!$Result.Headers.'Content-Type') {
+            $Content = [XML][System.Text.Encoding]::UTF8.GetString($Result.Content)
+        }
+        else {
+            $Content = [XML]$Result.Content
+        }
+
+        Write-Output $Content.VersioningConfiguration.Status
     }
 }
 
@@ -1677,30 +1746,26 @@ function Global:Enable-S3BucketVersioning {
         [parameter(
                 Mandatory=$False,
                 Position=3,
-                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
         [parameter(
                 Mandatory=$False,
                 Position=4,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
                 HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
                 Mandatory=$True,
-                Position=5,
+                Position=6,
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket
-
     )
 
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $Query = @{versioning=""}
 
         $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Enabled</Status></VersioningConfiguration>"
@@ -1708,19 +1773,27 @@ function Global:Enable-S3BucketVersioning {
         $HTTPRequestMethod = "PUT"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
 
-        Write-Output $Result.VersioningConfiguration.Status
+        # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
+        if (!$Result.Headers.'Content-Type') {
+            $Content = [XML][System.Text.Encoding]::UTF8.GetString($Result.Content)
+        }
+        else {
+            $Content = [XML]$Result.Content
+        }
+
+        Write-Output $Content.VersioningConfiguration.Status
     }
 }
 
@@ -1731,6 +1804,96 @@ function Global:Enable-S3BucketVersioning {
     Suspend S3 Bucket Versioning
 #>
 function Global:Suspend-S3BucketVersioning {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=6,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+
+    )
+
+    Process {
+        $Query = @{versioning=""}
+
+        $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Suspended</Status></VersioningConfiguration>"
+
+        $HTTPRequestMethod = "PUT"
+
+        if ($Profile) {
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
+        }
+        elseif ($AccessKey) {
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
+        }
+        elseif ($AccountId) {
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
+        }
+        else {
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -RequestPayload $RequestPayload -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
+        }
+
+        # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
+        if (!$Result.Headers.'Content-Type') {
+            $Content = [XML][System.Text.Encoding]::UTF8.GetString($Result.Content)
+        }
+        else {
+            $Content = [XML]$Result.Content
+        }
+
+        Write-Output $Content.VersioningConfiguration.Status
+    }
+}
+
+Set-Alias -Name Get-S3BucketRegion -Value Get-S3BucketLocation
+<#
+    .SYNOPSIS
+    Get S3 Bucket Location
+    .DESCRIPTION
+    Get S3 Bucket Location
+#>
+function Global:Get-S3BucketLocation {
     [CmdletBinding(DefaultParameterSetName="none")]
 
     PARAM (
@@ -1772,39 +1935,35 @@ function Global:Suspend-S3BucketVersioning {
                 ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket
-
     )
 
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
+        $Query = @{location=""}
 
-        $Query = @{versioning=""}
-
-        $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Suspended</Status></VersioningConfiguration>"
-
-        $HTTPRequestMethod = "PUT"
+        $HTTPRequestMethod = "GET"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -RequestPayload $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Query $Query -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -ErrorAction Stop
         }
 
-        Write-Output $Result.VersioningConfiguration.Status
+        # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
+        if (!$Result.Headers.'Content-Type') {
+            $Content = [XML][System.Text.Encoding]::UTF8.GetString($Result.Content)
+        }
+        else {
+            $Content = [XML]$Result.Content
+        }
+
+        Write-Output $Content.LocationConstraint.InnerText
     }
 }
 
@@ -1815,9 +1974,9 @@ Set-Alias -Name Get-S3Objects -Value Get-S3Bucket
 Set-Alias -Name Get-S3Object -Value Read-S3Object
 <#
     .SYNOPSIS
-    Get S3 Bucket
+    Read an S3 Object
     .DESCRIPTION
-    Get S3 Bucket
+    Read an S3 Object
 #>
 function Global:Read-S3Object {
     [CmdletBinding(DefaultParameterSetName="none")]
@@ -1850,44 +2009,41 @@ function Global:Read-S3Object {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=5,
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Bucket")][String]$Bucket,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
             Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Object key")][Alias("Object","Name")][String]$Key,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
-            Mandatory=$False,
+            Mandatory=$True,
             Position=7,
-            HelpMessage="Byte range to retrieve from object")][String]$Range,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key")][Alias("Object")][String]$Key,
         [parameter(
             Mandatory=$False,
             Position=8,
+            HelpMessage="Byte range to retrieve from object")][String]$Range,
+        [parameter(
+            Mandatory=$False,
+            Position=9,
             HelpMessage="Path where object should be stored")][Alias("OutFile")][System.IO.DirectoryInfo]$Path
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-        
-        $Uri += $Key        
+        $Uri = "/$Key"
 
         $HTTPRequestMethod = "GET"
 
@@ -1915,27 +2071,27 @@ function Global:Read-S3Object {
         }
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -Headers $Headers -OutFile $OutFile -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -Headers $Headers -OutFile $OutFile -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -Headers $Headers -OutFile $OutFile -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Headers $Headers -OutFile $OutFile -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Bucket $Bucket -Headers $Headers -OutFile $OutFile -ErrorAction Stop
         }
 
-        Write-Output $Result
+        Write-Output $Result.Content
     }
 }
 
 <#
     .SYNOPSIS
-    Get S3 Bucket
+    Write S3 Object
     .DESCRIPTION
-    Get S3 Bucket
+    Write S3 Object
 #>
 function Global:Write-S3Object {
     [CmdletBinding(DefaultParameterSetName="none")]
@@ -1988,143 +2144,147 @@ function Global:Write-S3Object {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Bucket")][String]$Bucket,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
             Mandatory=$False,
-            Position=6,
+            Position=7,
             ParameterSetName="ProfileAndFile",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$False,
-            Position=6,
+            Position=7,
             ParameterSetName="KeyAndFile",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$False,
-            Position=6,
+            Position=7,
             ParameterSetName="AccountAndFile",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$True,
-            Position=6,
+            Position=7,
             ParameterSetName="ProfileAndContent",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$True,
-            Position=6,
+            Position=7,
             ParameterSetName="KeyAndContent",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
             Mandatory=$True,
-            Position=6,
+            Position=7,
             ParameterSetName="AccountAndContent",
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Object key. If not provided, filename will be used")][Alias("Object","Name")][String]$Key,
+            HelpMessage="Object key. If not provided, filename will be used")][Alias("Object")][String]$Key,
         [parameter(
             Mandatory=$True,
-            Position=7,
+            Position=8,
             ParameterSetName="ProfileAndFile",
             HelpMessage="Path where object should be stored")]
         [parameter(
             Mandatory=$True,
-            Position=7,
+            Position=8,
             ParameterSetName="KeyAndFile",
             HelpMessage="Path where object should be stored")]
         [parameter(
             Mandatory=$True,
-            Position=7,
+            Position=8,
             ParameterSetName="AccountAndFile",
             HelpMessage="Path where object should be stored")][Alias("Path","File")][System.IO.FileInfo]$InFile,
         [parameter(
             Mandatory=$False,
-            Position=7,
+            Position=8,
             ParameterSetName="ProfileAndContent",
             HelpMessage="Content of object")]
         [parameter(
             Mandatory=$False,
-            Position=7,
+            Position=8,
             ParameterSetName="KeyAndContent",
             HelpMessage="Content of object")]
         [parameter(
             Mandatory=$False,
-            Position=7,
+            Position=8,
             ParameterSetName="AccountAndContent",
             HelpMessage="Content of object")][Alias("InputObject")][String]$Content
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         if ($InFile -and !$InFile.Exists) {
             Throw "File $InFile does not exist"
+        }
+
+        if ($InFile) {
+            $ContentType = [System.Web.MimeMapping]::GetMimeMapping($InFile)
+        }
+        else {
+            $ContentType = "text/plain"
         }
 
         if (!$Key) {
             $Key = $InFile.Name
         }
         
-        $Uri += $Key        
+        $Uri = "/$Key"
 
         $HTTPRequestMethod = "PUT"
 
         if ($InFile) {
             if ($Profile) {
-                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -Bucket $Bucket -ContentType $ContentType -ErrorAction Stop
             }
             elseif ($AccessKey) {
-                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -Bucket $Bucket -ContentType $ContentType -ErrorAction Stop
             }
             elseif ($AccountId) {
-                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -Bucket $Bucket -ContentType $ContentType -ErrorAction Stop
             }
             else {
-                $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -ErrorAction Stop
+                $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -InFile $InFile -Bucket $Bucket -ContentType $ContentType -ErrorAction Stop
             }
         }
         else {
             if ($Profile) {
-                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+                $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ContentType $ContentType -Bucket $Bucket -ErrorAction Stop
             }
             elseif ($AccessKey) {
-                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+                $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl -Region $Region $EndpointUrl -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ContentType $ContentType -Bucket $Bucket -ErrorAction Stop
             }
             elseif ($AccountId) {
-                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+                $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ContentType $ContentType -Bucket $Bucket -ErrorAction Stop
             }
             else {
-                $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ErrorAction Stop
+                $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -RequestPayload $Content -ContentType $ContentType -Bucket $Bucket -ErrorAction Stop
             }
         }
 
-        Write-Output $Result
+        Write-Output $Result.Content
     }
 }
 
@@ -2165,60 +2325,60 @@ function Global:Remove-S3Object {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=5,
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Bucket")][String]$Bucket,
+            HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
             Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
-            HelpMessage="Object key")][Alias("Object","Name")][String]$Key,
+            HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
+        [parameter(
+            Mandatory=$True,
+            Position=7,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Object key")][Alias("Object")][String]$Key,
         [parameter(
             Mandatory=$False,
-            Position=7,
+            Position=8,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Object version ID")][String]$VersionId
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-        
-        $Uri += $Key
+        $Uri = "/$Key"
 
         if ($VersionId) {
             $Query = @{versionId=$VersionId}
+        }
+        else {
+            $Query = @{}
         }
 
         $HTTPRequestMethod = "DELETE"
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -Uri $Uri -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
     }
 }
@@ -2262,47 +2422,46 @@ function Global:Get-S3BucketConsistency {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "GET"
 
         $Query = @{"x-ntap-sg-consistency"=""}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
 
-        $BucketConsistency = [PSCustomObject]@{Bucket=$Bucket;Consistency=$Result.Consistency.InnerText}
+        $Content = [XML]$Result.Content
+
+        $BucketConsistency = [PSCustomObject]@{Bucket=$Bucket;Consistency=$Content.Consistency.InnerText}
 
         Write-Output $BucketConsistency
     }
@@ -2345,48 +2504,45 @@ function Global:Update-S3BucketConsistency {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=7,
             HelpMessage="Bucket")][ValidateSet("all","strong-global","strong-site","default","available","weak")][String]$Consistency
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "PUT"
 
         $Query = @{"x-ntap-sg-consistency"=$Consistency}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
     }
 }
@@ -2448,7 +2604,7 @@ function Global:Get-S3StorageUsage {
             $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
         }
 
         $UsageResult = [PSCustomObject]@{CalculationTime=(Get-Date -Date $Result.UsageResult.CalculationTime);ObjectCount=$Result.UsageResult.ObjectCount;DataBytes=$Result.UsageResult.DataBytes;buckets=$Result.UsageResult.Buckets.ChildNodes}
@@ -2472,7 +2628,6 @@ function Global:Get-S3BucketLastAccessTime {
             Mandatory=$False,
             Position=0,
             HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
-  
         [parameter(
             ParameterSetName="keys",
             Mandatory=$False,
@@ -2495,47 +2650,46 @@ function Global:Get-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "GET"
 
         $Query = @{"x-ntap-sg-lastaccesstime"=""}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
 
-        $BucketLastAccessTime = [PSCustomObject]@{Bucket=$Bucket;LastAccessTime=$Result.LastAccessTime.InnerText}
+        $Content = [XML]$Result.Content
+
+        $BucketLastAccessTime = [PSCustomObject]@{Bucket=$Bucket;LastAccessTime=$Content.LastAccessTime.InnerText}
 
         Write-Output $BucketLastAccessTime
     }
@@ -2578,44 +2732,41 @@ function Global:Enable-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "PUT"
 
         $Query = @{"x-ntap-sg-lastaccesstime"="enabled"}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
     }
 }
@@ -2657,44 +2808,41 @@ function Global:Disable-S3BucketLastAccessTime {
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage="Region to be used")][String]$Region,
         [parameter(
             Mandatory=$False,
             Position=4,
+            HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+            Mandatory=$False,
+            Position=5,
             HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
             Mandatory=$True,
-            Position=5,
+            Position=6,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True,
             HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
  
     Process {
-        if ($UrlStyle -eq "virtual-hosted") {
-            Write-Verbose "Using virtual-hosted style URL"
-            $EndpointUrl.host = $Bucket + '.' + $EndpointUrl.host
-        }
-        else {
-            Write-Verbose "Using path style URL"
-            $Uri = "/$Bucket/"
-        }
-
         $HTTPRequestMethod = "PUT"
 
         $Query = @{"x-ntap-sg-lastaccesstime"="disabled"}
 
         if ($Profile) {
-            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -Profile $Profile -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccessKey) {
-            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         elseif ($AccountId) {
-            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -AccountId $AccountId -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
         else {
-            $Result = Invoke-AwsRequest -Bucket $Bucket -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Uri $Uri -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -ErrorAction Stop
+            $Result = Invoke-AwsRequest -HTTPRequestMethod $HTTPRequestMethod -EndpointUrl $EndpointUrl -Region $Region -UrlStyle $UrlStyle -SkipCertificateCheck:$SkipCertificateCheck -Query $Query -Bucket $Bucket -ErrorAction Stop
         }
     }
 }
