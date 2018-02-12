@@ -87,7 +87,6 @@ function ParseErrorForResponseBody($Error) {
     }
 }
 
-
 # helper function to convert datetime to unix timestamp
 function ConvertTo-UnixTimestamp {
     [CmdletBinding()]
@@ -1638,6 +1637,46 @@ function Global:Get-SgwVersions {
 }
 
 ## containers ##
+
+Set-Alias -Name Get-SgwBucketOwner -Value Get-SgwContainerOwner
+<#
+    .SYNOPSIS
+    Retrieves the Owner of an S3 bucket or Swift container
+    .DESCRIPTION
+    Retrieves the Owner of an S3 bucket or Swift container
+#>
+function Global:Get-SgwContainerOwner {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory=$True,
+                Position=1,
+                HelpMessage="Swift Container or S3 Bucket name.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        foreach ($Account in (Get-SgwAccounts -Server $Server)) {
+            if ($Account | Get-SgwAccountUsage | select -ExpandProperty buckets | ? { $_.name -eq $Name }) {
+                Write-Output $Account
+                break
+            }
+        }
+    }
+}
 
 Set-Alias -Name Get-SgwBuckets -Value Get-SgwContainers
 <#
