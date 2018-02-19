@@ -350,6 +350,32 @@ function Global:Get-SgwAccounts {
     Create a StorageGRID Webscale Account
     .DESCRIPTION
     Create a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER Name
+    Name of the StorageGRID Webscale Account to be created.
+    .PARAMETER Capabilities
+    Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).
+    .PARAMETER UseAccountIdentitySource
+    Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).
+    .PARAMETER AllowPlatformServices
+    Allow platform services to be used (default: true - supported since StorageGRID 11.0).
+    .PARAMETER Quota
+    Quota for tenant in bytes.
+    .PARAMETER Password
+    Tenant root password (must be at least 8 characters).
+    .EXAMPLE
+    Create new account with S3 and Management capabilities
+
+    New-SgwAccount -Name MyAccount -Capabilities s3,management -Password t9eM66Y2
+    .EXAMPLE
+    Create new account with Swift and Management capabilities and do not allow own Identity Federation configuration
+
+    New-SgwAccount -Name MyAccount -Capabilities swift,management -UseAccountIdentitySource $false -Password t9eM66Y2
+    .EXAMPLE
+    Create new account with S3 and Management capabilities and set Quota
+
+    New-SgwAccount -Name MyAccount -Capabilities swift,management -UseAccountIdentitySource $false -Quota 1TB -Password t9eM66Y2
 #>
 function Global:New-SgwAccount {
     [CmdletBinding()]
@@ -368,15 +394,15 @@ function Global:New-SgwAccount {
         [parameter(
             Mandatory=$True,
             Position=2,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
+            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
         [parameter(
             Mandatory=$False,
             Position=3,
-            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+            HelpMessage="Use account identity source (default: true - supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
         [parameter(
             Mandatory=$False,
             Position=4,
-            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
+            HelpMessage="Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
         [parameter(
             Mandatory=$False,
             Position=5,
