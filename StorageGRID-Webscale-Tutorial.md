@@ -40,6 +40,10 @@ To get detailed help including examples for a specific Cmdlet (e.g. for Connect-
 Get-Help Connect-SgwServer -Detailed
 ```
 
+## Tutorial for Tenant Users
+
+This section is dedicated to Tenant Users. If you are a Grid Administrator, check section [Tutorial for Grid Administrators]()
+
 ## Connect to a StorageGRID Management Server
 
 For data retrieval a connection to the StorageGRID Management Server (also referred to as "Admin Node") is required. The `Connect-SgwServer` Cmdlet expects the hostname or IP (including port if different than 80 for HTTP or 443 for HTTPS) and the credentials for authentication
@@ -348,10 +352,11 @@ Connect as tenant root user
 $Account | Connect-SgwServer -Name $Name -Credential $Credential
 ```
 
-Create a bucket on StorageGRID to be mirrored to AWS
+Create a bucket on StorageGRID to be mirrored to AWS. It is best practice to start bucket names with a random prefix
 
 ```powershell
-$SourceBucket = "$($Account.Name)-replication-source"
+$RandomPrefix = -join ((97..122) | Get-Random -Count 8 | % {[char]$_})
+$SourceBucket = "$RandomPrefix-replication-source"
 New-S3Bucket -Name $SourceBucket
 Get-S3Buckets
 ```
@@ -364,7 +369,8 @@ Add-AwsConfig -Profile "AWS" -AccessKey "REPLACEME" -SecretAccessKey "REPLACEME"
 Create the destination bucket on AWS using the AWS Profile
 
 ```powershell
-$DestinationBucket = "$($Account.Name)-replication-destination"
+$RandomPrefix = -join ((97..122) | Get-Random -Count 8 | % {[char]$_})
+$DestinationBucket = "$RandomPrefix-replication-destination"
 New-S3Bucket -Name $DestinationBucket -Profile "AWS"
 Get-S3Buckets -Profile "AWS"
 ```
@@ -372,7 +378,7 @@ Get-S3Buckets -Profile "AWS"
 Configure the AWS destination bucket as Endpoint in StorageGRID
 
 ```powershell
-Add-SgwEndpoint -DisplayName "AWS S3 endpoint" -Bucket $DestinationBucket -Profile "AWS"
+Add-SgwS3Endpoint -DisplayName "AWS S3 endpoint" -Bucket $DestinationBucket -Profile "AWS"
 ```
 
 Add a bucket replication rule which defines which source bucket (on StorageGRID) should be replicated to which destination bucket (on AWS)
