@@ -795,15 +795,15 @@ function Global:Invoke-AwsRequest {
                     $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
                 }
-                if ($RequestPayload) {
+                if ($Body) {
                     if ($OutFile) {
-                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        Write-Verbose "Body:`n$Body"
                         Write-Verbose "Saving output in file $OutFile"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -OutFile $OutFile
                     }
                     else {
-                        Write-Verbose "RequestPayload:`n$RequestPayload"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $RequestPayload
+                        Write-Verbose "Body:`n$Body"
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body
                     }
                 }
                 else {
@@ -824,15 +824,15 @@ function Global:Invoke-AwsRequest {
                 }
             }
             else {
-                if ($RequestPayload) {
+                if ($Body) {
                     if ($OutFile) {
-                        Write-Verbose "RequestPayload:`n$RequestPayload"
+                        Write-Verbose "Body:`n$Body"
                         Write-Verbose "Saving output in file $OutFile"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $RequestPayload -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
                     }
                     else {
-                        Write-Verbose "RequestPayload:`n$RequestPayload"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $RequestPayload -SkipCertificateCheck:$SkipCertificateCheck
+                        Write-Verbose "Body:`n$Body"
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -SkipCertificateCheck:$SkipCertificateCheck
                     }
                 }
                 else {
@@ -1789,7 +1789,7 @@ function Global:Remove-S3Bucket {
     Process {
         if ($Force) {
             Write-Verbose "Force parameter specified, removing all objects in the bucket before removing the bucket"
-            Get-S3Bucket -Name $Bucket -Profile $Profile | Remove-S3Object -Profile $Profile
+            Get-S3Bucket  -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Bucket $Bucket | Remove-S3Object -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle
         }
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region
@@ -2043,14 +2043,10 @@ function Global:Suspend-S3BucketVersioning {
         [parameter(
                 Mandatory=$False,
                 Position=8,
-                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
-        [parameter(
-                Mandatory=$False,
-                Position=9,
                 HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
         [parameter(
                 Mandatory=$True,
-                Position=10,
+                Position=9,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket
     )
@@ -2160,7 +2156,7 @@ function Global:Get-S3BucketLocation {
 
         $Query = @{location=""}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
         # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
@@ -2288,7 +2284,7 @@ function Global:Get-S3PresignedUrl {
             }
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         Write-Output $AwsRequest.Uri
     }
 }
@@ -2391,14 +2387,19 @@ function Global:Get-S3ObjectMetadata {
             $Query = @{}
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
         $Headers = $Result.Headers
         $Metadata = @{}
-        foreach ($Key in $Headers.Keys) {
-            $MetadataKey = $Key -replace "x-amz-meta-",""
-            $Metadata[$MetadataKey] = $Headers[$Key]
+        $CustomMetadata = @{}
+        foreach ($MetadataKey in $Headers.Keys) {
+            $Value = $Headers[$MetadataKey]
+            if ($MetadataKey -match "x-amz-meta-") {
+                $MetadataKey = $MetadataKey -replace "x-amz-meta-",""
+                $CustomMetadata[$MetadataKey] = $Value
+            }
+            $Metadata[$MetadataKey] = $Value
         }
 
         # TODO: Implement missing Metadata
@@ -2407,6 +2408,7 @@ function Global:Get-S3ObjectMetadata {
 
         $Output = [PSCustomObject]@{Headers=$Headers;
                                     Metadata=$Metadata;
+                                    CustomMetadata=$CustomMetadata;
                                     DeleteMarker=$null;
                                     AcceptRanges=$Headers.'Accept-Ranges';
                                     Expiration=$Headers["x-amz-expiration"];
@@ -2547,7 +2549,7 @@ function Global:Read-S3Object {
             }
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType -OutFile $OutFile
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -OutFile $OutFile -ErrorAction Stop
 
         Write-Output $Result.Content
@@ -2738,9 +2740,10 @@ function Global:Write-S3Object {
 
         $Headers = @{}
         if ($Metadata) {
-            foreach ($Key in $Metadata.Keys) {
-                $Key = $Key -replace "^x-amz-meta-",""
-                $Headers["x-amz-meta-$Key"] = $Metadata[$Key]
+            foreach ($MetadataKey in $Metadata.Keys) {
+                $MetadataKey = $MetadataKey -replace "^x-amz-meta-",""
+                $MetadataKey = $MetadataKey
+                $Headers["x-amz-meta-$MetadataKey"] = $Metadata[$MetadataKey]
                 # TODO: check that metadata is valid HTTP Header
             }
         }
@@ -2748,8 +2751,8 @@ function Global:Write-S3Object {
         
         $Uri = "/$Key"
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType -InFile $InFile -RequestPayload $RequestPayload
-        $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -InFile $InFile -RequestPayload $RequestPayload -ErrorAction Stop
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType -InFile $InFile -RequestPayload $Content -ContentType $ContentType -Headers $Headers
+        $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -InFile $InFile -Body $Content -ContentType $ContentType -ErrorAction Stop
 
         Write-Output $Result.Content
     }
@@ -2850,7 +2853,188 @@ function Global:Remove-S3Object {
             $Query = @{}
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+    }
+}
+
+<#
+    .SYNOPSIS
+    Copy S3 Object
+    .DESCRIPTION
+    Copy S3 Object
+#>
+function Global:Copy-S3Object {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="Use presigned URL")][Switch]$Presign,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="AWS Signer type (S3 for V2 Authentication and AWS4 for V4 Authentication)")][String][ValidateSet("S3","AWS4")]$SignerType="AWS4",
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=7,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
+        [parameter(
+                Mandatory=$False,
+                Position=8,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=9,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
+        [parameter(
+                Mandatory=$True,
+                Position=10,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object key")][Alias("Object")][String]$Key,
+        [parameter(
+                Mandatory=$True,
+                Position=11,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][String]$SourceBucket,
+        [parameter(
+                Mandatory=$True,
+                Position=12,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object key")][String]$SourceKey,
+        [parameter(
+                Mandatory=$False,
+                Position=13,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object version ID")][String]$SourceVersionId,
+        [parameter(
+                Mandatory=$False,
+                Position=14,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object version ID")][ValidateSet("COPY","REPLACE")][String]$MetadataDirective="COPY",
+        [parameter(
+                Mandatory=$False,
+                Position=15,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Metadata")][Hashtable]$Metadata,
+        [parameter(
+                Mandatory=$False,
+                Position=16,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Copies the object if its entity tag (ETag) matches the specified Etag")][String]$Etag,
+        [parameter(
+                Mandatory=$False,
+                Position=17,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Copies the object if its entity tag (ETag) is different than the specified NotETag")][String]$NotEtag,
+        [parameter(
+                Mandatory=$False,
+                Position=18,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Copies the object if it hasn't been modified since the specified time")][DateTime]$UnmodifiedSince,
+        [parameter(
+                Mandatory=$False,
+                Position=19,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Copies the object if it has been modified since the specified time")][DateTime]$ModifiedSince,
+        [parameter(
+                Mandatory=$False,
+                Position=20,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="S3 Storage Class")][ValidateSet("STANDARD","STANDARD_IA","REDUCED_REDUNDANCY")][String]$StorageClass,
+        [parameter(
+                Mandatory=$False,
+                Position=21,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Specifies whether the object tags are copied from the source object or replaced with tags provided in the request")][ValidateSet("COPY","REPLACE")][String]$TaggingDirective="COPY",
+        [parameter(
+                Mandatory=$False,
+                Position=22,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object tags")][HashTable]$Tags,
+        [parameter(
+                Mandatory=$False,
+                Position=23,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Object tags")][ValidateSet("aws:kms","AES256")][String]$ServerSideEncryption
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+
+        $Method = "PUT"
+    }
+
+    Process {
+        $Uri = "/$Key"
+
+        $Headers = @{}
+        $Headers["x-amz-copy-source"] = "/$Bucket/$Key"
+        if ($VersionId) {
+            $Headers["x-amz-copy-source"] += "?versionId=$VersionId"
+        }
+        $Headers["x-amz-metadata-directive"] = $MetadataDirective
+        if ($Etag) {
+            $Headers["x-amz-copy-source-if-match"] = $Etag
+        }
+        if ($NotEtag) {
+            $Headers["x-amz-copy-source-if-none-match"] = $NotEtag
+        }
+        if ($UnmodifiedSince) {
+            $Headers["x-amz-copy-source-if-unmodified-since"] = $UnmodifiedSince
+        }
+        if ($ModifiedSince) {
+            $Headers["x-amz-copy-source-if-modified-since"] = $ModifiedSince
+        }
+        if ($StorageClass) {
+            $Headers["x-amz-storage-class"] = $StorageClass
+        }
+        if ($TaggingDirective) {
+            $Headers["x-amz-tagging-directive"] = $TaggingDirective
+        }
+        if ($ServerSideEncryption) {
+            $Headers["x-amz-server-side​-encryption"] = $ServerSideEncryption
+        }
+
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType -Headers $Headers
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
     }
 }
@@ -2935,7 +3119,7 @@ function Global:Get-S3BucketConsistency {
     Process {
         $Query = @{"x-ntap-sg-consistency"=""}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
         $Content = [XML]$Result.Content
@@ -3028,7 +3212,7 @@ function Global:Update-S3BucketConsistency {
     Process {
         $Query = @{"x-ntap-sg-consistency"=$Consistency}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
     }
 }
@@ -3099,7 +3283,7 @@ function Global:Get-S3StorageUsage {
 
         $Query = @{"x-ntap-sg-usage"=""}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
         $Content = [XML]$Result.Content
@@ -3188,7 +3372,7 @@ function Global:Get-S3BucketLastAccessTime {
     Process {
         $Query = @{"x-ntap-sg-lastaccesstime"=""}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
         $Content = [XML]$Result.Content
@@ -3277,7 +3461,7 @@ function Global:Enable-S3BucketLastAccessTime {
     Process {
         $Query = @{"x-ntap-sg-lastaccesstime"="enabled"}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
     }
 }
@@ -3360,7 +3544,7 @@ function Global:Disable-S3BucketLastAccessTime {
     Process {
         $Query = @{"x-ntap-sg-lastaccesstime"="disabled"}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $EndpointUrl -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
         $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
     }
 }
