@@ -93,10 +93,15 @@ function ConvertTo-UnixTimestamp {
 
     PARAM (
         [parameter(Mandatory=$True,
-                    Position=0,
-                    ValueFromPipeline=$True,
-                    ValueFromPipelineByPropertyName=$True,
-                    HelpMessage="Date to be converted.")][DateTime[]]$Date
+                Position=0,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Date to be converted.")][DateTime[]]$Date,
+        [parameter(Mandatory=$True,
+                Position=1,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Unit of timestamp.")][ValidateSet("Seconds","Milliseconds")][String]$Unit="Milliseconds"
     )
 
     BEGIN {
@@ -104,11 +109,11 @@ function ConvertTo-UnixTimestamp {
     }
 
     PROCESS {
-        $Date = @($Date)
-
-        foreach ($Date in $Date) {
-                $milliSeconds = [math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalMilliSeconds)
-                Write-Output $milliSeconds
+        if ($Unit="Seconds") {
+            Write-Output ([math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalSeconds))
+        }
+        else {
+            Write-Output ([math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalMilliSeconds))
         }
     }
 }
@@ -1101,7 +1106,9 @@ function global:Connect-SgwServer {
                                     SwiftEndpointUrl=$null;
                                     DisableAutomaticAccessKeyGeneration=$DisableAutomaticAccessKeyGeneration.isPresent;
                                     TemporaryAccessKeyExpirationTime=$TemporaryAccessKeyExpirationTime;
-                                    AccessKeyStore=@{}}
+                                    AccessKeyStore=@{};
+                                    AccountId="";
+                                    TenantPortal=""}
 
         if ([environment]::OSVersion.Platform -match "Win")
         {
@@ -1127,8 +1134,8 @@ function global:Connect-SgwServer {
         if ($AccountId)
         {
             $Body.accountId = $AccountId
-            $Server | Add-Member -MemberType NoteProperty -Name AccountId -Value $AccountId
-            $Server | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
+            $Server.AccountId = $AccountId
+            $Server.TenantPortal = "https://$($Server.Name)/?accountId=$($Account.id)"
         }
 
         $Body = ConvertTo-Json -InputObject $Body
