@@ -765,7 +765,7 @@ function Global:Get-AwsRequest {
         Write-Verbose "Request URI: $($EndpointUrl.Uri)"
         Write-Verbose "Request Headers: $($Headers | ConvertTo-Json)"
 
-        $Request = [PSCustomObject]@{Uri=$EndpointUrl.Uri;Headers=$Headers}
+        $Request = [PSCustomObject]@{Method=$Method;Uri=$EndpointUrl.Uri;Headers=$Headers}
 
         Write-Output $Request
     }
@@ -1277,7 +1277,7 @@ function Global:Get-S3Buckets {
             $Server = $Global:CurrentSgwServer
         }
         $Method = "GET"
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
     }
  
     Process {
@@ -1393,7 +1393,7 @@ function Global:Test-S3Bucket {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "HEAD"
     }
 
@@ -1520,7 +1520,7 @@ function Global:Get-S3Bucket {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "GET"
     }
 
@@ -1669,7 +1669,7 @@ function Global:Get-S3BucketVersions {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "GET"
     }
 
@@ -1797,7 +1797,7 @@ function Global:New-S3Bucket {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "PUT"
     }
  
@@ -1895,7 +1895,7 @@ function Global:Remove-S3Bucket {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "DELETE"
     }
 
@@ -1990,7 +1990,7 @@ function Global:Get-S3BucketVersioning {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "GET"
     }
 
@@ -2092,7 +2092,7 @@ function Global:Enable-S3BucketVersioning {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "PUT"
     }
 
@@ -2196,7 +2196,7 @@ function Global:Suspend-S3BucketVersioning {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "PUT"
     }
 
@@ -2296,7 +2296,7 @@ function Global:Get-S3BucketLocation {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
         $Method = "GET"
     }
 
@@ -2420,7 +2420,7 @@ function Global:Get-S3PresignedUrl {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
     }
 
     Process {
@@ -2533,7 +2533,7 @@ function Global:Get-S3ObjectMetadata {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "HEAD"
     }
@@ -2687,7 +2687,7 @@ function Global:Read-S3Object {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "GET"
     }
@@ -2895,7 +2895,7 @@ function Global:Write-S3Object {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "PUT"
     }
@@ -3025,7 +3025,7 @@ function Global:Remove-S3Object {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "DELETE"
     }
@@ -3195,7 +3195,7 @@ function Global:Copy-S3Object {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "PUT"
     }
@@ -3318,7 +3318,7 @@ function Global:Get-S3BucketConsistency {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "GET"
     }
@@ -3421,7 +3421,7 @@ function Global:Update-S3BucketConsistency {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "PUT"
     }
@@ -3500,7 +3500,7 @@ function Global:Get-S3StorageUsage {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "GET"
     }
@@ -3601,7 +3601,7 @@ function Global:Get-S3BucketLastAccessTime {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "GET"
     }
@@ -3700,7 +3700,7 @@ function Global:Enable-S3BucketLastAccessTime {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "PUT"
     }
@@ -3793,7 +3793,7 @@ function Global:Disable-S3BucketLastAccessTime {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
 
         $Method = "PUT"
     }
