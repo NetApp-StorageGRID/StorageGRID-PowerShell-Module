@@ -387,35 +387,49 @@ function Global:New-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Name of the StorageGRID Webscale Account to be created.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Name,
+                Mandatory=$True,
+                Position=1,
+                HelpMessage="Name of the StorageGRID Webscale Account to be created.",
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True)][String]$Name,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
+                Mandatory=$True,
+                Position=2,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Use account identity source (default: true - supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+                Mandatory=$False,
+                Position=3,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Use account identity source (default: true - supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
+                Mandatory=$False,
+                Position=4,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+                Mandatory=$False,
+                Position=5,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Tenant root password (must be at least 8 characters).")][String]$Password
+                Mandatory=$False,
+                Position=6,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Policy object containing information on identity source, platform service and quota")][PSCustomObject]$Policy=@{},
+        [parameter(
+                Mandatory=$False,
+                Position=7,
+                HelpMessage="Tenant root password (must be at least 8 characters).")][ValidateLength(8,256)][String]$Password
     )
  
     Begin {
@@ -457,9 +471,14 @@ function Global:New-SgwAccount {
 
         if ($Server.APIVersion -ge 2) {
             $Body.password = $Password
-            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            $Body.policy = $Policy
+            if ($UseAccountIdentitySource) {
+                $Body.policy.useAccountIdentitySource = $UseAccountIdentitySource
+            }
             if ($Server.APIVersion -ge 2.1) {
-                $Body.policy["allowPlatformServices"] = $AllowPlatformServices
+                if ($AllowPlatformServices) {
+                    $Body.policy.allowPlatformServices = $AllowPlatformServices
+                }
             }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
@@ -551,7 +570,7 @@ function Global:Get-SgwAccount {
             ParameterSetName="id",
             HelpMessage="ID of a StorageGRID Webscale Account to get information for.",
             ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+            ValueFromPipelineByPropertyName=$True)][Alias("Id")][String]$AccountId,
         [parameter(
             Mandatory=$False,
             Position=0,
@@ -584,7 +603,7 @@ function Global:Get-SgwAccount {
             Write-Output $Account
         }
         else {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id"
+            $Uri = $Server.BaseURI + "/grid/accounts/$AccountId"
             $Method = "GET"
 
             try {
@@ -598,7 +617,7 @@ function Global:Get-SgwAccount {
             $Account = $Result.data
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
+            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.AccountId)"
        
             Write-Output $Account
         }
@@ -1063,39 +1082,54 @@ function global:Connect-SgwServer {
  
     PARAM (
         [parameter(Mandatory=$True,
-                   Position=0,
-                   HelpMessage="The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+                Position=0,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
         [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+                Position=1,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+                Position=2,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
         [parameter(Position=3,
-                   Mandatory=$False,
-                   HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
+                Mandatory=$False,
+                HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
         [parameter(Position=5,
-                   Mandatory=$False,
-                   ValueFromPipeline=$True,
-                   ValueFromPipelineByPropertyName=$True,
-                   HelpMessage="Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+                Mandatory=$False,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
         [parameter(Position=6,
                 Mandatory=$False,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
                 HelpMessage="By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
         [parameter(Position=7,
                 Mandatory=$False,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime=3600,
         [parameter(Position=8,
                 Mandatory=$False,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
                 HelpMessage="S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
         [parameter(Position=9,
                 Mandatory=$False,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
     )
 
     Process {
         $Server = [PSCustomObject]@{SkipCertificateCheck=$SkipCertificateCheck.IsPresent;
                                     Name=$Name;
+                                    User=$Credential.UserName;
                                     Credential=$Credential;
                                     BaseUri="https://$Name/api/v2";
                                     Session=[Microsoft.PowerShell.Commands.WebRequestSession]::new();
@@ -5041,49 +5075,65 @@ function Global:New-SgwGroup {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="Display name of the group.")][String]$displayName,
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Display name of the group.")][String]$uniqueName,
+                Mandatory=$True,
+                Position=1,
+                HelpMessage="Display name of the group.")][String]$displayName,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+                Mandatory=$True,
+                Position=2,
+                HelpMessage="Display name of the group.")][String]$uniqueName,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
         [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+                Mandatory=$False,
+                Position=7,
+                HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
         [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+                Mandatory=$False,
+                Position=8,
+                HelpMessage="Display name of the group.")][Boolean]$maintenance,
         [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+                Mandatory=$False,
+                Position=9,
+                HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
         [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory=$False,
+                Position=10,
+                HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+        [parameter(
+                Mandatory=$False,
+                Position=11,
+                HelpMessage="IAM Policy.")][PSCustomObject]$IamPolicy,
+        [parameter(
+                Mandatory=$False,
+                Position=11,
+                HelpMessage="Use IAM Policy for Full S3 Access.")][Switch]$S3FullAccess,
+        [parameter(
+                Mandatory=$False,
+                Position=11,
+                HelpMessage="Use IAM Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+        [parameter(
+                Mandatory=$False,
+                Position=12,
+                HelpMessage="Swift Roles.")][String[]]$SwiftRoles
     )
  
     Begin {
@@ -5099,52 +5149,73 @@ function Global:New-SgwGroup {
     }
  
     Process {
-        $id = @($id)
-        foreach ($id in $id) {
-            $Uri = $Server.BaseURI + "/grid/groups"
-            $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/groups"
+        $Method = "POST"
 
-            $Body = @{}
-            $Body.displayName = $displayName
-            $Body.uniqueName = $uniqueName
-            if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-                $Body.policies = @{}
-                $Body.policies.management = @{}
-                if ($alarmAcknowledgment) {
-                    $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+        $Body = @{}
+        $Body.displayName = $displayName
+        $Body.uniqueName = $uniqueName
+        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess -or $IamPolicy -or $SwiftRoles) {
+            $Body.policies = @{}
+            $Body.policies.management = @{}
+            if ($alarmAcknowledgment) {
+                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+            }
+            if ($otherGridConfiguration) {
+                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            }
+            if ($tenantAccounts) {
+                $Body.policies.management.tenantAccounts = $tenantAccounts
+            }
+            if ($changeTenantRootPassword) {
+                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            }
+            if ($maintenance) {
+                $Body.policies.management.maintenance = $maintenance
+            }
+            if ($activateFeatures) {
+                $Body.policies.management.activateFeatures = $activateFeatures
+            }
+            if ($rootAccess) {
+                $Body.policies.management.rootAccess = $rootAccess
+            }
+            if ($Capabilities -match "s3") {
+                if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+                    Write-Warning "S3 capability specified, but no IAM Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
                 }
-                if ($otherGridConfiguration) {
-                    $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+                elseif ($S3FullAccess.IsPresent) {
+                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
                 }
-                if ($tenantAccounts) {
-                    $Body.policies.management.tenantAccounts = $tenantAccounts
+                elseif ($S3ReadOnlyAccess.IsPresent) {
+                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:GetAccelerateConfiguration","s3:GetAnalyticsConfiguration","s3:GetBucketAcl","s3:GetBucketCORS","s3:GetBucketLocation","s3:GetBucketLogging","s3:GetBucketNotification","s3:GetBucketPolicy","s3:GetBucketRequestPayment","s3:GetBucketTagging","s3:GetBucketVersioning","s3:GetBucketWebsite","s3:GetInventoryConfiguration","s3:GetIpConfiguration","s3:GetLifecycleConfiguration","s3:GetMetricsConfiguration","s3:GetObject","s3:GetObjectAcl","s3:GetObjectTagging","s3:GetObjectTorrent","s3:GetObjectVersion","s3:GetObjectVersionAcl","s3:GetObjectVersionForReplication","s3:GetObjectVersionTagging","s3:GetObjectVersionTorrent","s3:GetReplicationConfiguration"
                 }
-                if ($changeTenantRootPassword) {
-                    $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
-                }
-                if ($maintenance) {
-                    $Body.policies.management.maintenance = $maintenance
-                }
-                if ($activateFeatures) {
-                    $Body.policies.management.activateFeatures = $activateFeatures
-                }
-                if ($rootAccess) {
-                    $Body.policies.management.rootAccess = $rootAccess
+                else {
+                    $Body.policies.s3 = $IamPolicy
                 }
             }
-            
-            $Body = ConvertTo-Json -InputObject $Body
 
-            try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            if ($Capabilities -match "swift") {
+                if (!$SwiftRoles) {
+                    Write-Warning "Swift capability specified, but no Swift roles specified."
+                }
+                else {
+                    $Body.policies.swift = @{}
+                    $Body.policies.swift.roles = $SwiftRoles
+                }
             }
-            catch {
-                $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
-            }
-       
-            Write-Output $Result.data
         }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+        }
+
+        Write-Output $Result.data
     }
 }
 
@@ -6728,25 +6799,29 @@ function Global:New-SgwS3AccessKey {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Id of the StorageGRID Webscale Account to create new S3 Access Key for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+                Mandatory=$False,
+                Position=0,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale User.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("userUUID")][String]$UserId,
+                Mandatory=$False,
+                Position=1,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Expiration date of the S3 Access Key.")][DateTime]$Expires,
+                Mandatory=$False,
+                Position=2,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory=$False,
+                Position=3,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Expiration date of the S3 Access Key.")][DateTime]$Expires
     )
  
     Begin {
@@ -7005,5 +7080,113 @@ function Global:Get-SgwReport {
         else {
             Write-Error "Cannot parse report output"
         }
+    }
+}
+
+### IAM Cmdlets ###
+
+Set-Alias -Name Update-IamPolicy -Value New-IamPolicy
+Set-Alias -Name Add-IamPolicyStatement -Value New-IamPolicyStatement
+<#
+    .SYNOPSIS
+    Create new IAM Policy
+    .DESCRIPTION
+    Create new IAM Policy
+#>
+function Global:New-IamPolicy {
+    [CmdletBinding(DefaultParameterSetName="ResourceAction")]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="IAM Policy to add statements to")][Alias("Policy")][PSCustomObject]$IamPolicy,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="The Sid element is optional. The Sid is only intended as a description for the user. It is stored but not interpreted by the StorageGRID Webscale system.")][String]$Sid,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="Use the Effect element to establish whether the specified operations are allowed or denied. You must identify operations you allow (or deny) on buckets or objects using the supported Action element keywords.")][ValidateSet("Allow","Deny")][String]$Effect="Allow",
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ParameterSetName="ResourceAction",
+                HelpMessage="The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")]
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ParameterSetName="ResourceNotAction",
+                HelpMessage="The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$Resource="urn:sgws:s3:::*",
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ParameterSetName="NotResourceAction",
+                HelpMessage="The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ParameterSetName="NotResourceNotAction",
+                HelpMessage="The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$NotResource,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                ParameterSetName="ResourceAction",
+                HelpMessage="The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                ParameterSetName="NotResourceAction",
+                HelpMessage="The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]$Action="s3:*",
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                ParameterSetName="ResourceNotAction",
+                HelpMessage="The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                ParameterSetName="NotResourceNotAction",
+                HelpMessage="The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]$NotAction,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="The Condition element is optional. Conditions allow you to build expressions to determine when a policy should be applied.")][String]$Condition
+    )
+
+    Process {
+        # see https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html for details on IAM Policies
+
+        if (!$IamPolicy) {
+            $IamPolicy = [PSCustomObject]@{Version="2012-10-17";Statement=@()}
+        }
+
+        $Statement = [PSCustomObject]@{Effect=$Effect}
+
+        if ($Sid) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Sid -Value $Sid
+        }
+        if ($Resource) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Resource -Value $Resource.Uri.ToString()
+        }
+        if ($NotResource) {
+            $Statement | Add-Member -MemberType NoteProperty -Name NotResource -Value $NotResource.Uri.ToString()
+        }
+        if ($Action) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Action -Value $Action
+        }
+        if ($NotAction) {
+            $Statement | Add-Member -MemberType NoteProperty -Name NotAction -Value $NotAction
+        }
+        if ($Condition) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Condition -Value $Condition
+        }
+
+        $IamPolicy.Statement += $Statement
+
+        Write-Output $IamPolicy
     }
 }
