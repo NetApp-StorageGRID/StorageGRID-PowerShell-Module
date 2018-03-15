@@ -1568,10 +1568,11 @@ function Global:Get-S3Bucket {
             $Content = [XML]$Result.Content
 
             $Objects = $Content.ListBucketResult.Contents | ? { $_ }
-            $Objects | Add-Member -MemberType NoteProperty -Name Bucket -Value $Content.ListBucketResult.Name
-            $Objects | Add-Member -MemberType NoteProperty -Name Region -Value $Region
 
-            Write-Output $Objects
+            foreach ($Object in $Objects) {
+                $Object = [PSCustomObject]@{Bucket=$Content.ListBucketResult.Name;Region=$Region;Key=$Object.Key;LastModified=(Get-Date $Object.LastModified);ETag=($Object.ETag -replace '"','');Size=$Object.Size;Owner=$Object.Owner;StorageClass=$Object.StorageClass}
+                Write-Output $Object
+            }
 
             if ($Content.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
                 Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
@@ -2585,25 +2586,25 @@ function Global:Get-S3ObjectMetadata {
             $PartCount = ($Headers["ETag"] -split "-")[1]
 
             $Output = [PSCustomObject]@{Headers=$Headers;
-            Metadata=$Metadata;
-            CustomMetadata=$CustomMetadata;
-            DeleteMarker=$null;
-            AcceptRanges=$Headers.'Accept-Ranges';
-            Expiration=$Headers["x-amz-expiration"];
-            RestoreExpiration=$null;
-            RestoreInProgress=$null;
-            LastModified=$Headers.'Last-Modified';
-            ETag=$Headers.ETag;
-            MissingMeta=[int]$Headers["x-amz-missing-meta"];
-            VersionId=$Headers["x-amz-version-id"];
-            Expires=$null;
-            WebsiteRedirectLocation=$null;
-            ServerSideEncryptionMethod=$Headers["x-amz-server-side​-encryption"];
-            ServerSideEncryptionCustomerMethod=$Headers["x-amz-server-side​-encryption​-customer-algorithm"];
-            ServerSideEncryptionKeyManagementServiceKeyId=$Headers["x-amz-server-side-encryption-aws-kms-key-id"];
-            ReplicationStatus=$Headers["x-amz-replication-status"];
-            PartsCount=$PartCount;
-            StorageClass=$Headers["x-amz-storage-class"];
+                Metadata=$Metadata;
+                CustomMetadata=$CustomMetadata;
+                DeleteMarker=$null;
+                AcceptRanges=$Headers.'Accept-Ranges' | Select -First 1;
+                Expiration=$Headers["x-amz-expiration"] | Select -First 1;
+                RestoreExpiration=$null;
+                RestoreInProgress=$null;
+                LastModified=$Headers.'Last-Modified' | Select -First 1;
+                ETag=$Headers.ETag -replace '"','' | Select -First 1;
+                MissingMeta=[int]$Headers["x-amz-missing-meta"] | Select -First 1;
+                VersionId=$Headers["x-amz-version-id"] | Select -First 1;
+                Expires=$null;
+                WebsiteRedirectLocation=$null;
+                ServerSideEncryptionMethod=$Headers["x-amz-server-side​-encryption"] | Select -First 1;
+                ServerSideEncryptionCustomerMethod=$Headers["x-amz-server-side​-encryption​-customer-algorithm"] | Select -First 1;
+                ServerSideEncryptionKeyManagementServiceKeyId=$Headers["x-amz-server-side-encryption-aws-kms-key-id"] | Select -First 1;
+                ReplicationStatus=$Headers["x-amz-replication-status"] | Select -First 1;
+                PartsCount=$PartCount;
+                StorageClass=$Headers["x-amz-storage-class"] | Select -First 1;
             }
 
             Write-Output $Output
