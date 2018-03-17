@@ -375,7 +375,10 @@ function Global:New-AwsSignatureV2 {
             Write-Debug "2. Bucketname already part of Url for path style therefore skipping this step"
         }
 
-        $CanonicalizedResource += $Uri
+        # TODO: Think of a better way to get the properly encoded relative URI
+        $CanonicalURI = ([System.UriBuilder]"$EndpointUrl$($Uri -replace '^/','')").Uri.PathAndQuery
+
+        $CanonicalizedResource += $CanonicalURI
         Write-Debug "3. Append the path part of the un-decoded HTTP Request-URI, up-to but not including the query string:`n$CanonicalizedResource" 
 
         if ($QueryString) {
@@ -498,13 +501,8 @@ function Global:New-AwsSignatureV4 {
 
         Write-Debug "1. HTTP Request Method:`n$Method" 
 
-        # only URL encode if service is not S3
-        if ($Service -ne "s3" -and $Uri -ne "/") {
-            $CanonicalURI = [System.Net.WebUtility]::UrlEncode($Uri)
-        }
-        else {
-            $CanonicalURI = $Uri
-        }
+        # TODO: Think of a better way to get the properly encoded relative URI
+        $CanonicalURI = ([System.UriBuilder]"$EndpointUrl$($Uri -replace '^/','')").Uri.PathAndQuery
         Write-Debug "2. Canonical URI:`n$CanonicalURI"
 
         Write-Debug "3. Canonical query string:`n$CanonicalQueryString"
@@ -1497,7 +1495,7 @@ function Global:Get-S3Bucket {
         [parameter(
                 Mandatory=$False,
                 Position=12,
-                HelpMessage="Bucket prefix for filtering")][String]$Prefix,
+                HelpMessage="Bucket prefix for filtering")][Alias("Key")][String]$Prefix,
         [parameter(
                 Mandatory=$False,
                 Position=13,
@@ -1521,7 +1519,7 @@ function Global:Get-S3Bucket {
         [parameter(
                 Mandatory=$False,
                 Position=18,
-                HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType,
+                HelpMessage="Encoding type (Only allowed value is url).")][String][ValidateSet("url")]$EncodingType="url",
         [parameter(
                 Mandatory=$False,
                 Position=19,
@@ -1565,7 +1563,7 @@ function Global:Get-S3Bucket {
         else {
             $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
 
-            $Content = [XML]$Result.Content
+            $Content = [XML][System.Net.WebUtility]::UrlDecode($Result.Content)
 
             $Objects = $Content.ListBucketResult.Contents | ? { $_ }
 
@@ -2933,7 +2931,7 @@ function Global:Write-S3Object {
         if ($Metadata) {
             foreach ($MetadataKey in $Metadata.Keys) {
                 $MetadataKey = $MetadataKey -replace "^x-amz-meta-",""
-                $MetadataKey = $MetadataKey
+                $MetadataKey = $MetadataKey.toLower()
                 $Headers["x-amz-meta-$MetadataKey"] = $Metadata[$MetadataKey]
                 # TODO: check that metadata is valid HTTP Header
             }
