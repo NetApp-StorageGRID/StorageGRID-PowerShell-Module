@@ -1307,14 +1307,15 @@ function Global:Get-S3Buckets {
 
                 if ($Content.ListAllMyBucketsResult) {
                     if ($Bucket) {
-                        $XmlBuckets = $Content.ListAllMyBucketsResult.Buckets.ChildNodes | ? { $_.Name -eq $Bucket }
+                        $XmlBuckets = $Content.ListAllMyBucketsResult.Buckets.ChildNodes | ? { $_.Name -eq [System.Globalization.IdnMapping]::new().GetAscii($Bucket) }
                     }
                     else {
                         $XmlBuckets = $Content.ListAllMyBucketsResult.Buckets.ChildNodes
                     }
                     foreach ($XmlBucket in $XmlBuckets) {
                         $Location = Get-S3BucketLocation -SkipCertificateCheck:$SkipCertificateCheck -EndpointUrl $Config.endpoint_url -Bucket $XmlBucket.Name -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Presign:$Presign -SignerType $SignerType
-                        $BucketObject = [PSCustomObject]@{ Name = $XmlBucket.Name; CreationDate = $XmlBucket.CreationDate; OwnerId = $Content.ListAllMyBucketsResult.Owner.ID; OwnerDisplayName = $Content.ListAllMyBucketsResult.Owner.DisplayName; Region = $Location }
+                        $UnicodeName = [System.Globalization.IdnMapping]::new().GetUnicode($XmlBucket.Name)
+                        $BucketObject = [PSCustomObject]@{ Name = $UnicodeName; CreationDate = $XmlBucket.CreationDate; OwnerId = $Content.ListAllMyBucketsResult.Owner.ID; OwnerDisplayName = $Content.ListAllMyBucketsResult.Owner.DisplayName; Region = $Location }
                         Write-Output $BucketObject
                     }
                 }
@@ -1555,6 +1556,8 @@ function Global:Get-S3Bucket {
             if ($ContinuationToken) { $Query["continuation-token"] = $ContinuationToken }
         }
 
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region -Query $Query
 
         if ($DryRun) {
@@ -1567,8 +1570,10 @@ function Global:Get-S3Bucket {
 
             $Objects = $Content.ListBucketResult.Contents | ? { $_ }
 
+            $UnicodeBucket = [System.Globalization.IdnMapping]::new().GetUnicode($Content.ListBucketResult.Name)
+
             foreach ($Object in $Objects) {
-                $Object = [PSCustomObject]@{Bucket=$Content.ListBucketResult.Name;Region=$Region;Key=$Object.Key;LastModified=(Get-Date $Object.LastModified);ETag=($Object.ETag -replace '"','');Size=$Object.Size;Owner=$Object.Owner;StorageClass=$Object.StorageClass}
+                $Object = [PSCustomObject]@{Bucket=$UnicodeBucket;Region=$Region;Key=$Object.Key;LastModified=(Get-Date $Object.LastModified);ETag=($Object.ETag -replace '"','');Size=$Object.Size;Owner=$Object.Owner;StorageClass=$Object.StorageClass}
                 Write-Output $Object
             }
 
@@ -1817,6 +1822,9 @@ function Global:New-S3Bucket {
             $RequestPayload = "<CreateBucketConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><LocationConstraint>$Region</LocationConstraint></CreateBucketConfiguration>"
         }
 
+        # convert Bucket to Punycode to support Unicode Bucket Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Config.Region
 
         if ($DryRun.IsPresent) {
@@ -1911,6 +1919,8 @@ function Global:Remove-S3Bucket {
     }
 
     Process {
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         if ($Force) {
             Write-Verbose "Force parameter specified, removing all objects in the bucket before removing the bucket"
             Get-S3Bucket  -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Bucket $Bucket | Remove-S3Object -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle
