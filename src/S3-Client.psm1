@@ -1409,8 +1409,12 @@ function Global:Test-S3Bucket {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
         if ($Config)  {
-            $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region
+            $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Region
             if ($DryRun.IsPresent) {
                 Write-Output $AwsRequest
             }
@@ -1478,6 +1482,7 @@ function Global:Get-S3Bucket {
         [parameter(
                 Mandatory=$False,
                 Position=8,
+                ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Region to be used")][String]$Region,
         [parameter(
@@ -1487,6 +1492,7 @@ function Global:Get-S3Bucket {
         [parameter(
                 Mandatory=$True,
                 Position=10,
+                ValueFromPipeline=$True,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
@@ -1531,11 +1537,15 @@ function Global:Get-S3Bucket {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
-        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId
         $Method = "GET"
     }
 
     Process {
+        if (!$Region) {
+            $Region = $Config.Region
+        }
+
         $Query = @{}
 
         if ($Delimiter) { $Query["delimiter"] = $Delimiter }
@@ -1558,7 +1568,7 @@ function Global:Get-S3Bucket {
 
         $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region -Query $Query
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Region -Query $Query
 
         if ($DryRun) {
             Write-Output $AwsRequest
@@ -1573,14 +1583,14 @@ function Global:Get-S3Bucket {
             $UnicodeBucket = [System.Globalization.IdnMapping]::new().GetUnicode($Content.ListBucketResult.Name)
 
             foreach ($Object in $Objects) {
-                $Object = [PSCustomObject]@{Bucket=$UnicodeBucket;Region=$Region;Key=$Object.Key;LastModified=(Get-Date $Object.LastModified);ETag=($Object.ETag -replace '"','');Size=$Object.Size;Owner=$Object.Owner;StorageClass=$Object.StorageClass}
+                $Object = [PSCustomObject]@{Bucket=$UnicodeBucket;Region=$Region;Key=$Object.Key;LastModified=(Get-Date $Object.LastModified);ETag=($Object.ETag -replace '"','');Size=[long]$Object.Size;OwnerId=$Object.Owner.OwnerId;OwnerDisplayName=$Object.Owner.OwnerDisplayName;StorageClass=$Object.StorageClass}
                 Write-Output $Object
             }
 
             if ($Content.ListBucketResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
                 Write-Verbose "1000 Objects were returned and max keys was not limited so continuing to get all objects"
                 Write-Debug "NextMarker: $($Content.ListBucketResult.NextMarker)"
-                Get-S3Bucket -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Region $Config.Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
+                Get-S3Bucket -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Region $Region -SkipCertificateCheck:$SkipCertificateCheck -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -FetchOwner:$FetchOwner -StartAfter $StartAfter -ContinuationToken $Content.ListBucketResult.NextContinuationToken -Marker $Content.ListBucketResult.NextMarker
             }
         }
     }
@@ -1690,6 +1700,10 @@ function Global:Get-S3BucketVersions {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
         $Query = @{versions=""}
 
         if ($Delimiter) { $Query["delimiter"] = $Delimiter }
@@ -1701,7 +1715,7 @@ function Global:Get-S3BucketVersions {
         if ($KeyMarker) { $Query["key-marker"] = $KeyMarker }
         if ($VersionIdMarker) { $Query["version-id-marker"] = $VersionIdMarker }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
@@ -1729,7 +1743,7 @@ function Global:Get-S3BucketVersions {
 
             if ($Content.ListVersionsResult.IsTruncated -eq "true" -and $MaxKeys -eq 0) {
                 Write-Verbose "1000 Versions were returned and max keys was not limited so continuing to get all Versions"
-                Get-S3BucketVersions -Server $Server -SkipCertificateCheck:$SkipCertificateCheck -Presign:$Presign -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Region $Config.Region -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
+                Get-S3BucketVersions -Server $Server -SkipCertificateCheck:$SkipCertificateCheck -Presign:$Presign -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Region $Region -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -KeyMarker $Content.ListVersionsResult.NextKeyMarker -VersionIdMarker $Content.ListVersionsResult.NextVersionIdMarker
             }
         }
     }
@@ -1819,13 +1833,17 @@ function Global:New-S3Bucket {
  
     Process {
         if ($Region) {
+            $Config.Region = $Region
+        }
+
+        if ($Config.Region) {
             $RequestPayload = "<CreateBucketConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><LocationConstraint>$Region</LocationConstraint></CreateBucketConfiguration>"
         }
 
         # convert Bucket to Punycode to support Unicode Bucket Names
         $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
@@ -1919,6 +1937,11 @@ function Global:Remove-S3Bucket {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
         $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
 
         if ($Force) {
@@ -1926,13 +1949,122 @@ function Global:Remove-S3Bucket {
             Get-S3Bucket  -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Bucket $Bucket | Remove-S3Object -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
         }
         else {
             $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Get S3 Bucket ACL
+    .DESCRIPTION
+    Get S3 Bucket ACL
+#>
+function Global:Get-S3BucketPolicy {
+    [CmdletBinding(DefaultParameterSetName="none")]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="Skip SSL Certificate Check")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                HelpMessage="Use presigned URL")][Switch]$Presign,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                HelpMessage="Do not execute request, just return request URI and Headers")][Switch]$DryRun,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                HelpMessage="AWS Signer type (S3 for V2 Authentication and AWS4 for V4 Authentication)")][String][ValidateSet("S3","AWS4")]$SignerType="AWS4",
+        [parameter(
+                Mandatory=$False,
+                Position=5,
+                HelpMessage="EndpointUrl")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                ParameterSetName="profile",
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="AWS Profile to use which contains AWS sredentials and settings")][String]$Profile,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                ParameterSetName="keys",
+                Mandatory=$False,
+                Position=7,
+                HelpMessage="S3 Secret Access Key")][String]$SecretAccessKey,
+        [parameter(
+                ParameterSetName="account",
+                Mandatory=$False,
+                Position=6,
+                HelpMessage="StorageGRID account ID to execute this command against")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=8,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Region to be used")][String]$Region,
+        [parameter(
+                Mandatory=$False,
+                Position=9,
+                HelpMessage="Path Style")][String][ValidateSet("path","virtual-hosted")]$UrlStyle="path",
+        [parameter(
+                Mandatory=$True,
+                Position=10,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Bucket")][Alias("Name")][String]$Bucket
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        $Config = Get-AwsConfig -Server $Server -EndpointUrl $EndpointUrl -Profile $Profile -AccessKey $AccessKey -SecretAccessKey $SecretAccessKey -AccountId $AccountId -Region $Region
+        $Method = "GET"
+    }
+
+    Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
+        $Query = @{policy=""}
+
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Query $Query -Region $Region
+
+        if ($DryRun.IsPresent) {
+            Write-Output $AwsRequest
+        }
+        else {
+            $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+
+            # it seems AWS is sometimes not sending the Content-Type and then PowerShell does not parse the binary to string
+            if (!$Result.Headers.'Content-Type') {
+                $Content = [XML][System.Text.Encoding]::UTF8.GetString($Result.Content)
+            }
+            else {
+                $Content = [XML]$Result.Content
+            }
+
+            Write-Output $Content
         }
     }
 }
@@ -2016,9 +2148,16 @@ function Global:Get-S3BucketVersioning {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{versioning=""}
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Query $Query -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Query $Query -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
@@ -2118,11 +2257,14 @@ function Global:Enable-S3BucketVersioning {
     }
 
     Process {
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{versioning=""}
 
         $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Enabled</Status></VersioningConfiguration>"
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
@@ -2222,11 +2364,18 @@ function Global:Suspend-S3BucketVersioning {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{versioning=""}
 
         $RequestPayload = "<VersioningConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><Status>Suspended</Status></VersioningConfiguration>"
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Config.Region
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Query $Query -Bucket $Bucket -UrlStyle $UrlStyle -RequestPayload $RequestPayload -Region $Region
 
         if ($DryRun.IsPresent) {
             Write-Output $AwsRequest
@@ -2323,6 +2472,9 @@ function Global:Get-S3BucketLocation {
 
     Process {
         Write-Verbose "Retrieving location for bucket $Bucket"
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
 
         $Uri = "/"
 
@@ -2445,6 +2597,13 @@ function Global:Get-S3PresignedUrl {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Uri = "/$Key"
         $Presign = $true
 
@@ -2560,6 +2719,13 @@ function Global:Get-S3ObjectMetadata {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Uri = "/$Key"
 
         if ($VersionId) {
@@ -2714,6 +2880,13 @@ function Global:Read-S3Object {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Uri = "/$Key"
 
         $Headers = @{}
@@ -2922,6 +3095,13 @@ function Global:Write-S3Object {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         if ($InFile -and !$InFile.Exists) {
             Throw "File $InFile does not exist"
         }
@@ -3052,6 +3232,13 @@ function Global:Remove-S3Object {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Uri = "/$Key"
 
         if ($VersionId) {
@@ -3222,6 +3409,13 @@ function Global:Copy-S3Object {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Uri = "/$Key"
 
         $Headers = @{}
@@ -3345,6 +3539,13 @@ function Global:Get-S3BucketConsistency {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{"x-ntap-sg-consistency"=""}
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
@@ -3448,6 +3649,13 @@ function Global:Update-S3BucketConsistency {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{"x-ntap-sg-consistency"=$Consistency}
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
@@ -3628,6 +3836,13 @@ function Global:Get-S3BucketLastAccessTime {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{"x-ntap-sg-lastaccesstime"=""}
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
@@ -3727,6 +3942,13 @@ function Global:Enable-S3BucketLastAccessTime {
     }
  
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{"x-ntap-sg-lastaccesstime"="enabled"}
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
@@ -3820,6 +4042,13 @@ function Global:Disable-S3BucketLastAccessTime {
     }
 
     Process {
+        if ($Region) {
+            $Config.Region = $Region
+        }
+
+        # Convert Bucket Name to IDN mapping to support Unicode Names
+        $Bucket = [System.Globalization.IdnMapping]::new().GetAscii($Bucket)
+
         $Query = @{"x-ntap-sg-lastaccesstime"="disabled"}
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
