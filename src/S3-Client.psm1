@@ -1175,8 +1175,8 @@ function Global:Get-AwsConfig {
             }
         }
 
-        if ($Region) {
-            $Config.region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
         elseif (!$Region -and !$Config.region) {
             $Config.region = "us-east-1"
@@ -1217,6 +1217,201 @@ function Global:Remove-AwsConfig {
     }
 }
 
+Set-Alias -Name New-IamPolicy -Value New-AwsPolicy
+Set-Alias -Name Update-IamPolicy -Value New-AwsPolicy
+Set-Alias -Name Add-IamPolicyStatement -Value New-AwsPolicy
+Set-Alias -Name New-S3BucketPolicy -Value New-AwsPolicy
+Set-Alias -Name Update-S3BucketPolicy -Value New-AwsPolicy
+Set-Alias -Name Add-S3BucketPolicyStatement -Value New-AwsPolicy
+<#
+    .SYNOPSIS
+    Create new S3 Bucket Policy
+    .DESCRIPTION
+    Create new S3 Bucket Policy
+#>
+function Global:New-AwsPolicy {
+    [CmdletBinding(DefaultParameterSetName = "ResourceAction")]
+
+    PARAM (
+        [parameter(
+                Mandatory = $False,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Bucket Policy to add statements to")][Alias("BucketPolicy","IamPolicy")][PSCustomObject]$Policy,
+        [parameter(
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "The Sid element is optional. The Sid is only intended as a description for the user. It is stored but not interpreted by the StorageGRID Webscale system.")][String]$Sid,
+        [parameter(
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Use the Effect element to establish whether the specified operations are allowed or denied. You must identify operations you allow (or deny) on buckets or objects using the supported Action element keywords.")][ValidateSet("Allow", "Deny")][String]$Effect = "Allow",
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "PrincipalResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "PrincipalResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "PrincipalNotResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "PrincipalNotResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]$Principal = "*",
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "NotPrincipalResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "NotPrincipalResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "NotPrincipalNotResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "NotPrincipalNotResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][PSCustomObject]$NotPrincipal = "*",
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "PrincipalResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "PrincipalResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NotPrincipalResourceAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NotPrincipalResourceNotAction",
+                HelpMessage = "The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$Resource = "urn:sgws:s3:::*",
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "PrincipalNotResourceAction",
+                HelpMessage = "The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "PrincipalNotResourceNotAction",
+                HelpMessage = "The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NotPrincipalNotResourceAction",
+                HelpMessage = "The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NotPrincipalNotResourceNotAction",
+                HelpMessage = "The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$NotResource,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "PrincipalResourceAction",
+                HelpMessage = "The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "PrincipalNotResourceAction",
+                HelpMessage = "The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "NotPrincipalResourceAction",
+                HelpMessage = "The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "NotPrincipalNotResourceAction",
+                HelpMessage = "The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]$Action = "s3:*",
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "PrincipalResourceNotAction",
+                HelpMessage = "The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "PrincipalNotResourceNotAction",
+                HelpMessage = "The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "NotPrincipalResourceNotAction",
+                HelpMessage = "The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                ParameterSetName = "NotPrincipalNotResourceNotAction",
+                HelpMessage = "The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]$NotAction,
+        [parameter(
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "The Condition element is optional. Conditions allow you to build expressions to determine when a policy should be applied.")][String]$Condition
+    )
+
+    Process {
+        # see https://docs.aws.amazon.com/AmazonS3/latest/dev/access-policy-language-overview.html for details on Policies
+
+        if (!$Policy) {
+            $Policy = [PSCustomObject]@{ Version = "2012-10-17"; Statement = @() }
+        }
+
+        $Statement = [PSCustomObject]@{ Effect = $Effect }
+
+        if ($Sid) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Sid -Value $Sid
+        }
+        if ($Principal) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Principal -Value $Principal
+        }
+        if ($NotPrincipal) {
+            $Statement | Add-Member -MemberType NoteProperty -Name NotPrincipal -Value $NotPrincipal
+        }
+        if ($Resource) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Resource -Value $Resource.Uri.ToString()
+        }
+        if ($NotResource) {
+            $Statement | Add-Member -MemberType NoteProperty -Name NotResource -Value $NotResource.Uri.ToString()
+        }
+        if ($Action) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Action -Value $Action
+        }
+        if ($NotAction) {
+            $Statement | Add-Member -MemberType NoteProperty -Name NotAction -Value $NotAction
+        }
+        if ($Condition) {
+            $Statement | Add-Member -MemberType NoteProperty -Name Condition -Value $Condition
+        }
+
+        $Policy.Statement += $Statement
+
+        Write-Output $Policy
+    }
+}
 
 ### S3 Cmdlets ###
 
@@ -1409,8 +1604,8 @@ function Global:Test-S3Bucket {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         if ($Config)  {
@@ -1700,8 +1895,8 @@ function Global:Get-S3BucketVersions {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         $Query = @{versions=""}
@@ -1832,8 +2027,8 @@ function Global:New-S3Bucket {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         if ($Config.Region) {
@@ -1937,8 +2132,8 @@ function Global:Remove-S3Bucket {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2039,8 +2234,8 @@ function Global:Get-S3BucketPolicy {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2148,8 +2343,8 @@ function Global:Get-S3BucketVersioning {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2364,8 +2559,8 @@ function Global:Suspend-S3BucketVersioning {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2597,8 +2792,8 @@ function Global:Get-S3PresignedUrl {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2719,8 +2914,8 @@ function Global:Get-S3ObjectMetadata {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -2880,8 +3075,8 @@ function Global:Read-S3Object {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3095,8 +3290,8 @@ function Global:Write-S3Object {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3232,8 +3427,8 @@ function Global:Remove-S3Object {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3409,8 +3604,8 @@ function Global:Copy-S3Object {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3539,8 +3734,8 @@ function Global:Get-S3BucketConsistency {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3649,8 +3844,8 @@ function Global:Update-S3BucketConsistency {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3836,8 +4031,8 @@ function Global:Get-S3BucketLastAccessTime {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -3942,8 +4137,8 @@ function Global:Enable-S3BucketLastAccessTime {
     }
  
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
@@ -4042,8 +4237,8 @@ function Global:Disable-S3BucketLastAccessTime {
     }
 
     Process {
-        if ($Region) {
-            $Config.Region = $Region
+        if (!$Region) {
+            $Region = $Config.Region
         }
 
         # Convert Bucket Name to IDN mapping to support Unicode Names
