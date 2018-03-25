@@ -2781,7 +2781,11 @@ function Global:Get-S3PresignedUrl {
                 Mandatory=$False,
                 Position=13,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Expiration Date of presigned URL (default 60 minutes from now)")][System.Datetime]$Expires=(Get-Date).AddHours(1)
+                HelpMessage="Expiration Date of presigned URL (default 60 minutes from now)")][System.Datetime]$Expires=(Get-Date).AddHours(1),
+        [parameter(
+                Mandatory=$False,
+                Position=14,
+                HelpMessage="HTTP Request Method")][ValidateSet("OPTIONS","GET","HEAD","PUT","DELETE","TRACE","CONNECT")][String]$Method="GET"
     )
 
     Begin {
@@ -2816,8 +2820,9 @@ function Global:Get-S3PresignedUrl {
             }
         }
 
-        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType
-        Write-Output $AwsRequest.Uri
+        $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Uri $Uri -Query $Query -Bucket $Bucket -Presign:$Presign -SignerType $SignerType -Expires $Expires
+
+        Write-Output $AwsRequest.Uri.ToString()
     }
 }
 
@@ -3208,19 +3213,19 @@ function Global:Write-S3Object {
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Bucket")][Alias("Name")][String]$Bucket,
         [parameter(
-                Mandatory=$True,
+                Mandatory=$False,
                 Position=11,
                 ParameterSetName="ProfileAndFile",
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
-                Mandatory=$True,
+                Mandatory=$False,
                 Position=11,
                 ParameterSetName="KeyAndFile",
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="Object key. If not provided, filename will be used")]
         [parameter(
-                Mandatory=$True,
+                Mandatory=$False,
                 Position=11,
                 ParameterSetName="AccountAndFile",
                 ValueFromPipelineByPropertyName=$True,
@@ -3301,10 +3306,8 @@ function Global:Write-S3Object {
             Throw "File $InFile does not exist"
         }
 
-        if ($InFile) {
-            $ContentType = [System.Web.MimeMapping]::GetMimeMapping($InFile)
-        }
-        else {
+        # TODO: Check MIME type of file
+        if (!$InFile) {
             $ContentType = "text/plain"
         }
 
