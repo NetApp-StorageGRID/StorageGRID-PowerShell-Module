@@ -674,7 +674,7 @@ function Global:Get-AwsRequest {
         if (!$Headers["host"]) { $Headers["host"] = $EndpointUrl.Uri.Authority }
 
         if (!$Presign.IsPresent) {
-            if ($SignerType = "AWS4") {
+            if ($SignerType -eq "AWS4") {
                 if (!$Headers["x-amz-date"]) { $Headers["x-amz-date"] = $DateTime }
             }
             else {
@@ -692,8 +692,7 @@ function Global:Get-AwsRequest {
                 $RequestPayloadHash = "UNSIGNED-PAYLOAD"
                 $ExpiresInSeconds = [Math]::Ceiling(($Expires - $Date).TotalSeconds)
                 $CredentialScope = "$DateString/$Region/$Service/aws4_request"
-                # TODO: uncomment!
-                #$Query["Action"] = $Method
+                $Query["Action"] = $Method
                 $Query["X-Amz-Algorithm"] = "AWS4-HMAC-SHA256"
                 $Query["X-Amz-Credential"] = "$($AccessKey)/$($CredentialScope)"
                 $Query["X-Amz-Date"] = $DateTime
@@ -855,7 +854,7 @@ function Global:Invoke-AwsRequest {
             }
         }
 
-        try {
+        #try {
             # PowerShell 5 and early cannot skip certificate validation per request therefore we need to use a workaround
             if ($PSVersionTable.PSVersion.Major -lt 6 ) {
                 if ($SkipCertificateCheck.isPresent) {
@@ -895,35 +894,35 @@ function Global:Invoke-AwsRequest {
                     if ($OutFile) {
                         Write-Verbose "Body:`n$Body"
                         Write-Verbose "Saving output in file $OutFile"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck -PreserveAuthorizationOnRedirect
                     }
                     else {
                         Write-Verbose "Body:`n$Body"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -SkipCertificateCheck:$SkipCertificateCheck -PreserveAuthorizationOnRedirect
                     }
                 }
                 else {
                     if ($OutFile) {
                         Write-Verbose "Saving output in file $OutFile"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -OutFile $OutFile -SkipCertificateCheck:$SkipCertificateCheck -PreserveAuthorizationOnRedirect
                     }
                     elseif ($InFile) {
                         Write-Verbose "InFile:`n$InFile"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -InFile $InFile -SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -InFile $InFile -SkipCertificateCheck:$SkipCertificateCheck -PreserveAuthorizationOnRedirect
                     }
                     else {
                         Write-Verbose "Headers: $(ConvertTo-Json $Headers)"
                         Write-Verbose "Uri:$Uri"
                         Write-Verbose "Method: $Method"
-                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers #-SkipCertificateCheck:$SkipCertificateCheck
+                        $Result = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -PreserveAuthorizationOnRedirect
                     }
                 }
             }
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $ResponseBody"
-        }
+        #}
+        #catch {
+        #    $ResponseBody = ParseErrorForResponseBody $_
+        #    Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $ResponseBody"
+        #}
 
         Write-Output $Result
     }
@@ -1614,7 +1613,19 @@ function Global:Test-S3Bucket {
                 Write-Output $AwsRequest
             }
             else {
-                $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+                try {
+                    $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers
+                }
+                catch {
+                    $RedirectedRegion = $_.Exception.Response.Headers.GetValues("x-amz-bucket-region")[0]
+                    if ([int]$_.Exception.Response.StatusCode -match "^3" -and $RedirectedRegion) {
+                        Write-Warning "Request was redirected as bucket does not belong to region $Region. Repeating request with region $RedirectedRegion returned by S3 service."
+                        Test-S3Bucket -SkipCertificateCheck:$SkipCertificateCheck -Presign:$Presign -DryRun:$DryRun -SignerType $SignerType -EndpointUrl $Config.endpoint_url -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Region $RedirectedRegion -UrlStyle $UrlStyle -Bucket $Bucket
+                    }
+                    else {
+                        Throw $_
+                    }
+                }
             }
         }
     }
@@ -2031,7 +2042,8 @@ function Global:New-S3Bucket {
             $Region = $Config.Region
         }
 
-        if ($Config.Region) {
+        # AWS does not allow to set LocationConstraint for default region us-east-1
+        if ($Region -and $Region -ne "us-east-1") {
             $RequestPayload = "<CreateBucketConfiguration xmlns=`"http://s3.amazonaws.com/doc/2006-03-01/`"><LocationConstraint>$Region</LocationConstraint></CreateBucketConfiguration>"
         }
 
@@ -2141,7 +2153,7 @@ function Global:Remove-S3Bucket {
 
         if ($Force) {
             Write-Verbose "Force parameter specified, removing all objects in the bucket before removing the bucket"
-            Get-S3Bucket  -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Bucket $Bucket | Remove-S3Object -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle
+            Get-S3Bucket  -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Bucket $Bucket -Region $Region | Remove-S3Object -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -UrlStyle $UrlStyle -Region $Region
         }
 
         $AwsRequest = Get-AwsRequest -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Method $Method -EndpointUrl $Config.endpoint_url -Presign:$Presign -SignerType $SignerType -Bucket $Bucket -UrlStyle $UrlStyle -Region $Region
