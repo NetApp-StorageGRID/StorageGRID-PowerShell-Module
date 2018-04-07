@@ -688,6 +688,11 @@ function Global:Get-AwsRequest {
         $SignedHeaders = $SortedHeaders.Keys -join ";"
 
         if ($Presign.IsPresent) {
+            # TODO: Investigate why Presigning with AWS4 does not work when a query like e.g. location is specified
+            if ($SignerType -eq "AWS4" -and $Query.Keys.Count -ge 1) {
+                Write-Warning "AWS4 Signer Type with Presigned URLs does not support query parameters, therfore falling back to S3 Signer Type"
+                $SignerType = "S3"
+            }
             if ($SignerType -eq "AWS4") {
                 $RequestPayloadHash = "UNSIGNED-PAYLOAD"
                 $ExpiresInSeconds = [Math]::Ceiling(($Expires - $Date).TotalSeconds)
