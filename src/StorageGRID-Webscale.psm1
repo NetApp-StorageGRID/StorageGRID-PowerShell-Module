@@ -23,31 +23,32 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 
     # Functions necessary to parse JSON output from .NET serializer to PowerShell Objects
     function ParseItem($jsonItem) {
-        if($jsonItem.PSObject.TypeNames -match "Array") {
+        if ($jsonItem.PSObject.TypeNames -match "Array") {
             return ParseJsonArray($jsonItem)
         }
-        elseif($jsonItem.PSObject.TypeNames -match "Dictionary") {
+        elseif ($jsonItem.PSObject.TypeNames -match "Dictionary") {
             return ParseJsonObject([HashTable]$jsonItem)
         }
         else {
             return $jsonItem
         }
     }
- 
+
     function ParseJsonObject($jsonObj) {
         $result = New-Object -TypeName PSCustomObject
         foreach ($key in $jsonObj.Keys) {
             $item = $jsonObj[$key]
             if ($item) {
                 $parsedItem = ParseItem $item
-            } else {
+            }
+            else {
                 $parsedItem = $null
             }
             $result | Add-Member -MemberType NoteProperty -Name $key -Value $parsedItem
         }
         return $result
     }
- 
+
     function ParseJsonArray($jsonArray) {
         $result = @()
         $jsonArray | ForEach-Object {
@@ -55,11 +56,11 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
         }
         return $result
     }
- 
+
     function ParseJsonString($json) {
         $config = $javaScriptSerializer.DeserializeObject($json)
         if ($config -is [Array]) {
-            return ParseJsonArray($config)       
+            return ParseJsonArray($config)
         }
         else {
             return ParseJsonObject($config)
@@ -76,7 +77,7 @@ function ParseErrorForResponseBody($Error) {
             $Reader.BaseStream.Position = 0
             $Reader.DiscardBufferedData()
             $ResponseBody = $Reader.ReadToEnd()
-            if ($ResponseBody.StartsWith('{')) {
+            if ( $ResponseBody.StartsWith('{')) {
                 $ResponseBody = $ResponseBody | ConvertFrom-Json | ConvertTo-Json
             }
             return $ResponseBody
@@ -92,16 +93,16 @@ function ConvertTo-UnixTimestamp {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$True,
-                Position=0,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Date to be converted.")][DateTime[]]$Date,
-        [parameter(Mandatory=$True,
-                Position=1,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Unit of timestamp.")][ValidateSet("Seconds","Milliseconds")][String]$Unit="Milliseconds"
+        [parameter(Mandatory = $True,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Date to be converted.")][DateTime[]]$Date,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Unit of timestamp.")][ValidateSet("Seconds", "Milliseconds")][String]$Unit = "Milliseconds"
     )
 
     BEGIN {
@@ -109,7 +110,7 @@ function ConvertTo-UnixTimestamp {
     }
 
     PROCESS {
-        if ($Unit="Seconds") {
+        if ($Unit = "Seconds") {
             Write-Output ([math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalSeconds))
         }
         else {
@@ -123,29 +124,29 @@ function ConvertFrom-UnixTimestamp {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$True,
-                    Position=0,
-                    ValueFromPipeline=$True,
-                    ValueFromPipelineByPropertyName=$True,
-                    HelpMessage="Timestamp to be converted.")][String]$Timestamp,
-        [parameter(Mandatory=$True,
-                    Position=0,
-                    ValueFromPipeline=$True,
-                    ValueFromPipelineByPropertyName=$True,
-                    HelpMessage="Unit of timestamp.")][ValidateSet("Seconds","Milliseconds")][String]$Unit="Milliseconds",
-        [parameter(Mandatory=$False,
-                    Position=1,
-                    HelpMessage="Optional Timezone to be used as basis for Timestamp. Default is system Timezone.")][System.TimeZoneInfo]$Timezone=[System.TimeZoneInfo]::Local
+        [parameter(Mandatory = $True,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Timestamp to be converted.")][String]$Timestamp,
+        [parameter(Mandatory = $True,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Unit of timestamp.")][ValidateSet("Seconds", "Milliseconds")][String]$Unit = "Milliseconds",
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Optional Timezone to be used as basis for Timestamp. Default is system Timezone.")][System.TimeZoneInfo]$Timezone = [System.TimeZoneInfo]::Local
     )
 
     PROCESS {
         $Timestamp = @($Timestamp)
         foreach ($Timestamp in $Timestamp) {
             if ($Unit -eq "Seconds") {
-                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddSeconds($Timestamp),$Timezone)
+                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddSeconds($Timestamp), $Timezone)
             }
             else {
-                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddMilliseconds($Timestamp),$Timezone)
+                $Date = [System.TimeZoneInfo]::ConvertTimeFromUtc(([datetime]'1/1/1970').AddMilliseconds($Timestamp), $Timezone)
             }
             Write-Output $Date
         }
@@ -158,37 +159,37 @@ function Invoke-SgwRequest {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$True,
-                Position=0,
-                HelpMessage="Uri")][Uri]$Uri,
-        [parameter(Mandatory=$False,
-                Position=1,
-                HelpMessage="WebSession")][Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="HTTP Method")][ValidateSet("Default","Get","Head","Post","Put","Delete","Trace","Options","Merge","Patch")][String]$Method="Get",
-        [parameter(Mandatory=$False,
-                Position=3,
-                HelpMessage="Headers")][Hashtable]$Headers,
-        [parameter(Mandatory=$False,
-                Position=4,
-                HelpMessage="Body")][Object]$Body,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Content Type")][String]$ContentType="application/json",
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="Variable to store session details in")][String]$SessionVariable,
-        [parameter(Mandatory=$False,
-                Position=7,
-                HelpMessage="Timeout in seconds")][Int]$TimeoutSec=60,
-        [parameter(Mandatory=$False,
-                Position=8,
-                HelpMessage="Skip certificate checks")][Switch]$SkipCertificateCheck
+        [parameter(Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Uri")][Uri]$Uri,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "WebSession")][Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "HTTP Method")][ValidateSet("Default", "Get", "Head", "Post", "Put", "Delete", "Trace", "Options", "Merge", "Patch")][String]$Method = "Get",
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Headers")][Hashtable]$Headers,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Body")][Object]$Body,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Content Type")][String]$ContentType = "application/json",
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Variable to store session details in")][String]$SessionVariable,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Timeout in seconds")][Int]$TimeoutSec = 60,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Skip certificate checks")][Switch]$SkipCertificateCheck
     )
 
     Process {
-        if ($PSVersionTable.PSVersion.Major -lt 6 ) {
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
             if ($SkipCertificateCheck.isPresent) {
                 $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
                 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
@@ -244,6 +245,8 @@ function Invoke-SgwRequest {
 
 ## accounts ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieve all StorageGRID Webscale Accounts
@@ -254,24 +257,24 @@ function Global:Get-SgwAccounts {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="Maximum number of results.")][Int]$Limit=0,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Pagination offset (value is Account's id).")][String]$Marker,
-        [parameter(Mandatory=$False,
-                   Position=3,
-                   HelpMessage="if set, the marker element is also returned.")][Switch]$IncludeMarker,
-        [parameter(Mandatory=$False,
-                   Position=4,
-                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc",
-        [parameter(Mandatory=$False,
-                    Position=5,
-                    HelpMessage="Comma separated list of capabilities of the accounts to return. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift","s3","management")][String[]]$Capabilities
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Maximum number of results.")][Int]$Limit = 0,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Pagination offset (value is Account's id).")][String]$Marker,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "if set, the marker element is also returned.")][Switch]$IncludeMarker,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "pagination order (desc requires marker).")][ValidateSet("asc", "desc")][String]$Order = "asc",
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Comma separated list of capabilities of the accounts to return. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift", "s3", "management")][String[]]$Capabilities
     )
 
     Begin {
@@ -285,41 +288,34 @@ function Global:Get-SgwAccounts {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
 
         $Uri = $Server.BaseURI + '/grid/accounts'
         $Method = "GET"
 
-        if ($Limit -eq 0)
-        {
+        if ($Limit -eq 0) {
             $Query = "?limit=25"
         }
-        else
-        {
+        else {
             $Query = "?limit=$Limit"
         }
-        if ($Marker)
-        {
+        if ($Marker) {
             $Query += "&marker=$Marker"
         }
-        if ($IncludeMarker)
-        {
+        if ($IncludeMarker) {
             $Query += "&includeMarker=true"
         }
-        if ($Order)
-        {
+        if ($Order) {
             $Query += "&order=$Order"
         }
 
         $Uri += $Query
 
-        try
-        {
+        try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
-        catch
-        {
+        catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
             return
@@ -334,7 +330,7 @@ function Global:Get-SgwAccounts {
         foreach ($Account in $Accounts) {
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
+            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
         }
 
         Write-Output $Accounts
@@ -346,7 +342,7 @@ function Global:Get-SgwAccounts {
             else {
                 Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
             }
-        }              
+        }
     }
 }
 
@@ -387,51 +383,51 @@ function Global:New-SgwAccount {
 
     PARAM (
         [parameter(
-                Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-                Mandatory=$True,
-                Position=1,
-                HelpMessage="Name of the StorageGRID Webscale Account to be created.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Name,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Name of the StorageGRID Webscale Account to be created.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Name,
         [parameter(
-                Mandatory=$True,
-                Position=2,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).")][ValidateSet("swift","s3","management")][String[]]$Capabilities,
+                Mandatory = $True,
+                Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).")][ValidateSet("swift", "s3", "management")][String[]]$Capabilities,
         [parameter(
-                Mandatory=$False,
-                Position=3,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Use account identity source (default: true - supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+                Mandatory = $False,
+                Position = 3,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Use account identity source (default: true - supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource = $true,
         [parameter(
-                Mandatory=$False,
-                Position=4,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
+                Mandatory = $False,
+                Position = 4,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
         [parameter(
-                Mandatory=$False,
-                Position=5,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Quota for tenant in bytes.")][Long]$Quota,
+                Mandatory = $False,
+                Position = 5,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Quota for tenant in bytes.")][Long]$Quota,
         [parameter(
-                Mandatory=$False,
-                Position=6,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Policy object containing information on identity source, platform service and quota")][PSCustomObject]$Policy=@{},
+                Mandatory = $False,
+                Position = 6,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Policy object containing information on identity source, platform service and quota")][PSCustomObject]$Policy = @{ },
         [parameter(
-                Mandatory=$False,
-                Position=7,
-                HelpMessage="Tenant root password (must be at least 8 characters).")][ValidateLength(8,256)][String]$Password
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Tenant root password (must be at least 8 characters).")][ValidateLength(8, 256)][String]$Password
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -443,7 +439,7 @@ function Global:New-SgwAccount {
             Throw "Password required"
         }
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
-            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+            Write-Warning "Quota and password will be ignored in API Version $( $Server.APIVersion )"
         }
         if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
             Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
@@ -460,12 +456,12 @@ function Global:New-SgwAccount {
             }
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.name = $Name
         $Body.capabilities = $Capabilities
 
@@ -492,15 +488,15 @@ function Global:New-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Result.data
 
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
-       
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+
         Write-Output $Account
     }
 }
@@ -516,17 +512,17 @@ function Global:Remove-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to delete.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to delete.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -538,7 +534,7 @@ function Global:Remove-SgwAccount {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts/$id"
         $Method = "DELETE"
@@ -549,7 +545,7 @@ function Global:Remove-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -561,29 +557,29 @@ function Global:Remove-SgwAccount {
     Retrieve a StorageGRID Webscale Account
 #>
 function Global:Get-SgwAccount {
-    [CmdletBinding(DefaultParameterSetName="id")]
+    [CmdletBinding(DefaultParameterSetName = "id")]
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            ParameterSetName="id",
-            HelpMessage="ID of a StorageGRID Webscale Account to get information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("Id")][String]$AccountId,
+                Mandatory = $False,
+                Position = 0,
+                ParameterSetName = "id",
+                HelpMessage = "ID of a StorageGRID Webscale Account to get information for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Id")][String]$AccountId,
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            ParameterSetName="name",
-            HelpMessage="Name of a StorageGRID Webscale Account to get information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Name,
+                Mandatory = $False,
+                Position = 0,
+                ParameterSetName = "name",
+                HelpMessage = "Name of a StorageGRID Webscale Account to get information for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Name,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -595,7 +591,7 @@ function Global:Get-SgwAccount {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         if ($Name) {
             # this is a convenience method for retrieving an account by name
@@ -611,14 +607,14 @@ function Global:Get-SgwAccount {
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
 
             $Account = $Result.data
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.AccountId)"
-       
+            $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.AccountId )"
+
             Write-Output $Account
         }
     }
@@ -635,37 +631,37 @@ function Global:Update-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale Account to update.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Id,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "New name of the StorageGRID Webscale Account.")][String]$Name,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource = $true,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Quota for tenant in bytes.")][Long]$Quota
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -673,9 +669,9 @@ function Global:Update-SgwAccount {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        
+
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
-            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+            Write-Warning "Quota and password will be ignored in API Version $( $Server.APIVersion )"
         }
         if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
             Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
@@ -687,12 +683,12 @@ function Global:Update-SgwAccount {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts/$id"
         $Method = "PATCH"
 
-        $Body = @{}
+        $Body = @{ }
         if ($Name) {
             $Body.name = $Name
         }
@@ -701,7 +697,7 @@ function Global:Update-SgwAccount {
         }
 
         if ($Server.APIVersion -ge 2) {
-            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            $Body.policy = @{ "useAccountIdentitySource" = $UseAccountIdentitySource }
             if ($Server.APIVersion -ge 2.1) {
                 $Body.policy["allowPlatformServices"] = $AllowPlatformServices
             }
@@ -717,14 +713,14 @@ function Global:Update-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Result.data
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
-       
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+
         Write-Output $Account
     }
 }
@@ -740,37 +736,37 @@ function Global:Replace-SgwAccount {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-        HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale Account to update.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Id,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][String[]]$Capabilities,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="New name of the StorageGRID Webscale Account.")][String]$Name,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "New name of the StorageGRID Webscale Account.")][String]$Name,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource=$true,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource = $true,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices=$true,
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Quota for tenant in bytes.")][Long]$Quota
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Quota for tenant in bytes.")][Long]$Quota
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -778,9 +774,9 @@ function Global:Replace-SgwAccount {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        
+
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
-            Write-Warning "Quota and password will be ignored in API Version $($Server.APIVersion)"
+            Write-Warning "Quota and password will be ignored in API Version $( $Server.APIVersion )"
         }
         if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
             Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
@@ -792,9 +788,9 @@ function Global:Replace-SgwAccount {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
-        $Body = @{}
+        $Body = @{ }
         if ($Name) {
             $Body.name = $Name
         }
@@ -803,7 +799,7 @@ function Global:Replace-SgwAccount {
         }
 
         if ($Server.APIVersion -ge 2) {
-            $Body.policy = @{"useAccountIdentitySource"=$UseAccountIdentitySource}
+            $Body.policy = @{ "useAccountIdentitySource" = $UseAccountIdentitySource }
             if ($Server.APIVersion -ge 2.1) {
                 $Body.policy["allowPlatformServices"] = $AllowPlatformServices
             }
@@ -819,14 +815,14 @@ function Global:Replace-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Result.data
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
-        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$($Server.Name)/?accountId=$($Account.id)"
-       
+        $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+
         Write-Output $Account
     }
 }
@@ -842,25 +838,25 @@ function Global:Update-SgwSwiftAdminPassword {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to update.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String[]]$Id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String[]]$Id,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Old Password.")][String]$OldPassword,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Old Password.")][String]$OldPassword,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="New Password.")][String]$NewPassword,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "New Password.")][String]$NewPassword,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -875,7 +871,7 @@ function Global:Update-SgwSwiftAdminPassword {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Id = @($Id)
         foreach ($Id in $Id) {
@@ -893,9 +889,9 @@ function Global:Update-SgwSwiftAdminPassword {
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-       
+
             Write-Output $Result.data
         }
     }
@@ -912,25 +908,25 @@ function Global:Update-SgwPassword {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to update.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Old Password.")][String]$OldPassword,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Old Password.")][String]$OldPassword,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="New Password.")][String]$NewPassword,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "New Password.")][String]$NewPassword,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -945,7 +941,7 @@ function Global:Update-SgwPassword {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts/$id/change-password"
         $Method = "POST"
@@ -961,7 +957,7 @@ function Global:Update-SgwPassword {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Result.data
@@ -979,17 +975,17 @@ function Global:Get-SgwAccountUsage {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get usage information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to get usage information for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -998,7 +994,7 @@ function Global:Get-SgwAccountUsage {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if (!$Id) {
             if (!$Server.AccountId) {
@@ -1019,7 +1015,7 @@ function Global:Get-SgwAccountUsage {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
         Write-Output $Result.data
@@ -1027,6 +1023,8 @@ function Global:Get-SgwAccountUsage {
 }
 
 ## auth ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -1079,82 +1077,81 @@ function Global:Get-SgwAccountUsage {
 #>
 function global:Connect-SgwServer {
     [CmdletBinding()]
- 
+
     PARAM (
-        [parameter(Mandatory=$True,
-                Position=0,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
-        [parameter(Mandatory=$True,
-                Position=1,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
-        [parameter(Mandatory=$False,
-                Position=2,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
-        [parameter(Position=3,
-                Mandatory=$False,
-                HelpMessage="Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
-        [parameter(Position=5,
-                Mandatory=$False,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
-        [parameter(Position=6,
-                Mandatory=$False,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
-        [parameter(Position=7,
-                Mandatory=$False,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime=3600,
-        [parameter(Position=8,
-                Mandatory=$False,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
-        [parameter(Position=9,
-                Mandatory=$False,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
+        [parameter(Mandatory = $True,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+        [parameter(Position = 3,
+                Mandatory = $False,
+                HelpMessage = "Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
+        [parameter(Position = 5,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+        [parameter(Position = 6,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
+        [parameter(Position = 7,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime = 3600,
+        [parameter(Position = 8,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
+        [parameter(Position = 9,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
     )
 
     Process {
-        $Server = [PSCustomObject]@{SkipCertificateCheck=$SkipCertificateCheck.IsPresent;
-                                    Name=$Name;
-                                    User=$Credential.UserName;
-                                    Credential=$Credential;
-                                    BaseUri="https://$Name/api/v2";
-                                    Session=[Microsoft.PowerShell.Commands.WebRequestSession]::new();
-                                    Headers=[Hashtable]::new();
-                                    ApiVersion=0;
-                                    SupportedApiVersions=@();
-                                    S3EndpointUrl=$null;
-                                    SwiftEndpointUrl=$null;
-                                    DisableAutomaticAccessKeyGeneration=$DisableAutomaticAccessKeyGeneration.isPresent;
-                                    TemporaryAccessKeyExpirationTime=$TemporaryAccessKeyExpirationTime;
-                                    AccessKeyStore=@{};
-                                    AccountId="";
-                                    TenantPortal=""}
+        $Server = [PSCustomObject]@{
+            SkipCertificateCheck = $SkipCertificateCheck.IsPresent;
+            Name = $Name;
+            User = $Credential.UserName;
+            Credential = $Credential;
+            BaseUri = "https://$Name/api/v2";
+            Session = [Microsoft.PowerShell.Commands.WebRequestSession]::new();
+            Headers = [Hashtable]::new();
+            ApiVersion = 0;
+            SupportedApiVersions = @();
+            S3EndpointUrl = $null;
+            SwiftEndpointUrl = $null;
+            DisableAutomaticAccessKeyGeneration = $DisableAutomaticAccessKeyGeneration.isPresent;
+            TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime;
+            AccessKeyStore = @{ };
+            AccountId = "";
+            TenantPortal = ""
+        }
 
-        if ([environment]::OSVersion.Platform -match "Win")
-        {
+        if ([environment]::OSVersion.Platform -match "Win") {
             # check if proxy is used
             $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
             $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
-            if ($ProxySettings.ProxyEnable)
-            {
+            if ($ProxySettings.ProxyEnable) {
                 Write-Warning "Proxy Server $( $ProxySettings.ProxyServer ) configured in Internet Explorer may be used to connect to the OCI server!"
             }
-            if ($ProxySettings.AutoConfigURL)
-            {
+            if ($ProxySettings.AutoConfigURL) {
                 Write-Warning "Proxy Server defined in automatic proxy configuration script $( $ProxySettings.AutoConfigURL ) configured in Internet Explorer may be used to connect to the OCI server!"
             }
         }
@@ -1165,58 +1162,49 @@ function global:Connect-SgwServer {
         $Body.cookie = $True
         $Body.csrfToken = $True
 
-        if ($AccountId)
-        {
+        if ($AccountId) {
             $Body.accountId = $AccountId
             $Server.AccountId = $AccountId
-            $Server.TenantPortal = "https://$($Server.Name)/?accountId=$($Account.id)"
+            $Server.TenantPortal = "https://$( $Server.Name )/?accountId=$( $Account.id )"
         }
 
         $Body = ConvertTo-Json -InputObject $Body
 
         $APIVersion = (Get-SgwVersion -Server $Server -ErrorAction Stop | Sort-Object | select -Last 1) -replace "\..*", ""
 
-        if (!$APIVersion)
-        {
+        if (!$APIVersion) {
             Throw "API Version could not be retrieved via https://$Name/api/versions"
         }
 
-        $Server.BaseUri="https://$Name/api/v2"
+        $Server.BaseUri = "https://$Name/api/v2"
 
-        Try
-        {
-            $Response = Invoke-SgwRequest -SessionVariable "Session" -Method POST -Uri "$($Server.BaseUri)/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        Try {
+            $Response = Invoke-SgwRequest -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
-        Catch
-        {
+        Catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            if ($_.Exception.Message -match "Unauthorized")
-            {
+            if ($_.Exception.Message -match "Unauthorized") {
                 Write-Error "Authorization for $BaseURI/authorize with user $( $Credential.UserName ) failed"
                 return
             }
-            elseif ($_.Exception.Message -match "trust relationship")
-            {
+            elseif ($_.Exception.Message -match "trust relationship") {
                 Write-Error $_.Exception.Message
                 Write-Information "Certificate of the server is not trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
             }
-            else
-            {
+            else {
                 Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $( $_.Exception.Message )`n $ResponseBody"
                 return
             }
         }
 
-        if ($Response.status -ne "success")
-        {
+        if ($Response.status -ne "success") {
             Throw "Authorization failed with status $( $Response.status )"
         }
 
         $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
 
         $Server.Session = $Response.Session
-        if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" }))
-        {
+        if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" })) {
             $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
             $Server.Headers["X-Csrf-Token"] = $XCsrfToken
         }
@@ -1224,8 +1212,7 @@ function global:Connect-SgwServer {
         $Server.ApiVersion = $Response.apiVersion
 
         $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
-        if (!$SupportedApiVersions.Contains(1))
-        {
+        if (!$SupportedApiVersions.Contains(1)) {
             Write-Warning "API Version 1 not supported. API Version 1 is required to autogenerate S3 credentials for Grid Administrators. If you want to run the S3 Cmdlets as Grid Administrator and let the Cmdlets autogenerate S3 credentials, then enable API Version 1 with`nUpdate-SgwConfigManagement -MinApiVersion 1"
         }
         $Server.SupportedApiVersions = $SupportedApiVersions
@@ -1239,79 +1226,66 @@ function global:Connect-SgwServer {
         }
 
         if (!$AccountId -and !$Server.S3EndpointUrl) {
+            Write-Verbose "Trying to identify S3 and Swift Endpoints"
             # check endpoint urls and try StorageGRID default ports 8082 and 18082 for S3 and 8083 and 18083 for Swift
             $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | % { @("https://$_", "https://${_}:8082", "https://${_}:18082", "https://${_}:8083", "https://${_}:18083") }
-            foreach ($EndpointDomainName in $EndpointDomainNames)
-            {
+            foreach ($EndpointDomainName in $EndpointDomainNames) {
                 Write-Verbose "Endpoint domain name: $EndpointDomainName"
-                if ($PSVersionTable.PSVersion.Major -lt 6)
-                {
+                if ($PSVersionTable.PSVersion.Major -lt 6) {
                     $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-                    try
-                    {
+                    try {
                         $Response = Invoke-WebRequest -Method Options -Uri $EndpointDomainName -UseBasicParsing -TimeoutSec 3
-                        if ($Response.Headers["x-amz-request-id"])
-                        {
+                        if ($Response.Headers["x-amz-request-id"]) {
                             $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                             break
                         }
                     }
-                    catch
-                    {
+                    catch {
                     }
-                    try
-                    {
+                    try {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing -TimeoutSec 3
-                        if ($Response.Headers["X-Trans-Id"])
-                        {
+                        if ($Response.Headers["X-Trans-Id"]) {
                             $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                             break
                         }
                     }
-                    catch
-                    {
+                    catch {
                     }
                     [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                 }
-                else
-                {
-                    try
-                    {
+                else {
+                    try {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 3
-                        if ($Response.Headers["x-amz-request-id"])
-                        {
+                        if ($Response.Headers["x-amz-request-id"]) {
                             Write-Verbose "Test"
                             $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             break
                         }
                     }
-                    catch
-                    {
+                    catch {
                     }
-                    try
-                    {
+                    try {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 3
-                        if ($Response.Headers["X-Trans-Id"])
-                        {
+                        if ($Response.Headers["X-Trans-Id"]) {
                             $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             break
                         }
                     }
-                    catch
-                    {
+                    catch {
                     }
                 }
             }
         }
         elseif (!$Server.S3EndpointUrl -and $CurrentSgwServer.Name -eq $Name) {
+            Write-Verbose "Setting S3 and Swift Endpoints to the values from current SGW Server"
             $Server.S3EndpointUrl = $CurrentSgwServer.S3EndpointUrl
+            $Server.SwiftEndpointUrl = $CurrentSgwServer.SwiftEndpointUrl
         }
 
-        if (!$Transient)
-        {
+        if (!$Transient) {
             Set-Variable -Name CurrentSgwServer -Value $Server -Scope Global
         }
 
@@ -1327,12 +1301,12 @@ function global:Connect-SgwServer {
 #>
 function global:Disconnect-SgwServer {
     [CmdletBinding()]
- 
+
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
@@ -1355,13 +1329,15 @@ function global:Disconnect-SgwServer {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
     }
 }
 
 ## alarms ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -1373,15 +1349,15 @@ function Global:Get-SgwAlarms {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Maximum number of results")][int]$limit
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Maximum number of results")][int]$limit
     )
 
     Begin {
@@ -1395,18 +1371,18 @@ function Global:Get-SgwAlarms {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + '/grid/alarms'
         $Method = "GET"
 
         $Separator = "?"
         if ($includeAcknowledged) {
-            $Uri += "$($Separator)includeAcknowledged=true"
+            $Uri += "$( $Separator )includeAcknowledged=true"
             $Separator = "&"
         }
         if ($limit) {
-            $Uri += "$($Separator)limit=$limit"
+            $Uri += "$( $Separator )limit=$limit"
         }
 
         try {
@@ -1414,10 +1390,151 @@ function Global:Get-SgwAlarms {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
+    }
+}
+
+## audit ##
+
+# complete as of API 2.1
+
+<#
+    .SYNOPSIS
+    Gets the audit configuration
+    .DESCRIPTION
+    Gets the audit configuration
+#>
+function Global:Get-SgwAudit {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + '/grid/audit'
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Audit = [PSCustomObject]@{
+            LevelSystem = $Result.data.levels.system;
+            LevelStorage = $Result.data.levels.storage;
+            LevelProtocol = $Result.data.levels.protocol;
+            LevelManagement = $Result.data.levels.management;
+            LoggedHeaders = $Result.data.loggedHeaders
+        }
+
+        Write-Output $Audit
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replace the audit configuration
+    .DESCRIPTION
+    Replace the audit configuration
+#>
+function Global:Replace-SgwAudit {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for system.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelSystem,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for storage.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelStorage,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for protocol.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelProtocol,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for management.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelManagement,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Logged headers.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String[]]$LoggedHeaders
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + '/grid/audit'
+        $Method = "PUT"
+
+        $Body = @{}
+        $Body.levels = @{}
+        $Body.levels.system = $LevelSystem
+        $Body.levels.storage = $LevelStorage
+        $Body.levels.protocol = $LevelProtocol
+        $Body.levels.management = $LevelManagement
+        $Body.loggedHeaders = $LoggedHeaders
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Audit = [PSCustomObject]@{
+            LevelSystem = $Result.data.levels.system;
+            LevelStorage = $Result.data.levels.storage;
+            LevelProtocol = $Result.data.levels.protocol;
+            LevelManagement = $Result.data.levels.management;
+            LoggedHeaders = $Result.data.loggedHeaders
+        }
+
+        Write-Output $Audit
     }
 }
 
@@ -1433,10 +1550,10 @@ function Global:Get-SgwConfig {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -1446,7 +1563,7 @@ function Global:Get-SgwConfig {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/config"
@@ -1462,9 +1579,9 @@ function Global:Get-SgwConfig {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -1479,10 +1596,10 @@ function Global:Get-SgwConfigManagement {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -1498,7 +1615,7 @@ function Global:Get-SgwConfigManagement {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/config/management"
         $Method = "GET"
@@ -1508,9 +1625,9 @@ function Global:Get-SgwConfigManagement {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -1525,13 +1642,13 @@ function Global:Update-SgwConfigManagement {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$True,
-                   Position=0,
-                   HelpMessage="Minimum API Version.")][Int][ValidateSet(1,2)]$MinApiVersion,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Minimum API Version.")][Int][ValidateSet(1, 2)]$MinApiVersion,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
 
     Begin {
@@ -1548,23 +1665,23 @@ function Global:Update-SgwConfigManagement {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/config/management"
         $Method = "PUT"
 
-        $Body = ConvertTo-Json -InputObject @{minApiVersion=$MinApiVersion}
+        $Body = ConvertTo-Json -InputObject @{ minApiVersion = $MinApiVersion }
 
         try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Server.SupportedApiVersions = @(Get-SgwVersions -Server $Server)
-       
+
         Write-Output $Result.data
     }
 }
@@ -1579,10 +1696,10 @@ function Global:Get-SgwProductVersion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -1592,7 +1709,7 @@ function Global:Get-SgwProductVersion {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/config/product-version"
@@ -1608,9 +1725,9 @@ function Global:Get-SgwProductVersion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data.productVersion
     }
 }
@@ -1625,10 +1742,10 @@ function Global:Get-SgwVersion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -1638,7 +1755,7 @@ function Global:Get-SgwVersion {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/versions"
         $Method = "GET"
@@ -1655,10 +1772,10 @@ function Global:Get-SgwVersion {
             }
             else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
         }
-       
+
         Write-Output $ApiVersion
     }
 }
@@ -1673,10 +1790,10 @@ function Global:Get-SgwVersions {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -1686,7 +1803,7 @@ function Global:Get-SgwVersions {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/versions"
         $Method = "GET"
@@ -1696,9 +1813,9 @@ function Global:Get-SgwVersions {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Response.data
     }
 }
@@ -1716,14 +1833,14 @@ function Global:Get-SgwContainerOwner {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -1756,9 +1873,9 @@ function Global:Get-SgwContainers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
@@ -1785,7 +1902,7 @@ function Global:Get-SgwContainers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -1803,14 +1920,14 @@ function Global:Get-SgwContainerConsistency {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-            Position=1,
-            HelpMessage="Swift Container or S3 Bucket name.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -1837,7 +1954,7 @@ function Global:Get-SgwContainerConsistency {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -1855,17 +1972,17 @@ function Global:Update-SgwContainerConsistency {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Consistency level.")][ValidateSet("all","strong-global","strong-site","default","available","weak")][String]$Consistency
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Consistency level.")][ValidateSet("all", "strong-global", "strong-site", "default", "available", "weak")][String]$Consistency
     )
 
     Begin {
@@ -1887,7 +2004,7 @@ function Global:Update-SgwContainerConsistency {
         $Uri = $Server.BaseURI + "/org/containers/$Name/consistency"
         $Method = "PUT"
 
-        $Body = @{consistency=$Consistency}
+        $Body = @{ consistency = $Consistency }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -1895,7 +2012,7 @@ function Global:Update-SgwContainerConsistency {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -1913,14 +2030,14 @@ function Global:Get-SgwContainerLastAccessTime {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -1947,7 +2064,7 @@ function Global:Get-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -1965,14 +2082,14 @@ function Global:Enable-SgwContainerLastAccessTime {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -1994,7 +2111,7 @@ function Global:Enable-SgwContainerLastAccessTime {
         $Uri = $Server.BaseURI + "/org/containers/$Name/last-access-time"
         $Method = "PUT"
 
-        $Body = @{lastAccessTime="enabled"}
+        $Body = @{ lastAccessTime = "enabled" }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2002,7 +2119,7 @@ function Global:Enable-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -2020,14 +2137,14 @@ function Global:Disable-SgwContainerLastAccessTime {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2049,7 +2166,7 @@ function Global:Disable-SgwContainerLastAccessTime {
         $Uri = $Server.BaseURI + "/org/containers/$Name/last-access-time"
         $Method = "PUT"
 
-        $Body = @{lastAccessTime="disabled"}
+        $Body = @{ lastAccessTime = "disabled" }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2057,7 +2174,7 @@ function Global:Disable-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -2077,14 +2194,14 @@ function Global:Get-SgwContainerMetadataNotification {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2111,13 +2228,13 @@ function Global:Get-SgwContainerMetadataNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.metadataNotification) {
             $Xml = [xml]$Response.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
             }
         }
@@ -2135,14 +2252,14 @@ function Global:Remove-SgwContainerMetadataNotification {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2164,7 +2281,7 @@ function Global:Remove-SgwContainerMetadataNotification {
         $Uri = $Server.BaseURI + "/org/containers/$Name/metadata-notification"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2172,7 +2289,7 @@ function Global:Remove-SgwContainerMetadataNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -2190,28 +2307,28 @@ function Global:Add-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="Rule ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
-        [parameter(Mandatory=$False,
-                Position=3,
-                HelpMessage="S3 Key Prefix.")][String]$Prefix="",
-        [parameter(Mandatory=$True,
-                Position=4,
-                HelpMessage="URN of the Destination.")][Alias("Urn")][System.UriBuilder]$DestinationUrn
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Rule ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Rule Status.")][ValidateSet("Enabled", "Disabled")][String]$Status = "Enabled",
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "S3 Key Prefix.")][String]$Prefix = "",
+        [parameter(Mandatory = $True,
+                Position = 4,
+                HelpMessage = "URN of the Destination.")][Alias("Urn")][System.UriBuilder]$DestinationUrn
     )
 
     Begin {
@@ -2239,24 +2356,30 @@ function Global:Add-SgwContainerMetadataNotificationRule {
             $Null = $MetadataNotificationRules.Add($MetadataNotificationRule)
         }
 
-        if (($MetadataNotificationRules | Where-Object { $_.Id -eq $Id})) {
+        if (($MetadataNotificationRules | Where-Object { $_.Id -eq $Id })) {
             $MetadataNotificationRule = $MetadataNotificationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
-            if ($Status) { $MetadataNotificationRule.Status = $Status }
-            if ($Prefix) { $MetadataNotificationRule.Prefix = $Prefix }
-            if ($DestinationUrn) { $MetadataNotificationRule.DestinationUrn = $DestinationUrn }
+            if ($Status) {
+                $MetadataNotificationRule.Status = $Status
+            }
+            if ($Prefix) {
+                $MetadataNotificationRule.Prefix = $Prefix
+            }
+            if ($DestinationUrn) {
+                $MetadataNotificationRule.DestinationUrn = $DestinationUrn
+            }
         }
         else {
-            $MetadataNotificationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn }
+            $MetadataNotificationRule = [PSCustomObject]@{ Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn }
             $Null = $MetadataNotificationRules.Add($MetadataNotificationRule)
         }
 
         $MetadataNotificationConfiguration = "<MetadataNotificationConfiguration>"
         foreach ($MetadataNotificationRule in $MetadataNotificationRules) {
-            $MetadataNotificationConfiguration += "<Rule><ID>$($MetadataNotificationRule.Id)</ID><Status>$($MetadataNotificationRule.Status)</Status><Prefix>$($MetadataNotificationRule.Prefix)</Prefix><Destination><Urn>$($MetadataNotificationRule.DestinationUrn)</Urn></Destination></Rule>"
+            $MetadataNotificationConfiguration += "<Rule><ID>$( $MetadataNotificationRule.Id )</ID><Status>$( $MetadataNotificationRule.Status )</Status><Prefix>$( $MetadataNotificationRule.Prefix )</Prefix><Destination><Urn>$( $MetadataNotificationRule.DestinationUrn )</Urn></Destination></Rule>"
         }
         $MetadataNotificationConfiguration += "</MetadataNotificationConfiguration>"
 
-        $Body = @{metadataNotification=$MetadataNotificationConfiguration}
+        $Body = @{ metadataNotification = $MetadataNotificationConfiguration }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2264,13 +2387,13 @@ function Global:Add-SgwContainerMetadataNotificationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.metadataNotification) {
             $Xml = [xml]$Response.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
             }
         }
@@ -2288,19 +2411,19 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="Rule ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Rule ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
@@ -2332,11 +2455,11 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
 
         $MetadataNotification = "<MetadataNotificationConfiguration>"
         foreach ($MetadataNotificationRule in $MetadataNotificationRules) {
-            $MetadataNotification += "<Rule><ID>$($MetadataNotificationRule.Id)</ID><Status>$($MetadataNotificationRule.Status)</Status><Prefix>$($MetadataNotificationRule.Prefix)</Prefix><Destination><Urn>$($MetadataNotificationRule.DestinationUrn)</Urn></Destination></Rule>"
+            $MetadataNotification += "<Rule><ID>$( $MetadataNotificationRule.Id )</ID><Status>$( $MetadataNotificationRule.Status )</Status><Prefix>$( $MetadataNotificationRule.Prefix )</Prefix><Destination><Urn>$( $MetadataNotificationRule.DestinationUrn )</Urn></Destination></Rule>"
         }
         $MetadataNotification += "</MetadataNotificationConfiguration>"
 
-        $Body = @{metadataNotification=$MetadataNotification}
+        $Body = @{ metadataNotification = $MetadataNotification }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2344,13 +2467,13 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.metadataNotification) {
             $Xml = [xml]$Response.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
             }
         }
@@ -2372,14 +2495,14 @@ function Global:Get-SgwContainerNotification {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2406,14 +2529,14 @@ function Global:Get-SgwContainerNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.notification) {
             Write-Verbose $Response.data.notification
             $Xml = [xml]$Response.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -2431,14 +2554,14 @@ function Global:Remove-SgwContainerNotification {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2460,7 +2583,7 @@ function Global:Remove-SgwContainerNotification {
         $Uri = $Server.BaseURI + "/org/containers/$Name/notification"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2468,7 +2591,7 @@ function Global:Remove-SgwContainerNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -2486,31 +2609,31 @@ function Global:Add-SgwContainerNotificationTopic {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Topic ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id,
-        [parameter(Mandatory=$True,
-                Position=3,
-                HelpMessage="URN of the Topic.")][Alias("TopicUrn","Urn")][System.UriBuilder]$Topic,
-        [parameter(Mandatory=$False,
-                Position=4,
-                HelpMessage="Event to trigger notifications for.")][Alias("Event")][String[]]$Events,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Prefix filter.")][String]$Prefix,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Suffix filter.")][String]$Suffix
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Topic ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "URN of the Topic.")][Alias("TopicUrn", "Urn")][System.UriBuilder]$Topic,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Event to trigger notifications for.")][Alias("Event")][String[]]$Events,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Prefix filter.")][String]$Prefix,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Suffix filter.")][String]$Suffix
 
     )
 
@@ -2539,29 +2662,37 @@ function Global:Add-SgwContainerNotificationTopic {
             $Null = $NotificationTopics.Add($NotificationTopic)
         }
 
-        if (($NotificationTopics | Where-Object { $_.Id -eq $Id})) {
+        if (($NotificationTopics | Where-Object { $_.Id -eq $Id })) {
             $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
-            if ($Topic) { $NotificationTopic.Topic = $Topic }
-            if ($Events) { $NotificationTopic.Events = $Events }
-            if ($Prefix) { $NotificationTopic.Prefix = $Prefix }
-            if ($Suffix) { $NotificationTopic.Suffix = $Suffix }
+            if ($Topic) {
+                $NotificationTopic.Topic = $Topic
+            }
+            if ($Events) {
+                $NotificationTopic.Events = $Events
+            }
+            if ($Prefix) {
+                $NotificationTopic.Prefix = $Prefix
+            }
+            if ($Suffix) {
+                $NotificationTopic.Suffix = $Suffix
+            }
         }
         else {
-            $NotificationTopic = [PSCustomObject]@{Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
+            $NotificationTopic = [PSCustomObject]@{ Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
             $Null = $NotificationTopics.Add($NotificationTopic)
         }
 
         $NotificationConfiguration = "<NotificationConfiguration>"
         foreach ($NotificationTopic in $NotificationTopics) {
-            $NotificationConfiguration += "<TopicConfiguration><Id>$($NotificationTopic.Id)</Id><Topic>$($NotificationTopic.Topic)</Topic>"
+            $NotificationConfiguration += "<TopicConfiguration><Id>$( $NotificationTopic.Id )</Id><Topic>$( $NotificationTopic.Topic )</Topic>"
             foreach ($Event in $Events) {
                 $NotificationConfiguration += "<Event>$Event</Event>"
             }
-            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$($NotificationTopic.Prefix)</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$($NotificationTopic.Suffix)</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
+            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$( $NotificationTopic.Prefix )</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$( $NotificationTopic.Suffix )</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
         }
         $NotificationConfiguration += "</NotificationConfiguration>"
 
-        $Body = @{notification=$NotificationConfiguration}
+        $Body = @{ notification = $NotificationConfiguration }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2569,14 +2700,14 @@ function Global:Add-SgwContainerNotificationTopic {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.notification) {
             Write-Verbose $Response.data.notification
             $Xml = [xml]$Response.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -2596,19 +2727,19 @@ function Global:Remove-SgwContainerNotificationTopic {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="Topic ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Topic ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
@@ -2638,29 +2769,37 @@ function Global:Remove-SgwContainerNotificationTopic {
             }
         }
 
-        if (($NotificationTopics | Where-Object { $_.Id -eq $Id})) {
+        if (($NotificationTopics | Where-Object { $_.Id -eq $Id })) {
             $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
-            if ($Topic) { $NotificationTopic.Topic = $Topic }
-            if ($Events) { $NotificationTopic.Events = $Events }
-            if ($Prefix) { $NotificationTopic.Prefix = $Prefix }
-            if ($Suffix) { $NotificationTopic.Suffix = $Suffix }
+            if ($Topic) {
+                $NotificationTopic.Topic = $Topic
+            }
+            if ($Events) {
+                $NotificationTopic.Events = $Events
+            }
+            if ($Prefix) {
+                $NotificationTopic.Prefix = $Prefix
+            }
+            if ($Suffix) {
+                $NotificationTopic.Suffix = $Suffix
+            }
         }
         else {
-            $NotificationTopic = [PSCustomObject]@{Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
+            $NotificationTopic = [PSCustomObject]@{ Id = $ID; Topic = $Topic; Events = $Events; Prefix = $Prefix; Suffix = $Suffix }
             $Null = $NotificationTopics.Add($NotificationTopic)
         }
 
         $NotificationConfiguration = "<NotificationConfiguration>"
         foreach ($NotificationTopic in $NotificationTopics) {
-            $NotificationConfiguration += "<TopicConfiguration><Id>$($NotificationTopic.Id)</Id><Topic>$($NotificationTopic.Topic)</Topic>"
+            $NotificationConfiguration += "<TopicConfiguration><Id>$( $NotificationTopic.Id )</Id><Topic>$( $NotificationTopic.Topic )</Topic>"
             foreach ($Event in $Events) {
                 $NotificationConfiguration += "<Event>$Event</Event>"
             }
-            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$($NotificationTopic.Prefix)</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$($NotificationTopic.Suffix)</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
+            $NotificationConfiguration += "<Filter><S3Key><FilterRule><Name>prefix</Name><Value>$( $NotificationTopic.Prefix )</Value></FilterRule><FilterRule><Name>suffix</Name><Value>$( $NotificationTopic.Suffix )</Value></FilterRule></S3Key></Filter></TopicConfiguration>"
         }
         $NotificationConfiguration += "</NotificationConfiguration>"
 
-        $Body = @{metadataNotification=$MetadataNotification}
+        $Body = @{ metadataNotification = $MetadataNotification }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2668,14 +2807,14 @@ function Global:Remove-SgwContainerNotificationTopic {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.notification) {
             Write-Verbose $Response.data.notification
             $Xml = [xml]$Response.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -2695,14 +2834,14 @@ function Global:Get-SgwContainerReplication {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2729,13 +2868,13 @@ function Global:Get-SgwContainerReplication {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.replication) {
             $Xml = [xml]$Response.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
             }
         }
@@ -2753,14 +2892,14 @@ function Global:Remove-SgwContainerReplication {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
     )
 
     Begin {
@@ -2782,7 +2921,7 @@ function Global:Remove-SgwContainerReplication {
         $Uri = $Server.BaseURI + "/org/containers/$Name/replication"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2790,7 +2929,7 @@ function Global:Remove-SgwContainerReplication {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -2805,42 +2944,42 @@ Set-Alias -Name Add-SgwBucketReplicationRule -Value Add-SgwContainerReplicationR
     Adds a replication configuration rule for an S3 bucket or Swift container
 #>
 function Global:Add-SgwContainerReplicationRule {
-    [CmdletBinding(DefaultParameterSetName="bucket")]
+    [CmdletBinding(DefaultParameterSetName = "bucket")]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name to be replicated.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Rule ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id,
-        [parameter(Mandatory=$False,
-                Position=2,
-                HelpMessage="Rule Status.")][ValidateSet("Enabled","Disabled")][String]$Status="Enabled",
-        [parameter(Mandatory=$False,
-                Position=3,
-                HelpMessage="S3 Key Prefix.")][String]$Prefix="",
-        [parameter(Mandatory=$True,
-                Position=4,
-                ParameterSetName="bucket",
-                HelpMessage="Destination Bucket name.")][String]$DestinationBucket,
-        [parameter(Mandatory=$True,
-                Position=4,
-                ParameterSetName="urn",
-                HelpMessage="Destination Bucket name.")][String]$DestinationUrn,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Destination Storage Class.")][ValidateSet("STANDARD","STANDARD_IA","RRS")][String]$DestinationStorageClass="STANDARD",
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="IAM Role.")][String]$Role
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name to be replicated.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Rule ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Rule Status.")][ValidateSet("Enabled", "Disabled")][String]$Status = "Enabled",
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "S3 Key Prefix.")][String]$Prefix = "",
+        [parameter(Mandatory = $True,
+                Position = 4,
+                ParameterSetName = "bucket",
+                HelpMessage = "Destination Bucket name.")][String]$DestinationBucket,
+        [parameter(Mandatory = $True,
+                Position = 4,
+                ParameterSetName = "urn",
+                HelpMessage = "Destination Bucket name.")][String]$DestinationUrn,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Destination Storage Class.")][ValidateSet("STANDARD", "STANDARD_IA", "RRS")][String]$DestinationStorageClass = "STANDARD",
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "IAM Role.")][String]$Role
     )
 
     Begin {
@@ -2872,26 +3011,34 @@ function Global:Add-SgwContainerReplicationRule {
             $DestinationUrn = Get-SgwEndpoints | Where-Object { $_.endpointURN -match ":$DestinationBucket$" } | Select-Object -ExpandProperty endpointURN -First 1
         }
 
-        if (($ReplicationRules | Where-Object { $_.Id -eq $Id})) {
+        if (($ReplicationRules | Where-Object { $_.Id -eq $Id })) {
             $ReplicationRule = $ReplicationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
-            if ($Status) { $ReplicationRule.Status = $Status }
-            if ($Prefix) { $ReplicationRule.Prefix = $Prefix }
+            if ($Status) {
+                $ReplicationRule.Status = $Status
+            }
+            if ($Prefix) {
+                $ReplicationRule.Prefix = $Prefix
+            }
             $ReplicationRule.DestinationUrn = $DestinationUrn
-            if ($DestinationStorageClass) { $ReplicationRule.DestinationStorageClass = $DestinationStorageClass }
-            if ($Role) { $ReplicationRule.Role = $Role }
+            if ($DestinationStorageClass) {
+                $ReplicationRule.DestinationStorageClass = $DestinationStorageClass
+            }
+            if ($Role) {
+                $ReplicationRule.Role = $Role
+            }
         }
         else {
-            $ReplicationRule = [PSCustomObject]@{Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn; DestinationStorageClass = $DestinationStorageClass; Role = $Role }
+            $ReplicationRule = [PSCustomObject]@{ Id = $ID; Status = $Status; Prefix = $Prefix; DestinationUrn = $DestinationUrn; DestinationStorageClass = $DestinationStorageClass; Role = $Role }
             $Null = $ReplicationRules.Add($ReplicationRule)
         }
 
         $ReplicationConfiguration = "<ReplicationConfiguration>"
         foreach ($ReplicationRule in $ReplicationRules) {
-            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationUrn)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+            $ReplicationConfiguration += "<Rule><ID>$( $ReplicationRule.Id )</ID><Status>$( $ReplicationRule.Status )</Status><Prefix>$( $ReplicationRule.Prefix )</Prefix><Destination><Bucket>$( $ReplicationRule.DestinationUrn )</Bucket><StorageClass>$( $ReplicationRule.DestinationStorageClass )</StorageClass></Destination><Role>$( $ReplicationRule.Role )</Role></Rule>"
         }
         $ReplicationConfiguration += "</ReplicationConfiguration>"
 
-        $Body = @{replication=$ReplicationConfiguration}
+        $Body = @{ replication = $ReplicationConfiguration }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2899,13 +3046,13 @@ function Global:Add-SgwContainerReplicationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.replication) {
             $Xml = [xml]$Response.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
             }
         }
@@ -2923,19 +3070,19 @@ function Global:Remove-SgwContainerReplicationRule {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Swift Container or S3 Bucket name.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][Alias("Container","Bucket")][String]$Name,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Rule ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Rule ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
@@ -2967,11 +3114,11 @@ function Global:Remove-SgwContainerReplicationRule {
 
         $ReplicationConfiguration = "<ReplicationConfiguration>"
         foreach ($ReplicationRule in $ReplicationRules) {
-            $ReplicationConfiguration += "<Rule><ID>$($ReplicationRule.Id)</ID><Status>$($ReplicationRule.Status)</Status><Prefix>$($ReplicationRule.Prefix)</Prefix><Destination><Bucket>$($ReplicationRule.DestinationUrn)</Bucket><StorageClass>$($ReplicationRule.DestinationStorageClass)</StorageClass></Destination><Role>$($ReplicationRule.Role)</Role></Rule>"
+            $ReplicationConfiguration += "<Rule><ID>$( $ReplicationRule.Id )</ID><Status>$( $ReplicationRule.Status )</Status><Prefix>$( $ReplicationRule.Prefix )</Prefix><Destination><Bucket>$( $ReplicationRule.DestinationUrn )</Bucket><StorageClass>$( $ReplicationRule.DestinationStorageClass )</StorageClass></Destination><Role>$( $ReplicationRule.Role )</Role></Rule>"
         }
         $ReplicationConfiguration += "</ReplicationConfiguration>"
 
-        $Body = @{replication=$ReplicationConfiguration}
+        $Body = @{ replication = $ReplicationConfiguration }
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
@@ -2979,13 +3126,13 @@ function Global:Remove-SgwContainerReplicationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.data.replication) {
             $Xml = [xml]$Response.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
-                $Rule = [PSCustomObject]@{Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass =  $Rule.Destination.StorageClass}
+                $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
             }
         }
@@ -3004,10 +3151,10 @@ function Global:Get-SgwDeactivatedFeatures {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -3020,7 +3167,7 @@ function Global:Get-SgwDeactivatedFeatures {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/deactivated-features"
@@ -3036,9 +3183,9 @@ function Global:Get-SgwDeactivatedFeatures {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -3053,34 +3200,34 @@ function Global:Update-SgwDeactivatedFeatures {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="Deactivate Alarm Acknowledgements.")][Boolean]$AlarmAcknowledgment,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="Deactivate Other Grid Configuration.")][Boolean]$OtherGridConfiguration,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Deactivate Grid Topology Page Configuration.")][Boolean]$GridTopologyPageConfiguration,
-        [parameter(Mandatory=$False,
-                   Position=3,
-                   HelpMessage="Deactivate Management of Tenant Accounts.")][Boolean]$TenantAccounts,
-        [parameter(Mandatory=$False,
-                   Position=4,
-                   HelpMessage="Deactivate changing of tenant root passwords.")][Boolean]$ChangeTenantRootPassword,
-        [parameter(Mandatory=$False,
-                   Position=4,
-                   HelpMessage="Deactivate maintenance.")][Boolean]$Maintenance,
-        [parameter(Mandatory=$False,
-                   Position=5,
-                   HelpMessage="Deactivates activating features. This cannot be undone!")][Boolean]$ActivateFeatures,
-        [parameter(Mandatory=$False,
-                   Position=6,
-                   HelpMessage="Deactivates managing of own S3 Credentials.")][Boolean]$ManageOwnS3Credentials,
-        [parameter(Mandatory=$False,
-                   Position=7,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "Deactivate Alarm Acknowledgements.")][Boolean]$AlarmAcknowledgment,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Deactivate Other Grid Configuration.")][Boolean]$OtherGridConfiguration,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Deactivate Grid Topology Page Configuration.")][Boolean]$GridTopologyPageConfiguration,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Deactivate Management of Tenant Accounts.")][Boolean]$TenantAccounts,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Deactivate changing of tenant root passwords.")][Boolean]$ChangeTenantRootPassword,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Deactivate maintenance.")][Boolean]$Maintenance,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Deactivates activating features. This cannot be undone!")][Boolean]$ActivateFeatures,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Deactivates managing of own S3 Credentials.")][Boolean]$ManageOwnS3Credentials,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -3096,14 +3243,14 @@ function Global:Update-SgwDeactivatedFeatures {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/deactivated-features"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         if ($AlarmAcknowledgment -or $OtherGridConfiguration -or $GridTopologyPageConfiguration -or $TenantAccounts -or $ChangeTenantRootPassword -or $Maintenance -or $ActivateFeatures) {
-            $Body.grid = @{}
+            $Body.grid = @{ }
         }
         if ($AlarmAcknowledgment) {
             $Body.grid.alarmAcknowledgment = $AlarmAcknowledgment
@@ -3124,13 +3271,13 @@ function Global:Update-SgwDeactivatedFeatures {
             $Body.grid.maintenance = $Maintenance
         }
         if ($ActivateFeatures) {
-            $caption = "Please Confirm"    
+            $caption = "Please Confirm"
             $message = "Are you sure you want to proceed with permanently deactivating the activation of features (this can't be undone!):"
             [int]$defaultChoice = 0
             $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Do the job."
             $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Do not do the job."
             $options = [System.Management.Automation.Host.ChoiceDescription[]]($no, $yes)
-            $choiceRTN = $host.ui.PromptForChoice($caption,$message, $options,$defaultChoice)
+            $choiceRTN = $host.ui.PromptForChoice($caption, $message, $options, $defaultChoice)
             if ($choiceRTN -eq 1) {
                 $Body.grid.activateFeatures = $ActivateFeatures
             }
@@ -3140,7 +3287,7 @@ function Global:Update-SgwDeactivatedFeatures {
             }
         }
         if ($ManageOwnS3Credentials) {
-            $Body.tenant = @{manageOwnS3Credentials=$ManageOwnS3Credentials}
+            $Body.tenant = @{ manageOwnS3Credentials = $ManageOwnS3Credentials }
         }
         $Body = ConvertTo-Json -InputObject $Body
 
@@ -3149,9 +3296,9 @@ function Global:Update-SgwDeactivatedFeatures {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -3168,10 +3315,10 @@ function Global:Get-SgwDNSServers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -3184,7 +3331,7 @@ function Global:Get-SgwDNSServers {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/dns-servers"
         $Method = "GET"
@@ -3194,9 +3341,9 @@ function Global:Get-SgwDNSServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -3211,13 +3358,13 @@ function Global:Replace-SgwDNSServers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="List of IP addresses of the external DNS servers.")][String[]]$DNSServers
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "List of IP addresses of the external DNS servers.")][String[]]$DNSServers
+    )
 
     Begin {
         if (!$Server) {
@@ -3230,7 +3377,7 @@ function Global:Replace-SgwDNSServers {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/dns-servers"
         $Method = "PUT"
@@ -3244,9 +3391,9 @@ function Global:Replace-SgwDNSServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -3263,9 +3410,9 @@ function Global:Get-SgwEndpoints {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
@@ -3292,7 +3439,7 @@ function Global:Get-SgwEndpoints {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -3310,39 +3457,39 @@ function Global:Add-SgwEndpoint {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
-        [parameter(Mandatory=$True,
-                Position=3,
-                HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
-        [parameter(Mandatory=$False,
-                Position=4,
-                HelpMessage="CA Certificate String.")][String]$CaCert,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
-        [parameter(Mandatory=$False,
-                Position=7,
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
-        [parameter(Mandatory=$False,
-                Position=8,
-                HelpMessage="Test the validity of the endpoint but do not save it.")][Switch]$Test,
-        [parameter(Mandatory=$False,
-                Position=9,
-                HelpMessage="Force saving without endpoint validation.")][Alias("ForceSave")][Switch]$Force
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Test the validity of the endpoint but do not save it.")][Switch]$Test,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Force saving without endpoint validation.")][Alias("ForceSave")][Switch]$Force
     )
 
     Begin {
@@ -3371,13 +3518,13 @@ function Global:Add-SgwEndpoint {
             $Uri += "?forceSave=true"
         }
 
-        $Body = @{}
+        $Body = @{ }
         $Body.displayName = $DisplayName
         $Body.endpointURI = $EndpointUri.Uri
         $Body.endpointURN = $EndpointUrn.Uri
         $Body.caCert = $CaCert
         $Body.insecureTLS = $SkipCertificateCheck.isPresent
-        $Body.credentials = @{}
+        $Body.credentials = @{ }
         $Body.credentials.accessKeyId = $AccessKey
         $Body.credentials.secretAccessKey = $SecretAccessKey
 
@@ -3388,7 +3535,7 @@ function Global:Add-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -3408,14 +3555,14 @@ function Global:Remove-SgwEndpoint {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Endpoint ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Endpoint ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
@@ -3442,7 +3589,7 @@ function Global:Remove-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -3462,14 +3609,14 @@ function Global:Get-SgwEndpoint {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Endpoint ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Endpoint ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
@@ -3496,7 +3643,7 @@ function Global:Get-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -3510,166 +3657,166 @@ function Global:Get-SgwEndpoint {
     Replaces a single endpoint
 #>
 function Global:Update-SgwEndpoint {
-    [CmdletBinding(DefaultParameterSetName="none")]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Endpoint ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Region.")][String]$Region,
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="NameOnlyAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket","Topic","Domain")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="CA Certificate String.")][String]$CaCert,
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnlyAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
-        [parameter(Mandatory=$False,
-                Position=9,
-                HelpMessage="Test the validity of the endpoint but do not save it.",
-                ParameterSetName="test")][Switch]$Test,
-        [parameter(Mandatory=$False,
-                Position=10,
-                HelpMessage="Force saving without endpoint validation.",
-                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Endpoint ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "Region.")][String]$Region,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NameOnlyAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket", "Topic", "Domain")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "NameOnlyAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Test the validity of the endpoint but do not save it.",
+                ParameterSetName = "test")][Switch]$Test,
+        [parameter(Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Force saving without endpoint validation.",
+                ParameterSetName = "force")][Alias("ForceSave")][Switch]$Force
     )
 
     Begin {
@@ -3733,13 +3880,13 @@ function Global:Update-SgwEndpoint {
             }
         }
 
-        $Body = @{}
+        $Body = @{ }
         $Body.displayName = $DisplayName
         $Body.endpointURI = $EndpointUri.Uri
         $Body.endpointURN = $EndpointUrn.Uri
         $Body.caCert = $CaCert
         $Body.insecureTLS = $SkipCertificateCheck.isPresent
-        $Body.credentials = @{}
+        $Body.credentials = @{ }
         $Body.credentials.accessKeyId = $AccessKey
         $Body.credentials.secretAccessKey = $SecretAccessKey
 
@@ -3750,7 +3897,7 @@ function Global:Update-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -3767,9 +3914,9 @@ function Global:Get-SgwS3Endpoints {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Process {
@@ -3788,62 +3935,62 @@ function Global:Add-SgwS3Endpoint {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
-        [parameter(Mandatory=$True,
-                Position=2,
-                ParameterSetName="RegionAndName",
-                HelpMessage="Region.")][String]$Region,
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="RegionAndName",
-                HelpMessage="Bucket Name.")]
-        [parameter(Mandatory=$True,
-                Position=3,
-                ParameterSetName="NameOnly",
-                HelpMessage="Bucket Name.")][Alias("Bucket")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=4,
-                HelpMessage="CA Certificate String.")][String]$CaCert,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndName",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="NameOnly",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="RegionAndName",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=6,
-                ParameterSetName="NameOnly",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndName",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnly",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
-        [parameter(Mandatory=$False,
-                Position=8,
-                HelpMessage="Test the validity of the endpoint but do not save it.",
-                ParameterSetName="test")][Switch]$Test,
-        [parameter(Mandatory=$False,
-                Position=9,
-                HelpMessage="Force saving without endpoint validation.",
-                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                ParameterSetName = "RegionAndName",
+                HelpMessage = "Region.")][String]$Region,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                ParameterSetName = "RegionAndName",
+                HelpMessage = "Bucket Name.")]
+        [parameter(Mandatory = $True,
+                Position = 3,
+                ParameterSetName = "NameOnly",
+                HelpMessage = "Bucket Name.")][Alias("Bucket")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ParameterSetName = "RegionAndName",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ParameterSetName = "NameOnly",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ParameterSetName = "RegionAndName",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ParameterSetName = "NameOnly",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndName",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "NameOnly",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Test the validity of the endpoint but do not save it.",
+                ParameterSetName = "test")][Switch]$Test,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Force saving without endpoint validation.",
+                ParameterSetName = "force")][Alias("ForceSave")][Switch]$Force
     )
 
     Process {
@@ -3895,166 +4042,166 @@ function Global:Add-SgwS3Endpoint {
     Replaces a single endpoint
 #>
 function Global:Update-SgwS3Endpoint {
-    [CmdletBinding(DefaultParameterSetName="none")]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                Position=1,
-                HelpMessage="Endpoint ID.",
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True)][String]$Id,
-        [parameter(Mandatory=$True,
-                Position=2,
-                HelpMessage="Display Name of Endpoint.")][String]$DisplayName,
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="URI of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="URN of the Endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Region.")]
-        [parameter(Mandatory=$False,
-                Position=3,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Region.")][String]$Region,
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="NameOnlyAndProfile",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
-        [parameter(Mandatory=$False,
-                Position=4,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket","Topic","Domain")][String]$Name,
-        [parameter(Mandatory=$False,
-                Position=5,
-                HelpMessage="CA Certificate String.")][String]$CaCert,
-        [parameter(Mandatory=$False,
-                Position=6,
-                HelpMessage="Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndUrnAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndNameAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnlyAndProfile",
-                HelpMessage="AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile="default",
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
-        [parameter(Mandatory=$False,
-                Position=7,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="UriAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="UriAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="RegionAndUrnAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="RegionAndNameAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")]
-        [parameter(Mandatory=$False,
-                Position=8,
-                ParameterSetName="NameOnlyAndKey",
-                HelpMessage="S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
-        [parameter(Mandatory=$False,
-                Position=9,
-                HelpMessage="Test the validity of the endpoint but do not save it.",
-                ParameterSetName="test")][Switch]$Test,
-        [parameter(Mandatory=$False,
-                Position=10,
-                HelpMessage="Force saving without endpoint validation.",
-                ParameterSetName="force")][Alias("ForceSave")][Switch]$Force
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Endpoint ID.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "URI of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "URI of the Endpoint.")][Alias("Uri")][System.UriBuilder]$EndpointUri,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "URN of the Endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "URN of the Endpoint.")][Alias("Urn")][System.UriBuilder]$EndpointUrn,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "Region.")]
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "Region.")][String]$Region,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NameOnlyAndProfile",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")]
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "Bucket Name for CloudMirror, Topic Name for SNS or Domain-Name/Index-Name/Type-Name for ElasticSearch.")][Alias("Bucket", "Topic", "Domain")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "CA Certificate String.")][String]$CaCert,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndUrnAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndNameAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndUrnAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndNameAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "NameOnlyAndProfile",
+                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")]
+        [parameter(Mandatory = $False,
+                Position = 7,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "S3 Access Key authorized to use the endpoint.")][Alias("AccessKeyId")][String]$AccessKey,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "UriAndUrnAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "UriAndNameAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "RegionAndUrnAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "RegionAndNameAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")]
+        [parameter(Mandatory = $False,
+                Position = 8,
+                ParameterSetName = "NameOnlyAndKey",
+                HelpMessage = "S3 Secret Access Key authorized to use the endpoint.")][String]$SecretAccessKey,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Test the validity of the endpoint but do not save it.",
+                ParameterSetName = "test")][Switch]$Test,
+        [parameter(Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Force saving without endpoint validation.",
+                ParameterSetName = "force")][Alias("ForceSave")][Switch]$Force
     )
 
     Begin {
@@ -4118,13 +4265,13 @@ function Global:Update-SgwS3Endpoint {
             }
         }
 
-        $Body = @{}
+        $Body = @{ }
         $Body.displayName = $DisplayName
         $Body.endpointURI = $EndpointUri.Uri
         $Body.endpointURN = $EndpointUrn.Uri
         $Body.caCert = $CaCert
         $Body.insecureTLS = $SkipCertificateCheck.isPresent
-        $Body.credentials = @{}
+        $Body.credentials = @{ }
         $Body.credentials.accessKeyId = $AccessKey
         $Body.credentials.secretAccessKey = $SecretAccessKey
 
@@ -4135,7 +4282,7 @@ function Global:Update-SgwS3Endpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.data
@@ -4154,10 +4301,10 @@ function Global:Get-SgwEndpointDomainNames {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4170,7 +4317,7 @@ function Global:Get-SgwEndpointDomainNames {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/domain-names"
         $Method = "GET"
@@ -4180,9 +4327,9 @@ function Global:Get-SgwEndpointDomainNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4199,13 +4346,13 @@ function Global:Replace-SgwEndpointDomainNames {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
+    )
 
     Begin {
         if (!$Server) {
@@ -4218,7 +4365,7 @@ function Global:Replace-SgwEndpointDomainNames {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/domain-names"
         $Method = "PUT"
@@ -4230,9 +4377,9 @@ function Global:Replace-SgwEndpointDomainNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4253,10 +4400,10 @@ function Global:Stop-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4269,7 +4416,7 @@ function Global:Stop-SgwExpansion {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion"
         $Method = "DELETE"
@@ -4279,9 +4426,9 @@ function Global:Stop-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4296,10 +4443,10 @@ function Global:Get-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4312,7 +4459,7 @@ function Global:Get-SgwExpansion {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion"
         $Method = "GET"
@@ -4322,9 +4469,9 @@ function Global:Get-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4339,10 +4486,10 @@ function Global:Start-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4355,7 +4502,7 @@ function Global:Start-SgwExpansion {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/start"
         $Method = "POST"
@@ -4365,9 +4512,9 @@ function Global:Start-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4382,13 +4529,13 @@ function Global:Invoke-SgwExpansion {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Passphrase.")][String]$Passphrase,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4401,21 +4548,21 @@ function Global:Invoke-SgwExpansion {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/expand"
         $Method = "POST"
 
-        $Body = ConvertTo-Json -InputObject @{passphrase=$Passphrase}
+        $Body = ConvertTo-Json -InputObject @{ passphrase = $Passphrase }
 
         try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4432,10 +4579,10 @@ function Global:Get-SgwExpansionNodes {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4448,7 +4595,7 @@ function Global:Get-SgwExpansionNodes {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/nodes"
         $Method = "GET"
@@ -4458,9 +4605,9 @@ function Global:Get-SgwExpansionNodes {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4476,15 +4623,15 @@ function Global:Remove-SgwExpansionNode {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale node to remove from expansion.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale node to remove from expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4497,7 +4644,7 @@ function Global:Remove-SgwExpansionNode {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
         $Method = "DELETE"
@@ -4507,9 +4654,9 @@ function Global:Remove-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4525,15 +4672,15 @@ function Global:Get-SgwExpansionNode {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID node eligible for expansion.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4546,7 +4693,7 @@ function Global:Get-SgwExpansionNode {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
         $Method = "GET"
@@ -4556,9 +4703,9 @@ function Global:Get-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4574,10 +4721,10 @@ function Global:New-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4590,7 +4737,7 @@ function Global:New-SgwExpansionNode {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/start"
         $Method = "POST"
@@ -4600,9 +4747,9 @@ function Global:New-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4618,15 +4765,15 @@ function Global:Reset-SgwExpansionNode {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID node eligible for expansion.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4639,7 +4786,7 @@ function Global:Reset-SgwExpansionNode {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/node/$id"
         $Method = "POST"
@@ -4649,9 +4796,9 @@ function Global:Reset-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4668,10 +4815,10 @@ function Global:Get-SgwExpansionSites {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4684,7 +4831,7 @@ function Global:Get-SgwExpansionSites {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/sites"
         $Method = "GET"
@@ -4694,9 +4841,9 @@ function Global:Get-SgwExpansionSites {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4712,15 +4859,15 @@ function Global:New-SgwExpansionSite {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="Name of new site.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Name,
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Name of new site.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4733,21 +4880,21 @@ function Global:New-SgwExpansionSite {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/site"
         $Method = "POST"
 
-        $Body = ConvertTo-Json -InputObject @{name=$Name}
+        $Body = ConvertTo-Json -InputObject @{ name = $Name }
 
         try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4763,15 +4910,15 @@ function Global:Remove-SgwExpansionNode {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale site to remove from expansion.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale site to remove from expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4784,7 +4931,7 @@ function Global:Remove-SgwExpansionNode {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/sites/$id"
         $Method = "DELETE"
@@ -4794,9 +4941,9 @@ function Global:Remove-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4812,15 +4959,15 @@ function Global:Get-SgwExpansionSite {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID site.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID site.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4833,7 +4980,7 @@ function Global:Get-SgwExpansionSite {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/sites/$id"
         $Method = "GET"
@@ -4843,9 +4990,9 @@ function Global:Get-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4861,21 +5008,21 @@ function Global:Update-SgwExpansionSite {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID site to be updated.")][String]$ID,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID site to be updated.")][String]$ID,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="New ID for the StorageGRID site.")][String]$NewID,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "New ID for the StorageGRID site.")][String]$NewID,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="New name for the StorageGRID site.")][String]$Name,
-        [parameter(Mandatory=$False,
-                   Position=3,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "New name for the StorageGRID site.")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4888,12 +5035,12 @@ function Global:Update-SgwExpansionSite {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/expansion/site/$id"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         if ($Name) {
             $Body.name = $Name
         }
@@ -4908,9 +5055,9 @@ function Global:Update-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4927,10 +5074,10 @@ function Global:Get-SgwGridNetworks {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -4943,7 +5090,7 @@ function Global:Get-SgwGridNetworks {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/grid-networks"
         $Method = "GET"
@@ -4953,9 +5100,9 @@ function Global:Get-SgwGridNetworks {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -4970,16 +5117,16 @@ function Global:Update-SgwGridNetworks {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
-        [parameter(Mandatory=$True,
-                   Position=2,
-                   HelpMessage="StorageGRID Passphrase.")][String]$Passphrase
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
+    )
 
     Begin {
         if (!$Server) {
@@ -4992,12 +5139,12 @@ function Global:Update-SgwGridNetworks {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/grid-networks/update"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.passphrase = $Passphrase
         $Body.subnets = $Subnets
         $Body = ConvertTo-Json -InputObject $Body
@@ -5007,9 +5154,9 @@ function Global:Update-SgwGridNetworks {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5027,11 +5174,11 @@ function Global:Get-SgwGroups {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5040,7 +5187,7 @@ function Global:Get-SgwGroups {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/groups"
@@ -5056,9 +5203,9 @@ function Global:Get-SgwGroups {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5075,67 +5222,67 @@ function Global:New-SgwGroup {
 
     PARAM (
         [parameter(
-                Mandatory=$False,
-                Position=0,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-                Mandatory=$True,
-                Position=1,
-                HelpMessage="Display name of the group.")][String]$displayName,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Display name of the group.")][String]$displayName,
         [parameter(
-                Mandatory=$True,
-                Position=2,
-                HelpMessage="Display name of the group.")][String]$uniqueName,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Display name of the group.")][String]$uniqueName,
         [parameter(
-                Mandatory=$False,
-                Position=3,
-                HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
         [parameter(
-                Mandatory=$False,
-                Position=4,
-                HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
         [parameter(
-                Mandatory=$False,
-                Position=5,
-                HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
         [parameter(
-                Mandatory=$False,
-                Position=6,
-                HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
         [parameter(
-                Mandatory=$False,
-                Position=7,
-                HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
         [parameter(
-                Mandatory=$False,
-                Position=8,
-                HelpMessage="Display name of the group.")][Boolean]$maintenance,
+                Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
         [parameter(
-                Mandatory=$False,
-                Position=9,
-                HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
         [parameter(
-                Mandatory=$False,
-                Position=10,
-                HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
         [parameter(
-                Mandatory=$False,
-                Position=11,
-                HelpMessage="IAM Policy.")][PSCustomObject]$IamPolicy,
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "IAM Policy.")][PSCustomObject]$IamPolicy,
         [parameter(
-                Mandatory=$False,
-                Position=11,
-                HelpMessage="Use IAM Policy for Full S3 Access.")][Switch]$S3FullAccess,
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Use IAM Policy for Full S3 Access.")][Switch]$S3FullAccess,
         [parameter(
-                Mandatory=$False,
-                Position=11,
-                HelpMessage="Use IAM Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Use IAM Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
         [parameter(
-                Mandatory=$False,
-                Position=12,
-                HelpMessage="Swift Roles.")][String[]]$SwiftRoles
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Swift Roles.")][String[]]$SwiftRoles
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5147,17 +5294,17 @@ function Global:New-SgwGroup {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/groups"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.displayName = $displayName
         $Body.uniqueName = $uniqueName
         if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess -or $IamPolicy -or $SwiftRoles) {
-            $Body.policies = @{}
-            $Body.policies.management = @{}
+            $Body.policies = @{ }
+            $Body.policies.management = @{ }
             if ($alarmAcknowledgment) {
                 $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
             }
@@ -5187,7 +5334,7 @@ function Global:New-SgwGroup {
                     $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
                 }
                 elseif ($S3ReadOnlyAccess.IsPresent) {
-                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:GetAccelerateConfiguration","s3:GetAnalyticsConfiguration","s3:GetBucketAcl","s3:GetBucketCORS","s3:GetBucketLocation","s3:GetBucketLogging","s3:GetBucketNotification","s3:GetBucketPolicy","s3:GetBucketRequestPayment","s3:GetBucketTagging","s3:GetBucketVersioning","s3:GetBucketWebsite","s3:GetInventoryConfiguration","s3:GetIpConfiguration","s3:GetLifecycleConfiguration","s3:GetMetricsConfiguration","s3:GetObject","s3:GetObjectAcl","s3:GetObjectTagging","s3:GetObjectTorrent","s3:GetObjectVersion","s3:GetObjectVersionAcl","s3:GetObjectVersionForReplication","s3:GetObjectVersionTagging","s3:GetObjectVersionTorrent","s3:GetReplicationConfiguration"
+                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
                 }
                 else {
                     $Body.policies.s3 = $IamPolicy
@@ -5199,7 +5346,7 @@ function Global:New-SgwGroup {
                     Write-Warning "Swift capability specified, but no Swift roles specified."
                 }
                 else {
-                    $Body.policies.swift = @{}
+                    $Body.policies.swift = @{ }
                     $Body.policies.swift.roles = $SwiftRoles
                 }
             }
@@ -5212,7 +5359,7 @@ function Global:New-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Result.data
@@ -5230,15 +5377,15 @@ function Global:Get-SgwGroupByShortName {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Short name of the user to retrieve.")][String]$ShortName,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "Short name of the user to retrieve.")][String]$ShortName,
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5247,7 +5394,7 @@ function Global:Get-SgwGroupByShortName {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/groups/group/$ShortName"
@@ -5263,9 +5410,9 @@ function Global:Get-SgwGroupByShortName {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5281,15 +5428,15 @@ function Global:Get-SgwFederatedGroupByShortName {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Short name of the user to retrieve.")][String]$ShortName,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "Short name of the user to retrieve.")][String]$ShortName,
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5298,7 +5445,7 @@ function Global:Get-SgwFederatedGroupByShortName {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/groups/federated-group/$ShortName"
@@ -5314,9 +5461,9 @@ function Global:Get-SgwFederatedGroupByShortName {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5332,17 +5479,17 @@ function Global:Delete-SgwGroup {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Group to delete.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Group to delete.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5351,7 +5498,7 @@ function Global:Delete-SgwGroup {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/groups/$id"
@@ -5367,9 +5514,9 @@ function Global:Delete-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5385,17 +5532,17 @@ function Global:Get-SgwGroup {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Group to retrieve.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Group to retrieve.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5404,7 +5551,7 @@ function Global:Get-SgwGroup {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/groups/$id"
@@ -5420,9 +5567,9 @@ function Global:Get-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5439,51 +5586,51 @@ function Global:Update-SgwGroup {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of the group to be updated.")][String]$ID,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of the group to be updated.")][String]$ID,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Display name of the group.")][String]$displayName,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Display name of the group.")][String]$displayName,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
         [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
         [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+                Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
         [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
         [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5495,18 +5642,18 @@ function Global:Update-SgwGroup {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/groups"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         if ($displayName) {
             $Body.displayName = $displayName
         }
         if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-            $Body.policies = @{}
-            $Body.policies.management = @{}
+            $Body.policies = @{ }
+            $Body.policies.management = @{ }
             if ($alarmAcknowledgment) {
                 $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
             }
@@ -5529,7 +5676,7 @@ function Global:Update-SgwGroup {
                 $Body.policies.management.rootAccess = $rootAccess
             }
         }
-            
+
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
@@ -5537,9 +5684,9 @@ function Global:Update-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5556,67 +5703,67 @@ function Global:Replace-SgwGroup {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of the group to be updated.")][String]$ID,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of the group to be updated.")][String]$ID,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Display name of the group.")][String]$displayName,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Display name of the group.")][String]$displayName,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Unique name.")][String]$uniqueName,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Unique name.")][String]$uniqueName,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Unique name.")][String]$accountId,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Unique name.")][String]$accountId,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Unique name.")][Boolean]$federated,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Unique name.")][Boolean]$federated,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Unique name.")][String]$groupURN,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Unique name.")][String]$groupURN,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Display name of the group.")][Boolean]$alarmAcknowledgment,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Display name of the group.")][Boolean]$otherGridConfiguration,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
         [parameter(
-            Mandatory=$False,
-            Position=5,
-            HelpMessage="Display name of the group.")][Boolean]$tenantAccounts,
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Display name of the group.")][Boolean]$changeTenantRootPassword,
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
         [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Display name of the group.")][Boolean]$maintenance,
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
         [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Display name of the group.")][Boolean]$activateFeatures,
+                Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
         [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Display name of the group.")][Boolean]$rootAccess,
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
         [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5628,12 +5775,12 @@ function Global:Replace-SgwGroup {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/groups/$id"
         $Method = "PUT"
 
-        $Body = @{}
+        $Body = @{ }
         if ($displayName) {
             $Body.displayName = $displayName
         }
@@ -5650,8 +5797,8 @@ function Global:Replace-SgwGroup {
             $Body.groupURN = $groupURN
         }
         if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-            $Body.policies = @{}
-            $Body.policies.management = @{}
+            $Body.policies = @{ }
+            $Body.policies.management = @{ }
             if ($alarmAcknowledgment) {
                 $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
             }
@@ -5674,7 +5821,7 @@ function Global:Replace-SgwGroup {
                 $Body.policies.management.rootAccess = $rootAccess
             }
         }
-            
+
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
@@ -5682,9 +5829,9 @@ function Global:Replace-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5700,17 +5847,17 @@ function Global:Get-SgwAccountGroups {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get group information for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to get group information for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5725,7 +5872,7 @@ function Global:Get-SgwAccountGroups {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/accounts/$id/groups"
         $Method = "GET"
@@ -5735,9 +5882,9 @@ function Global:Get-SgwAccountGroups {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5754,9 +5901,9 @@ function Global:Get-SgwHealth {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
@@ -5770,7 +5917,7 @@ function Global:Get-SgwHealth {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + '/grid/health'
         $Method = "GET"
@@ -5780,9 +5927,9 @@ function Global:Get-SgwHealth {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5797,12 +5944,12 @@ function Global:Get-SgwTopologyHealth {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="Topology depth level to provide (default=node).")][String][ValidateSet("grid","site","node","component","subcomponent")]$Depth="node"
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "Topology depth level to provide (default=node).")][String][ValidateSet("grid", "site", "node", "component", "subcomponent")]$Depth = "node"
     )
 
     Begin {
@@ -5816,7 +5963,7 @@ function Global:Get-SgwTopologyHealth {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/health/topology?depth=$depth"
         $Method = "GET"
@@ -5826,9 +5973,9 @@ function Global:Get-SgwTopologyHealth {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5846,11 +5993,11 @@ function Global:Get-SgwIdentitySources {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5859,7 +6006,7 @@ function Global:Get-SgwIdentitySources {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/identity-source"
@@ -5875,9 +6022,9 @@ function Global:Get-SgwIdentitySources {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -5893,69 +6040,69 @@ function Global:Update-SgwIdentitySources {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
-            Position=0,
-            HelpMessage="Identity Source ID",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$Id,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Identity Source ID",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="Disable Identity Source ID")][Switch]$Disable,
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Disable Identity Source ID")][Switch]$Disable,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Identity Source Hostname")][String]$Hostname,
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Identity Source Hostname")][String]$Hostname,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="Identity Source Port")][Int]$Port,
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Identity Source Port")][Int]$Port,
         [parameter(
-            Mandatory=$False,
-            Position=4,
-            HelpMessage="Identity Source Username and password")][PSCredential]$Credential,
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Identity Source Username and password")][PSCredential]$Credential,
         [parameter(
-            Mandatory=$False,
-            Position=6,
-            HelpMessage="Identity Source Base Group DN")][String]$BaseGroupDN,
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Identity Source Base Group DN")][String]$BaseGroupDN,
         [parameter(
-            Mandatory=$False,
-            Position=7,
-            HelpMessage="Identity Source Base User DN")][String]$BaseUserDN,
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Identity Source Base User DN")][String]$BaseUserDN,
         [parameter(
-            Mandatory=$False,
-            Position=8,
-            HelpMessage="Identity Source LDAP Service Type")][String]$LdapServiceType,
+                Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Identity Source LDAP Service Type")][String]$LdapServiceType,
         [parameter(
-            Mandatory=$False,
-            Position=9,
-            HelpMessage="Identity Source Type")][String]$Type,
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Identity Source Type")][String]$Type,
         [parameter(
-            Mandatory=$False,
-            Position=10,
-            HelpMessage="Identity Source LDAP User ID Attribute")][String]$LDAPUserIDAttribute,
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Identity Source LDAP User ID Attribute")][String]$LDAPUserIDAttribute,
         [parameter(
-            Mandatory=$False,
-            Position=11,
-            HelpMessage="Identity Source LDAP User UUID Attribute")][String]$LDAPUserUUIDAttribute,
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Identity Source LDAP User UUID Attribute")][String]$LDAPUserUUIDAttribute,
         [parameter(
-            Mandatory=$False,
-            Position=12,
-            HelpMessage="Identity Source LDAP Group ID Attribute")][String]$LDAPGroupIDAttribute,
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Identity Source LDAP Group ID Attribute")][String]$LDAPGroupIDAttribute,
         [parameter(
-            Mandatory=$False,
-            Position=13,
-            HelpMessage="Identity Source Disable TLS")][Switch]$DisableTLS,
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Identity Source Disable TLS")][Switch]$DisableTLS,
         [parameter(
-            Mandatory=$False,
-            Position=14,
-            HelpMessage="Identity Source CA Certificate")][String]$CACertificate,
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Identity Source CA Certificate")][String]$CACertificate,
         [parameter(
-            Mandatory=$False,
-            Position=15,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -5964,7 +6111,7 @@ function Global:Update-SgwIdentitySources {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/identity-source"
@@ -5975,7 +6122,7 @@ function Global:Update-SgwIdentitySources {
 
         $Method = "PUT"
 
-        $Username = $Credential.UserName -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])','$1\\\\$2'
+        $Username = $Credential.UserName -replace '([a-zA-Z0-9])\\([a-zA-Z0-9])', '$1\\\\$2'
         $Password = $Credential.GetNetworkCredential().Password
 
         $Body = @"
@@ -5997,16 +6144,16 @@ function Global:Update-SgwIdentitySources {
     "disableTls": $DisableTLS,
     "caCert": "$CACertificate\n"
 }
-"@        
+"@
 
         try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6022,11 +6169,11 @@ function Global:Sync-SgwIdentitySources {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -6035,7 +6182,7 @@ function Global:Sync-SgwIdentitySources {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + "/org/identity-source/synchronize"
@@ -6052,9 +6199,9 @@ function Global:Sync-SgwIdentitySources {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6073,19 +6220,19 @@ function Global:Invoke-SgwIlmEvaluate {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="Protocol-specific object identifier (e.g. bucket/key/1).")][String]$ObjectID,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Switch indicating that ILM evaluation should occur immediately.")][Switch]$Now,
-        [parameter(Mandatory=$False,
-                   Position=3,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Protocol-specific object identifier (e.g. bucket/key/1).")][String]$ObjectID,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Switch indicating that ILM evaluation should occur immediately.")][Switch]$Now,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6098,12 +6245,12 @@ function Global:Invoke-SgwIlmEvaluate {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/ilm-evaluate"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.objectID = $ObjectID
         if ($API) {
             $Body.api = $API
@@ -6117,9 +6264,9 @@ function Global:Invoke-SgwIlmEvaluate {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6134,13 +6281,13 @@ function Global:Get-SgwIlmMetadata {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6153,7 +6300,7 @@ function Global:Get-SgwIlmMetadata {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/ilm-metadata?api=$api"
         $Method = "GET"
@@ -6163,9 +6310,9 @@ function Global:Get-SgwIlmMetadata {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6180,10 +6327,10 @@ function Global:Get-SgwIlmRules {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6196,7 +6343,7 @@ function Global:Get-SgwIlmRules {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/ilm-rules"
         $Method = "GET"
@@ -6206,9 +6353,9 @@ function Global:Get-SgwIlmRules {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6225,10 +6372,10 @@ function Global:Get-SgwLicense {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6241,7 +6388,7 @@ function Global:Get-SgwLicense {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/license"
         $Method = "GET"
@@ -6251,9 +6398,9 @@ function Global:Get-SgwLicense {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6268,18 +6415,18 @@ function Global:Update-SgwLicense {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale license.",
-                   ValueFromPipeline=$True,
-                   ValueFromPipelineByPropertyName=$True)][String]$License,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale license.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$License,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6292,12 +6439,12 @@ function Global:Update-SgwLicense {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/license/update"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.passphrase = $Passphrase
         $Body.license = $License
 
@@ -6308,9 +6455,9 @@ function Global:Update-SgwLicense {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6331,10 +6478,10 @@ function Global:Get-SgwMetricNames {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6347,7 +6494,7 @@ function Global:Get-SgwMetricNames {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/metric-names"
         $Method = "GET"
@@ -6357,9 +6504,9 @@ function Global:Get-SgwMetricNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6374,19 +6521,19 @@ function Global:Get-SgwMetricQuery {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$True,
-                   Position=1,
-                   HelpMessage="Prometheus query string.")][String]$Query,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Query start, default current time (date-time).")][DateTime]$Time,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Timeout in seconds.")][Int]$Timeout=120
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Prometheus query string.")][String]$Query,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Query start, default current time (date-time).")][DateTime]$Time,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Timeout in seconds.")][Int]$Timeout = 120
+    )
 
     Begin {
         if (!$Server) {
@@ -6399,7 +6546,7 @@ function Global:Get-SgwMetricQuery {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/metric-query"
         $Method = "GET"
@@ -6407,11 +6554,11 @@ function Global:Get-SgwMetricQuery {
         $Uri += "?query=$Query"
 
         if ($Time) {
-            $Uri += "&time=$(Get-Date -Format o $Time.ToUniversalTime())"
+            $Uri += "&time=$( Get-Date -Format o $Time.ToUniversalTime() )"
         }
 
         if ($Timeout) {
-            $Uri += "&timeout=$($Timeout)s"
+            $Uri += "&timeout=$( $Timeout )s"
         }
 
 
@@ -6420,11 +6567,11 @@ function Global:Get-SgwMetricQuery {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Metrics = $Result.data.result | % { [PSCustomObject]@{Metric=$_.metric.__name__;Instance=$_.metric.instance;Time=(ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]);Value=$_.value[1]} }
-       
+        $Metrics = $Result.data.result | % { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
+
         Write-Output $Metrics
     }
 }
@@ -6443,10 +6590,10 @@ function Global:Get-SgwNtpServers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6459,7 +6606,7 @@ function Global:Get-SgwNtpServers {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/ntp-servers"
         $Method = "GET"
@@ -6469,9 +6616,9 @@ function Global:Get-SgwNtpServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6486,16 +6633,16 @@ function Global:Update-SgwNtpServers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale license.")][String[]]$Servers,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="StorageGRID Webscale Passphrase.")][String]$Passphrase,
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-           )
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale license.")][String[]]$Servers,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
 
     Begin {
         if (!$Server) {
@@ -6508,12 +6655,12 @@ function Global:Update-SgwNtpServers {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
- 
+
     Process {
         $Uri = $Server.BaseURI + "/grid/ntp-servers/update"
         $Method = "POST"
 
-        $Body = @{}
+        $Body = @{ }
         $Body.passphrase = $Passphrase
         $Body.servers = $Servers
 
@@ -6524,9 +6671,9 @@ function Global:Update-SgwNtpServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
+
         Write-Output $Result.data
     }
 }
@@ -6561,24 +6708,24 @@ function Global:Get-SgwUsers {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(Mandatory=$False,
-                   Position=0,
-                   HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory=$False,
-                   Position=1,
-                   HelpMessage="User type (default local).")][ValidateSet("local","federated")][String]$Type="local",
-        [parameter(Mandatory=$False,
-                   Position=2,
-                   HelpMessage="Maximum number of results.")][Int]$Limit=0,
-        [parameter(Mandatory=$False,
-                   Position=3,
-                   HelpMessage="Pagination offset (value is Account's id).")][String]$Marker,
-        [parameter(Mandatory=$False,
-                   Position=4,
-                   HelpMessage="if set, the marker element is also returned.")][Switch]$IncludeMarker,
-        [parameter(Mandatory=$False,
-                   Position=5,
-                   HelpMessage="pagination order (desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc"
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "User type (default local).")][ValidateSet("local", "federated")][String]$Type = "local",
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Maximum number of results.")][Int]$Limit = 0,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Pagination offset (value is Account's id).")][String]$Marker,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "if set, the marker element is also returned.")][Switch]$IncludeMarker,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "pagination order (desc requires marker).")][ValidateSet("asc", "desc")][String]$Order = "asc"
     )
 
     Begin {
@@ -6589,7 +6736,7 @@ function Global:Get-SgwUsers {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $Uri = $Server.BaseURI + '/org/users'
@@ -6606,19 +6753,27 @@ function Global:Get-SgwUsers {
         else {
             $Query = "?limit=$Limit"
         }
-        if ($Type) { $Query += "&type=$Type" }
-        if ($Marker) { $Query += "&marker=$Marker" }
-        if ($IncludeMarker) { $Query += "&includeMarker=true" }
-        if ($Order) { $Query += "&order=$Order" }
+        if ($Type) {
+            $Query += "&type=$Type"
+        }
+        if ($Marker) {
+            $Query += "&marker=$Marker"
+        }
+        if ($IncludeMarker) {
+            $Query += "&includeMarker=true"
+        }
+        if ($Order) {
+            $Query += "&order=$Order"
+        }
 
         $Uri += $Query
-        
+
         try {
             $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $($responseBody.message)"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
             return
         }
 
@@ -6628,7 +6783,7 @@ function Global:Get-SgwUsers {
 
         if ($Limit -eq 0 -and $Result.data.count -eq 25) {
             Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
-        }              
+        }
     }
 }
 
@@ -6648,23 +6803,23 @@ function Global:Get-SgwS3AccessKeys {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale User.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("userUUID")][String]$UserId,
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "ID of a StorageGRID Webscale User.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -6676,7 +6831,7 @@ function Global:Get-SgwS3AccessKeys {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             if ($UserId) {
@@ -6702,7 +6857,7 @@ function Global:Get-SgwS3AccessKeys {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
         Write-Output $Result.data
     }
@@ -6720,29 +6875,29 @@ function Global:Get-SgwS3AccessKey {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="ID of a StorageGRID Webscale Account to get S3 Access Keys for",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale User.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("userUUID")][String]$UserId,
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "ID of a StorageGRID Webscale User.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="Access Key to delete.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("id")][String]$AccessKey,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Access Key to delete.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -6754,7 +6909,7 @@ function Global:Get-SgwS3AccessKey {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             if ($UserId) {
@@ -6780,10 +6935,10 @@ function Global:Get-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-       
-        Write-Output $Result.data        
+
+        Write-Output $Result.data
     }
 }
 
@@ -6799,31 +6954,31 @@ function Global:New-SgwS3AccessKey {
 
     PARAM (
         [parameter(
-                Mandatory=$False,
-                Position=0,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-                Mandatory=$False,
-                Position=1,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
+                Mandatory = $False,
+                Position = 1,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
-                Mandatory=$False,
-                Position=2,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
+                Mandatory = $False,
+                Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
         [parameter(
-                Mandatory=$False,
-                Position=3,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Expiration date of the S3 Access Key.")][DateTime]$Expires
+                Mandatory = $False,
+                Position = 3,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Expiration date of the S3 Access Key.")][DateTime]$Expires
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -6838,7 +6993,7 @@ function Global:New-SgwS3AccessKey {
             $ExpirationDate = Get-Date -Format o $Expires.ToUniversalTime()
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             $AccountId = $Server.AccountId
@@ -6861,8 +7016,8 @@ function Global:New-SgwS3AccessKey {
         $Method = "POST"
 
         $Body = "{}"
-        if ($Expires) { 
-            $Body = ConvertTo-Json -InputObject @{"expires"="$ExpirationDate"}
+        if ($Expires) {
+            $Body = ConvertTo-Json -InputObject @{ "expires" = "$ExpirationDate" }
         }
 
         try {
@@ -6870,7 +7025,7 @@ function Global:New-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $AccessKey = $Result.data
@@ -6879,7 +7034,7 @@ function Global:New-SgwS3AccessKey {
             $Server.AccessKeyStore[$AccountId] = New-Object System.Collections.ArrayList
         }
         $Server.AccessKeyStore[$AccountId].Add($AccessKey)
-       
+
         Write-Output $AccessKey
     }
 }
@@ -6896,29 +7051,29 @@ function Global:Remove-SgwS3AccessKey {
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][String]$AccountId,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            HelpMessage="ID of a StorageGRID Webscale User.",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("userUUID")][String]$UserId,
+                Mandatory = $False,
+                Position = 1,
+                HelpMessage = "ID of a StorageGRID Webscale User.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
-            Mandatory=$True,
-            Position=2,
-            HelpMessage="S3 Access Key ID to be deleted,",
-            ValueFromPipeline=$True,
-            ValueFromPipelineByPropertyName=$True)][Alias("id")][String]$AccessKey,
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Access Key ID to be deleted,",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey,
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -6930,7 +7085,7 @@ function Global:Remove-SgwS3AccessKey {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
         }
     }
- 
+
     Process {
         if ($Server.AccountId) {
             if ($UserId) {
@@ -6956,13 +7111,13 @@ function Global:Remove-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Server.AccessKeyStore[$AccountId].id -match $AccessKey -or $Server.AccessKeyStore[$AccountId].accessKey -match $AccessKey) {
             $Server.AccessKeyStore[$AccountId].Remove(($Server.AccessKeyStore[$AccountId] | Where-Object { $_.id -match $AccessKey -or $_.accessKey -match $AccessKey } | Select-Object -First 1))
         }
-    }     
+    }
 }
 
 ### reporting ###
@@ -6974,42 +7129,42 @@ function Global:Remove-SgwS3AccessKey {
     Get StorageGRID Report
 #>
 function Global:Get-SgwReport {
-    [CmdletBinding(DefaultParameterSetName="none")]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
         [parameter(
-            Mandatory=$False,
-            Position=0,
-            HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
-            Mandatory=$True,
-            Position=1,
-            HelpMessage="Attribut to report")][String][ValidateSet("Archive Nodes Installed (XANI)","Archive Nodes Readable (XANR)","Archive Nodes Writable (XANW)","Awaiting - All (XQUZ)","Awaiting - Client (XCQZ)","Awaiting - Evaluation Rate (XEVT)","CDMI - Ingested Bytes (XCRX) [Bytes]","CDMI - Retrieved Bytes (XCTX) [Bytes]","CDMI Ingest - Rate (XCIR) [MB/s]","CDMI Operations - Failed (XCFA)","CDMI Operations - Rate (XCRA) [Objects/s]","CDMI Operations - Successful (XCSU)","CDMI Retrieval - Rate (XCRR) [MB/s]","Current ILM Activity (IQSZ)","Installed Storage Capacity (XISC) [Bytes]","Percentage Storage Capacity Used (PSCU)","Percentage Usable Storage Capacity (PSCA)","S3 - Ingested Bytes (XSRX) [Bytes]","S3 - Retrieved Bytes (XSTX) [Bytes]","S3 Ingest - Rate (XSIR) [MB/s]","S3 Operations - Failed (XSFA)","S3 Operations - Rate (XSRA) [Objects/s]","S3 Operations - Successful (XSSU)","S3 Operations - Unauthorized (XSUA)","S3 Retrieval - Rate (XSRR) [MB/s]","Scan Period - Estimated (XSCM) [us]","Scan Rate (XSCT) [Objects/s]","Storage Nodes Installed (XSNI)","Storage Nodes Readable (XSNR)","Storage Nodes Writable (XSNW)","Swift - Ingested Bytes (XWRX) [Bytes]","Swift - Retrieved Bytes (XWTX) [Bytes]","Swift Ingest - Rate (XWIR) [MB/s]","Swift Operations - Failed (XWFA)","Swift Operations - Rate (XWRA) [Objects/s]","Swift Operations - Successful (XWSU)","Swift Operations - Unauthorized (XWUA)","Swift Retrieval - Rate (XWRR) [MB/s]","Total EC Objects (XECT)","Total EC Reads - Failed (XERF)","Total EC Reads - Successful (XERC)","Total EC Writes - Failed (XEWF)","Total EC Writes - Successful (XEWC)","Total Objects Archived (XANO)","Total Objects Deleted (XANP)","Total Size of Archived Objects (XSAO)","Total Size of Deleted Objects (XSAP)","Usable Storage Capacity (XASC) [Bytes]","Used Storage Capacity (XUSC) [Bytes]","Used Storage Capacity for Data (XUSD) [Bytes]","Used Storage Capacity for Metadata (XUDC) [Bytes]")]$Attribute,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Attribut to report")][String][ValidateSet("Archive Nodes Installed (XANI)", "Archive Nodes Readable (XANR)", "Archive Nodes Writable (XANW)", "Awaiting - All (XQUZ)", "Awaiting - Client (XCQZ)", "Awaiting - Evaluation Rate (XEVT)", "CDMI - Ingested Bytes (XCRX) [Bytes]", "CDMI - Retrieved Bytes (XCTX) [Bytes]", "CDMI Ingest - Rate (XCIR) [MB/s]", "CDMI Operations - Failed (XCFA)", "CDMI Operations - Rate (XCRA) [Objects/s]", "CDMI Operations - Successful (XCSU)", "CDMI Retrieval - Rate (XCRR) [MB/s]", "Current ILM Activity (IQSZ)", "Installed Storage Capacity (XISC) [Bytes]", "Percentage Storage Capacity Used (PSCU)", "Percentage Usable Storage Capacity (PSCA)", "S3 - Ingested Bytes (XSRX) [Bytes]", "S3 - Retrieved Bytes (XSTX) [Bytes]", "S3 Ingest - Rate (XSIR) [MB/s]", "S3 Operations - Failed (XSFA)", "S3 Operations - Rate (XSRA) [Objects/s]", "S3 Operations - Successful (XSSU)", "S3 Operations - Unauthorized (XSUA)", "S3 Retrieval - Rate (XSRR) [MB/s]", "Scan Period - Estimated (XSCM) [us]", "Scan Rate (XSCT) [Objects/s]", "Storage Nodes Installed (XSNI)", "Storage Nodes Readable (XSNR)", "Storage Nodes Writable (XSNW)", "Swift - Ingested Bytes (XWRX) [Bytes]", "Swift - Retrieved Bytes (XWTX) [Bytes]", "Swift Ingest - Rate (XWIR) [MB/s]", "Swift Operations - Failed (XWFA)", "Swift Operations - Rate (XWRA) [Objects/s]", "Swift Operations - Successful (XWSU)", "Swift Operations - Unauthorized (XWUA)", "Swift Retrieval - Rate (XWRR) [MB/s]", "Total EC Objects (XECT)", "Total EC Reads - Failed (XERF)", "Total EC Reads - Successful (XERC)", "Total EC Writes - Failed (XEWF)", "Total EC Writes - Successful (XEWC)", "Total Objects Archived (XANO)", "Total Objects Deleted (XANP)", "Total Size of Archived Objects (XSAO)", "Total Size of Deleted Objects (XSAP)", "Usable Storage Capacity (XASC) [Bytes]", "Used Storage Capacity (XUSC) [Bytes]", "Used Storage Capacity for Data (XUSD) [Bytes]", "Used Storage Capacity for Metadata (XUDC) [Bytes]")]$Attribute,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            ParameterSetName="oid",
-            HelpMessage="Topology OID to create report for")][String]$OID,
+                Mandatory = $False,
+                Position = 1,
+                ParameterSetName = "oid",
+                HelpMessage = "Topology OID to create report for")][String]$OID,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            ParameterSetName="site",
-            HelpMessage="Site to create report for")][String]$Site,
+                Mandatory = $False,
+                Position = 1,
+                ParameterSetName = "site",
+                HelpMessage = "Site to create report for")][String]$Site,
         [parameter(
-            Mandatory=$False,
-            Position=1,
-            ParameterSetName="node",
-            HelpMessage="Node to create report for")][String]$Node,
+                Mandatory = $False,
+                Position = 1,
+                ParameterSetName = "node",
+                HelpMessage = "Node to create report for")][String]$Node,
         [parameter(
-            Mandatory=$False,
-            Position=2,
-            HelpMessage="Start Time (default: last hour)")][DateTime]$StartTime=(Get-Date).AddHours(-1),
+                Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Start Time (default: last hour)")][DateTime]$StartTime = (Get-Date).AddHours(-1),
         [parameter(
-            Mandatory=$False,
-            Position=3,
-            HelpMessage="End Time (default: current time)")][DateTime]$EndTime=(Get-Date)
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "End Time (default: current time)")][DateTime]$EndTime = (Get-Date)
     )
- 
+
     Begin {
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
@@ -7025,12 +7180,12 @@ function Global:Get-SgwReport {
             Write-Warning "This Cmdlet uses an internal, undocumented, legacy API to retrieve the reports. Use Get-SgwMetricQuery instead."
         }
     }
- 
+
     Process {
         $StartTimeString = $StartTime.ToUniversalTime() | Get-Date -UFormat "%Y%m%d%H%M%S"
         $EndTimeString = $EndTime.ToUniversalTime() | Get-Date -UFormat "%Y%m%d%H%M%S"
 
-        $AttributeCode = $Attribute -replace ".*\((.+)\).*",'$1'
+        $AttributeCode = $Attribute -replace ".*\((.+)\).*", '$1'
 
         if (!$OID) {
             $Topology = Get-SgwTopologyHealth -Server $Server
@@ -7046,35 +7201,35 @@ function Global:Get-SgwReport {
         }
 
         $Method = "GET"
-        $Uri = "https://$($Server.Name)/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
+        $Uri = "https://$( $Server.Name )/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
 
         try {
             $Result = Invoke-SgwRequest -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $($_.Exception.Message) `n $responseBody"
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Body = ($Result -split "`n" | ? { $_ -match "<body" })
         Write-Verbose "Body: $Body"
 
         if ($Result -match "Aggregate Time") {
-            $Report = $Body -replace "<body.*Aggregate Time.*Type<br>","" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+",'$1;$2;$4;$6' | ? { $_ }
+            $Report = $Body -replace "<body.*Aggregate Time.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+", '$1;$2;$4;$6' | ? { $_ }
             foreach ($Line in $Report) {
-                $Time,$Average,$Minimum,$Maximum = $Line -split ';'
-                $Average=$Average -replace ",","" -replace " ",""
-                $Minimum=$Minimum -replace ",","" -replace " ",""
-                $Maximum=$Maximum -replace ",","" -replace " ",""
-                [PSCustomObject]@{"Time Received"= [DateTime]$time;"Average $Attribute"=$Average;"Minimum $Attribute"=$Minimum;"Maximum $Attribute"=$Maximum}
+                $Time, $Average, $Minimum, $Maximum = $Line -split ';'
+                $Average = $Average -replace ",", "" -replace " ", ""
+                $Minimum = $Minimum -replace ",", "" -replace " ", ""
+                $Maximum = $Maximum -replace ",", "" -replace " ", ""
+                [PSCustomObject]@{ "Time Received" = [DateTime]$time; "Average $Attribute" = $Average; "Minimum $Attribute" = $Minimum; "Maximum $Attribute" = $Maximum }
             }
         }
         elseif ($Result -match "Time Received") {
-            $Report = $Body -replace "<body.*Time Received.*Type<br>","" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+",'$1;$2' | ? { $_ }
+            $Report = $Body -replace "<body.*Time Received.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+", '$1;$2' | ? { $_ }
             foreach ($Line in $Report) {
-                $Time,$Value = $Line -split ';'
-                $Value=$Value -replace ",","" -replace " ",""
-                [PSCustomObject]@{"Time Received"= [DateTime]$time;$Attribute=$value}
+                $Time, $Value = $Line -split ';'
+                $Value = $Value -replace ",", "" -replace " ", ""
+                [PSCustomObject]@{ "Time Received" = [DateTime]$time; $Attribute = $value }
             }
         }
         else {
@@ -7083,110 +7238,251 @@ function Global:Get-SgwReport {
     }
 }
 
-### IAM Cmdlets ###
+### workflows ###
 
-Set-Alias -Name Update-IamPolicy -Value New-IamPolicy
-Set-Alias -Name Add-IamPolicyStatement -Value New-IamPolicyStatement
 <#
     .SYNOPSIS
-    Create new IAM Policy
+    Merge two StorageGRIDs
     .DESCRIPTION
-    Create new IAM Policy
+    Merge two StorageGRIDs
 #>
-function Global:New-IamPolicy {
-    [CmdletBinding(DefaultParameterSetName="ResourceAction")]
+function Global:Merge-SgwGrids {
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
         [parameter(
-                Mandatory=$False,
-                Position=0,
-                ValueFromPipeline=$True,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="IAM Policy to add statements to")][Alias("Policy")][PSCustomObject]$IamPolicy,
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
         [parameter(
-                Mandatory=$False,
-                Position=1,
-                HelpMessage="The Sid element is optional. The Sid is only intended as a description for the user. It is stored but not interpreted by the StorageGRID Webscale system.")][String]$Sid,
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
         [parameter(
-                Mandatory=$False,
-                Position=2,
-                HelpMessage="Use the Effect element to establish whether the specified operations are allowed or denied. You must identify operations you allow (or deny) on buckets or objects using the supported Action element keywords.")][ValidateSet("Allow","Deny")][String]$Effect="Allow",
+                Mandatory = $True,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Tenant root password (must be at least 8 characters).")][ValidateLength(8, 256)][String]$Password,
         [parameter(
-                Mandatory=$False,
-                Position=3,
-                ParameterSetName="ResourceAction",
-                HelpMessage="The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")]
-        [parameter(
-                Mandatory=$False,
-                Position=3,
-                ParameterSetName="ResourceNotAction",
-                HelpMessage="The Resource element identifies buckets and objects. With it you can allow permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$Resource="urn:sgws:s3:::*",
-        [parameter(
-                Mandatory=$False,
-                Position=3,
-                ParameterSetName="NotResourceAction",
-                HelpMessage="The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]
-        [parameter(
-                Mandatory=$False,
-                Position=3,
-                ParameterSetName="NotResourceNotAction",
-                HelpMessage="The NotResource element identifies buckets and objects. With it you can deny permissions to buckets and objects using the uniform resource name (URN) to identify the resource.")][System.UriBuilder]$NotResource,
-        [parameter(
-                Mandatory=$False,
-                Position=4,
-                ParameterSetName="ResourceAction",
-                HelpMessage="The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]
-        [parameter(
-                Mandatory=$False,
-                Position=4,
-                ParameterSetName="NotResourceAction",
-                HelpMessage="The Action element specifies a list of allowed actions and may allow all actions using a wildcard (e.g. s3:*).")][String[]]$Action="s3:*",
-        [parameter(
-                Mandatory=$False,
-                Position=4,
-                ParameterSetName="ResourceNotAction",
-                HelpMessage="The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]
-        [parameter(
-                Mandatory=$False,
-                Position=4,
-                ParameterSetName="NotResourceNotAction",
-                HelpMessage="The NotAction element specifies a list of denied actions and may deny all actions using a wildcard (e.g. s3:*).")][String[]]$NotAction,
-        [parameter(
-                Mandatory=$False,
-                Position=5,
-                HelpMessage="The Condition element is optional. Conditions allow you to build expressions to determine when a policy should be applied.")][String]$Condition
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Do not execute request, just return request URI and Headers")][Switch]$DryRun
     )
 
     Process {
-        # see https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html for details on IAM Policies
-
-        if (!$IamPolicy) {
-            $IamPolicy = [PSCustomObject]@{Version="2012-10-17";Statement=@()}
+        Write-Information "Retrieving tenant accounts from source"
+        $SourceAccounts = Get-SgwAccounts -Server $SourceServer
+        Write-Information "Retrieving tenant accounts from destination"
+        $DestinationAccounts = Get-SgwAccounts -Server $DestinationServer
+        $DuplicateAccounts = $SourceAccounts  | Where-Object { $DestinationAccounts.Name -contains $_.Name }
+        if ($DuplicateAccounts) {
+            Write-Warning  "$( $DuplicateAccounts.Count ) duplicate accounts were found"
+            if (!$DryRun) {
+                $DuplicateAccountChoice = $Host.UI.PromptForChoice("Duplicate accounts",
+                        "Continue with reusing existing accounts?",
+                        @("&Yes", "&No"),
+                        1)
+                if ($DuplicateAccountChoice -eq 1) {
+                    break
+                }
+            }
         }
 
-        $Statement = [PSCustomObject]@{Effect=$Effect}
+        $SourceAccountsWithoutS3Capabilities = $SourceAccounts | Where-Object { !$_.capabilities.contains("s3") }
+        $SourceAccountsWithS3Capabilities = $SourceAccounts | Where-Object { $_.capabilities.contains("s3") }
+        $DestinationAccountsWithS3Capabilities = $DestinationAccounts | Where-Object { $_.capabilities.contains("s3") }
 
-        if ($Sid) {
-            $Statement | Add-Member -MemberType NoteProperty -Name Sid -Value $Sid
-        }
-        if ($Resource) {
-            $Statement | Add-Member -MemberType NoteProperty -Name Resource -Value $Resource.Uri.ToString()
-        }
-        if ($NotResource) {
-            $Statement | Add-Member -MemberType NoteProperty -Name NotResource -Value $NotResource.Uri.ToString()
-        }
-        if ($Action) {
-            $Statement | Add-Member -MemberType NoteProperty -Name Action -Value $Action
-        }
-        if ($NotAction) {
-            $Statement | Add-Member -MemberType NoteProperty -Name NotAction -Value $NotAction
-        }
-        if ($Condition) {
-            $Statement | Add-Member -MemberType NoteProperty -Name Condition -Value $Condition
+        if ($SourceAccountsWithoutS3Capabilities) {
+            Write-Warning "$( $SourceAccountsWithoutS3Capabilities.Count ) accounts without S3 capability found which cannot be migrated"
+            if (!$DryRun) {
+                $NonS3AccountChoice = $Host.UI.PromptForChoice("Non-S3 accounts",
+                        "Continue without transitioning non S3-Accounts?",
+                        @("&Yes", "&No"),
+                        1)
+                if ($NonS3AccountChoice -eq 1) {
+                    break
+                }
+            }
         }
 
-        $IamPolicy.Statement += $Statement
+        $SourceBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select -ExpandProperty Buckets
+        $DestinationBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select -ExpandProperty Buckets
 
-        Write-Output $IamPolicy
+        $DuplicateBuckets = @()
+        foreach ($SourceBucket in $SourceBuckets) {
+            $DuplicateBuckets += $DestinationBuckets | Where-Object { $_.Name -ceq $SourceBucket.Name }
+        }
+
+        if ($DuplicateBuckets) {
+            if (!$DryRun) {
+                Throw "Source and destination contain the following duplicate buckets. Remove any duplicate buckets on source or destination before proceeding. Duplicate Buckets:`n$( $DuplicateBuckets.Name -join "`n" )"
+            }
+            else {
+                Write-Warning "Source and destination contain the following duplicate buckets. Remove any duplicate buckets on source or destination before proceeding. Duplicate Buckets:`n$( $DuplicateBuckets.Name -join "`n" )"
+            }
+        }
+
+        if (!$DryRun) {
+            $ResetPasswordChoice = $Host.UI.PromptForChoice("Reset password",
+                    "To configure replication on the source accounts, the root password needs to be reset to the provided password. Continue?",
+                    @("&Yes", "&No"),
+                    1)
+            if ($ResetPasswordChoice -eq 1) {
+                break
+            }
+        }
+
+        $SourceAccountsWithS3Capabilities | Copy-SgwAccount -SourceServer $SourceServer -DestinationServer $DestinationServer -DryRun:$DryRun
+    }
+}
+
+<#
+    .SYNOPSIS
+    Merge two StorageGRIDs
+    .DESCRIPTION
+    Merge two StorageGRIDs
+#>
+function Global:Copy-SgwAccount {
+    [CmdletBinding(DefaultParameterSetName = "none")]
+
+    PARAM (
+        [parameter(
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
+        [parameter(
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Source StorageGRID Webscale Management Account")][PSCustomObject]$AccountId,
+        [parameter(
+                Mandatory = $True,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Tenant root password (must be at least 8 characters).")][ValidateLength(8, 256)][String]$Password,
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Do not execute request, just return request URI and Headers")][Switch]$DryRun
+    )
+
+    Process {
+        $AccountCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "root", ($Password | ConvertTo-SecureString -AsPlainText -Force)
+
+        $SourceAccount = Get-SgwAccount -Server $SourceServer -id $AccountId
+
+        Write-Information "Resetting root password of account $( $SourceAccount.Name ) on source server"
+        if (!$DryRun) {
+            $SourceAccount | Update-SgwPassword -Server $SourceServer -id $AccountId -NewPassword
+        }
+
+        Write-Information "Logging in as root to account $( $SourceAccount.Name ) on source server"
+        if (!$DryRun) {
+            $SourceServer = $SourceServer | Connect-SgwServer -Credential $AccountCredential -AccountId $AccountId -Transient
+        }
+
+        Write-Information "Retrieving all buckets from source account"
+        if (!$DryRun) {
+            $SourceBuckets = Get-S3Buckets -Server $SourceServer -AccountId $AccountId
+        }
+
+        Write-Information "Creating account $( $SourceAccount.Name ) on destination server"
+        if (!$DryRun) {
+            $DestinationAccount = $SourceAccount | New-SgwAccount -Server $DestinationServer -Password $Password
+        }
+
+        Write-Information "Logging in as root to account $( $SourceAccount.Name ) on destination server"
+        if (!$DryRun) {
+            $DestinationServer = $DestinationServer | Connect-SgwServer -Credential $AccountCredential -Transient
+        }
+
+        Write-Information "Creating local group CopyGroup in account $( $SourceAccount.Name ) on destination server"
+        if (!$DryRun) {
+            New-SgwGroup -Server $DestinationServer -DisplayName "Temporary Group for Data Replication" -UniqueName "DataReplication" -rootAcces $true -S3FullAccess
+        }
+
+        Write-Information "Generating S3 Access Key on destination for Bucket replication"
+        if (!$DryRun) {
+            $DestinationAccessKey = New-SgwS3AccessKey -Server $DestinationServer
+        }
+
+        if (!$DryRun) {
+            foreach ($SourceBucket in $SourceBuckets) {
+                Copy-S3Bucket -SourceServer $SourceServer -DestinationServer $DestinationServer -Bucket $SourceBucket
+            }
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Copy an S3 Bucket including all properties and data
+    .DESCRIPTION
+    Copy an S3 Bucket including all properties and data
+#>
+function Global:Copy-SgwBucket {
+    [CmdletBinding(DefaultParameterSetName = "none")]
+
+    PARAM (
+        [parameter(
+                Mandatory = $True,
+                Position = 0,
+                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
+        [parameter(
+                Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Bucket Name")][PSCustomObject]$Bucket,
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Do not execute request, just return request URI and Headers")][Switch]$DryRun
+    )
+
+    Begin {
+        if (!$SourceServer.AccountId) {
+            Throw "Source server is not connected to account"
+        }
+        if (!$DestinationServer.AccountId) {
+            Throw "Destination server is not connected to account"
+        }
+    }
+
+    Process {
+        Write-Information "Creating bucket $( $Bucket.Name ) on destination"
+        if (!$DryRun) {
+            New-S3Bucket -Server $DestinationServer -Name $Bucket.Name -Region $Bucket.Region
+            # TODO: Copy other bucket properties such as ACLs from source bucket to destination bucket!
+        }
+
+        Write-Information "Adding endpoint configuration for bucket $( $Bucket.Name ) on source"
+        if (!$DryRun) {
+            New-SgwEndpoint -Server $SourceServer -DisplayName $Bucket.Name -EndpointUri $DestinationServerS3EndpointUrl -EndpointUrn "urn:sgws:s3:::$( $Bucket.Name )" -SkipCertificateCheck $DestinationServer.SkipCertificateCheck -AccessKey $AccessKey.AccessKey -SecretAccessKey $AccessKey.SecretAccessKey
+        }
+
+        Write-Information "Enable Bucket replication for bucket $( $Bucket.Name ) on source"
+        if (!$DryRun) {
+            # TODO: Replace with S3 Cmdlet
+            Add-SgwBucketReplicationRule -Server $SourceServer -Id $Bucket.Name -Bucket $Bucket.Name -DestinationBucket $Bucket.Name -Status Enabled
+            $ReplicationStartDate = Get-Date
+        }
+
+        Write-Information "Copy all older objects on themselve to update their modification time and trigger replication"
+
+        if (!$DryRun) {
+            Get-S3Objects -Server $SourceServer -Bucket $Bucket.Name | ForEach-Object {
+                if ($_.LastModified -lt $ReplicationStartDate.ToUniversalTime()) {
+                    $Metadata = $_ | Get-S3ObjectMetadata | Select -ExpandProperty CustomMetadata
+                    Copy-S3Object -Server $SourceServer -Region $_.Region -Bucket $_.Bucket $_.Key -SourceBucket $_.Bucket -SourceKey $_.SourceKey -MetadataDirective REPLACE -Metadata $Metadata
+                }
+            }
+        }
     }
 }
