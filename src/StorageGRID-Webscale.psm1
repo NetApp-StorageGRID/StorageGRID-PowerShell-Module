@@ -1540,6 +1540,8 @@ function Global:Replace-SgwAudit {
 
 ## config ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieves global configuration and token information
@@ -1734,9 +1736,9 @@ function Global:Get-SgwProductVersion {
 
 <#
     .SYNOPSIS
-    Retrieves the current API versionsof the management API
+    Retrieves the current API version of the management API
     .DESCRIPTION
-    Retrieves the current API versionsof the management API
+    Retrieves the current API version of the management API
 #>
 function Global:Get-SgwVersion {
     [CmdletBinding()]
@@ -3141,6 +3143,8 @@ function Global:Remove-SgwContainerReplicationRule {
 
 ## deactivated-features ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieves the deactivated features configuration
@@ -3304,6 +3308,8 @@ function Global:Update-SgwDeactivatedFeatures {
 }
 
 ## dns-servers ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -4291,6 +4297,8 @@ function Global:Update-SgwS3Endpoint {
 
 ## endpoint-domain-names ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Lists endpoint domain names
@@ -4386,7 +4394,95 @@ function Global:Replace-SgwEndpointDomainNames {
 
 ## erasure-coding
 
-# TODO: Implement erasure-coding cmdlets
+# complete as of API 2.1
+
+<#
+    .SYNOPSIS
+    Lists EC profiles
+    .DESCRIPTION
+    Lists EC profiles
+#>
+function Global:Get-SgwEcProfiles {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ec-profiles"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+## erasure-coding
+
+<#
+    .SYNOPSIS
+    Lists EC profiles
+    .DESCRIPTION
+    Lists EC profiles
+#>
+function Global:Get-SgwEcSchemes {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/schemes"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
 
 ## expansion ##
 
