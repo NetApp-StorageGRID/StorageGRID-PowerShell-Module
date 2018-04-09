@@ -185,7 +185,11 @@ function Invoke-SgwRequest {
                 HelpMessage = "Timeout in seconds")][Int]$TimeoutSec = 60,
         [parameter(Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Skip certificate checks")][Switch]$SkipCertificateCheck
+                HelpMessage = "Skip certificate checks")][Switch]$SkipCertificateCheck,
+        [parameter(
+                Mandatory=$False,
+                Position=9,
+                HelpMessage="File to output result to")][System.IO.DirectoryInfo]$OutFile
     )
 
     Process {
@@ -197,20 +201,40 @@ function Invoke-SgwRequest {
             if ($Body) {
                 Write-Verbose "Body:`n$Body"
                 if ($SessionVariable) {
-                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    if ($OutFile) {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile
+                    }
+                    else {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    }
                     $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                    if ($OutFile) {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile
+                    }
+                    else {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                    }
                 }
             }
             else {
                 if ($SessionVariable) {
-                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    if ($OutFile) {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile
+                    }
+                    else {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    }
                     $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession
+                    if ($OutFile) {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile
+                    }
+                    else {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession
+                    }
                 }
             }
             if ($SkipCertificateCheck.isPresent) {
@@ -221,20 +245,40 @@ function Invoke-SgwRequest {
             if ($Body) {
                 Write-Verbose "Body:`n$Body"
                 if ($SessionVariable) {
-                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    if ($OutFile) {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile
+                    }
+                    else {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                    }
                     $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                    if ($OutFile) {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile
+                    }
+                    else {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                    }
                 }
             }
             else {
                 if ($SessionVariable) {
-                    $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    if ($OutFile) {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    }
+                    else {
+                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                    }
                     $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession
+                    if ($OutFile) {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile
+                    }
+                    else {
+                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession
+                    }
                 }
             }
         }
@@ -4486,6 +4530,8 @@ function Global:Get-SgwEcSchemes {
 
 ## expansion ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Cancels the expansion procedure and resets all user configuration of expansion grid nodes
@@ -4664,6 +4710,8 @@ function Global:Invoke-SgwExpansion {
 }
 
 ## expansion-nodes ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -4901,6 +4949,8 @@ function Global:Reset-SgwExpansionNode {
 
 ## expansion-sites ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieves the list of existing and new sites (empty until expansion is started)
@@ -5001,7 +5051,7 @@ function Global:New-SgwExpansionSite {
     .DESCRIPTION
     Delete a site
 #>
-function Global:Remove-SgwExpansionNode {
+function Global:Remove-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
@@ -5159,6 +5209,8 @@ function Global:Update-SgwExpansionSite {
 }
 
 ## grid-networks ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -5987,6 +6039,8 @@ function Global:Get-SgwAccountGroups {
 
 ## health ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieve StorageGRID Health Status
@@ -6077,6 +6131,8 @@ function Global:Get-SgwTopologyHealth {
 }
 
 ## identity-source ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
@@ -6458,6 +6514,8 @@ function Global:Get-SgwIlmRules {
 
 ## license ##
 
+# complete as of API 2.1
+
 <#
     .SYNOPSIS
     Retrieves the grid license
@@ -6560,7 +6618,244 @@ function Global:Update-SgwLicense {
 
 ## logs ##
 
-# TODO: Implement logs cmdlets
+# complete as of API 2.1
+
+Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
+<#
+    .SYNOPSIS
+    Retrieves the log collection procedure status
+    .DESCRIPTION
+    Retrieves the log collection procedure status
+#>
+function Global:Get-SgwLogs {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/logs"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves the log collection procedure status
+    .DESCRIPTION
+    Retrieves the log collection procedure status
+#>
+function Global:Start-SgwLogCollection {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "List of StorageGRID Nodes to collect logs for (Default: all nodes).")][String[]]$Nodes,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "First log timestamp at start of log collection (Default: last hour).")][DateTime]$RangeStart=(Get-Date).AddHours(-1),
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Last log timestamp at end of log collection (Default: now).")][DateTime]$RangeEnd=(Get-Date)
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/logs/collect"
+        $Method = "POST"
+
+        $Topology = Get-SgwTopologyHealth -Server $Server
+        $TopologyNodes = $Topology.children.children
+
+        $NodeIds = @()
+
+        foreach ($Node in $Nodes) {
+            if (!$TopologyNodes.id.Contains($Node)) {
+                if ($TopologyNodes.name.Contains($Node)) {
+                    $NodeIds += $TopologyNodes | Where-Object { $_.name -eq $Node } | Select-Object -ExpandProperty id
+                }
+                else {
+                    Throw "Node $Node not found"
+                }
+            }
+            else {
+                NodeIds += $Node
+            }
+        }
+
+        if (!$NodeIds) {
+            $NodeIds = $TopologyNodes.id
+        }
+
+        $Body = @{}
+        $Body.passphrase = $Passphrase
+        $Body.nodes = $NodeIds
+        $Body.rangeStart = Get-Date -Format o $RangeStart.ToUniversalTime()
+        $Body.rangeEnd = Get-Date -Format o $RangeEnd.ToUniversalTime()
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deletes the previous log collection archive
+    .DESCRIPTION
+    Deletes the previous log collection archive
+#>
+function Global:Remove-SgwLogCollection {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/logs/collection"
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Download log collection archive after procedure completes
+    .DESCRIPTION
+    Download log collection archive after procedure completes
+#>
+function Global:Get-SgwLogCollection {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/logs/collection"
+        $Method = "GET"
+
+        $LogStatus = Get-SgwLogs
+
+        if ($LogStatus.inProgress) {
+            Throw "Log Collection still in progress"
+        }
+
+        if ($LogStatus.error) {
+            Throw "Log Collection encountered error $($LogStatus.error)"
+        }
+
+        if (!(Test-Path $Path)) {
+            Throw "Path $Path does not exist!"
+        }
+        else {
+            $OutFile = Join-Path -Path $Path -ChildPath $LogStatus.fileName
+            Write-Host "Saving file to $OutFile"
+        }
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck -OutFile $OutFile
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
 
 ## metrics ##
 
@@ -6675,6 +6970,8 @@ function Global:Get-SgwMetricQuery {
 # TODO: Implement metrics cmdlets
 
 ## ntp-servers ##
+
+# complete as of API 2.1
 
 <#
     .SYNOPSIS
