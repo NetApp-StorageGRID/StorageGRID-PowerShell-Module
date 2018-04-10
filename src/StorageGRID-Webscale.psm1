@@ -1289,7 +1289,7 @@ function global:Connect-SgwServer {
                     catch {
                     }
                     try {
-                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing -TimeoutSec 3
+                        $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName/info" -UseBasicParsing -TimeoutSec 3 -SkipCertificateCheck
                         if ($Response.Headers["X-Trans-Id"]) {
                             $Server.SwiftEndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
@@ -7072,6 +7072,64 @@ function Global:Update-SgwNtpServers {
 }
 
 ## objects ##
+
+
+<#
+    .SYNOPSIS
+    Retrieves metadata for an object
+    .DESCRIPTION
+    Retrieves metadata for an object
+#>
+function Global:Get-SgwObjectMetadata {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Object ID (e.g. S3 bucket/key or Swift container/object).")][String]$ObjectId,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Maximum number of segements to return.")][Int]$MaxSegments
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/object-metadata"
+        $Method = "POST"
+
+        $Body = @{}
+        $Body.objectId = $ObjectId
+        if ($MaxSegments) {
+            $Body.maxSegments = $MaxSegments
+        }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
 
 ## recovery ##
 
