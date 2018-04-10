@@ -7133,7 +7133,211 @@ function Global:Get-SgwObjectMetadata {
 
 ## recovery ##
 
-# TODO: Implement recovery Cmdlets
+# complete as of API 2.1
+
+<#
+    .SYNOPSIS
+    Lists grid nodes not connected to the grid
+    .DESCRIPTION
+    Lists grid nodes not connected to the grid
+#>
+function Global:Get-SgwRecoveryAvailableNodes {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/recovery/available-nodes"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Resets the recovery procedure to the not-started state
+    .DESCRIPTION
+    Resets the recovery procedure to the not-started state
+#>
+function Global:Reset-SgwRecovery {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/recovery"
+        $Method = "DELETE"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Gets the recovery status
+    .DESCRIPTION
+    Gets the recovery status
+#>
+function Global:Get-SgwRecovery {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/recovery"
+        $Method = "GET"
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Starts the recovery procedure, retrieves configuration file and installs software
+    .DESCRIPTION
+    Starts the recovery procedure, retrieves configuration file and installs software
+#>
+function Global:Start-SgwRecovery {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "StorageGRID Node OID to recover.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Oid,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "StorageGRID Node Name to recover.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 4,
+                HelpMessage = "StorageGRID Node IP to recover.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Ip,
+        [parameter(Mandatory = $True,
+                Position = 5,
+                HelpMessage = "Node to replace failed node.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][PSCustomObject]$ReplacementNode
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/recovery"
+        $Method = "POST"
+
+        $Body = @{}
+        $Body.id = $ReplacementNode.Id
+        $Body.ip = $Ip
+        $Body.name = $Name
+        $Body.oid = $Oid
+        $Body.passphrase = $Passphrase
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Result.data
+    }
+}
 
 ## recovery-package ##
 
