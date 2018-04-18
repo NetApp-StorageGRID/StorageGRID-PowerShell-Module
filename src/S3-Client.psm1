@@ -1785,7 +1785,19 @@ function Global:Get-S3Bucket {
             Write-Output $AwsRequest
         }
         else {
-            $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+            try {
+                $Result = Invoke-AwsRequest -SkipCertificateCheck:$SkipCertificateCheck -Method $Method -Uri $AwsRequest.Uri -Headers $AwsRequest.Headers -ErrorAction Stop
+            }
+            catch {
+                $RedirectedRegion = $_.Exception.Response.Headers.GetValues("x-amz-bucket-region")[0]
+                if ([int]$_.Exception.Response.StatusCode -match "^3" -and $RedirectedRegion) {
+                    Write-Warning "Request was redirected as bucket does not belong to region $Region. Repeating request with region $RedirectedRegion returned by S3 service."
+                    Get-S3Bucket -SkipCertificateCheck:$SkipCertificateCheck -Presign:$Presign -DryRun:$DryRun -SignerType $SignerType -EndpointUrl $Config.endpoint_url -AccessKey $Config.aws_access_key_id -SecretAccessKey $Config.aws_secret_access_key -Region $RedirectedRegion -UrlStyle $UrlStyle -Bucket $Bucket -MaxKeys $MaxKeys -Prefix $Prefix -Delimiter $Delimiter -FetchOwner:$FetchOwner -StartAfter $StartAfter -Marker $Marker -ContinuationToken $ContinuationToken -EncodingType $EncodingType
+                }
+                else {
+                    Throw $_
+                }
+            }
 
             $Content = [XML][System.Net.WebUtility]::UrlDecode($Result.Content)
 
