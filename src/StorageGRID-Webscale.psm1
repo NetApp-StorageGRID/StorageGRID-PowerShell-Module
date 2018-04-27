@@ -35,7 +35,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
     }
 
     function ParseJsonObject($jsonObj) {
-        $result = New-Object -TypeName PSCustomObject
+        $Response = New-Object -TypeName PSCustomObject
         foreach ($key in $jsonObj.Keys) {
             $item = $jsonObj[$key]
             if ($item) {
@@ -44,17 +44,17 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
             else {
                 $parsedItem = $null
             }
-            $result | Add-Member -MemberType NoteProperty -Name $key -Value $parsedItem
+            $Response | Add-Member -MemberType NoteProperty -Name $key -Value $parsedItem
         }
-        return $result
+        return $Response
     }
 
     function ParseJsonArray($jsonArray) {
-        $result = @()
+        $Response = @()
         $jsonArray | ForEach-Object {
-            $result += ,(ParseItem $_)
+            $Response += ,(ParseItem $_)
         }
-        return $result
+        return $Response
     }
 
     function ParseJsonString($json) {
@@ -193,93 +193,136 @@ function Invoke-SgwRequest {
     )
 
     Process {
-        if ($PSVersionTable.PSVersion.Major -lt 6) {
-            if ($SkipCertificateCheck.isPresent) {
-                $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
-                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-            }
-            if ($Body) {
-                Write-Verbose "Body:`n$Body"
-                if ($SessionVariable) {
-                    if ($OutFile) {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile
-                    }
-                    else {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
-                    }
-                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
-                }
-                else {
-                    if ($OutFile) {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile
-                    }
-                    else {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
-                    }
-                }
-            }
-            else {
-                if ($SessionVariable) {
-                    if ($OutFile) {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile
-                    }
-                    else {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
-                    }
-                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
-                }
-                else {
-                    if ($OutFile) {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile
-                    }
-                    else {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession
-                    }
-                }
-            }
-            if ($SkipCertificateCheck.isPresent) {
-                [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
-            }
+        # if $OutFile is a directory, create a temporary file and save content to temporary file
+        # and later rename the file according to the Content-Disposition header or
+        $OutPath = $null
+        if ($OutFile -and (Test-Path -PathType Container -Path $OutFile)) {
+            $OutPath = $OutFile.PSObject.Copy()
+            $OutFile = (New-TemporaryFile).ToString()
         }
-        else {
-            if ($Body) {
-                Write-Verbose "Body:`n$Body"
-                if ($SessionVariable) {
-                    if ($OutFile) {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile
+
+        try {
+            if ($PSVersionTable.PSVersion.Major -lt 6) {
+                if ($SkipCertificateCheck.isPresent) {
+                    $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
+                    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+                }
+                if ($Body) {
+                    Write-Verbose "Body:`n$Body"
+                    if ($SessionVariable) {
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable
+                        }
+                        $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly)
                     }
                     else {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -SessionVariable $SessionVariable
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession
+                        }
                     }
-                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    if ($OutFile) {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile
+                    if ($SessionVariable) {
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                        }
+                        $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                     }
                     else {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -Body $Body -ContentType $ContentType -WebSession $WebSession
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession
+                        }
                     }
+                }
+                if ($SkipCertificateCheck.isPresent) {
+                    [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
                 }
             }
             else {
-                if ($SessionVariable) {
-                    if ($OutFile) {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                if ($Body) {
+                    Write-Verbose "Body:`n$Body"
+                    if ($SessionVariable) {
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable
+                        }
+                        $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                     }
                     else {
-                        $Response = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession
+                        }
                     }
-                    $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly) -PassThru
                 }
                 else {
-                    if ($OutFile) {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile
+                    if ($SessionVariable) {
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable
+                        }
+                        $Response | Add-Member  -MemberType NoteProperty -Name $SessionVariable -Value (Get-Variable -Name $SessionVariable -ValueOnly)
                     }
                     else {
-                        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -TimeoutSec $TimeoutSec -WebSession $WebSession
+                        if ($OutFile) {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile -PassThru
+                        }
+                        else {
+                            $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -WebSession $WebSession
+                        }
                     }
                 }
+            }
+
+            switch ($Response.Headers.'Content-Type') {
+                'application/json' {
+                    $Response | Add-Member -MemberType NoteProperty -Name Json -Value (ConvertFrom-Json -InputObject $Response.Content)
+                }
+            }
+
+            if ($OutPath) {
+                if ($Response.Headers.'Content-Disposition' -match "filename") {
+                    $FileName = ($Response.Headers.'Content-Disposition' | Select-Object -Last 1) -replace '.*filename="*(.*)"*','$1'
+                }
+                else {
+                    # use last part of Request URI as filename
+                    $FileName = $Response.BaseResponse.RequestMessage.RequestUri.Segments | Select-Object -Last 1
+                    if ($FileName -eq "/") {
+                        $FileName = "index.html"
+                    }
+                }
+                $Destination = Join-Path -Path $OutPath -ChildPath $FileName
+                Move-Item -Path $OutFile -Destination $Destination -ErrorAction Stop
+                Write-Host "Output written to $Destination"
+            }
+
+            return $Response
+        }
+        catch {
+            # TODO: handle errors
+            Throw $_
+        }
+        finally {
+            if ($OutFile) {
+                Remove-Item -Path $OutFile -Force -ErrorAction SilentlyContinue
             }
         }
     }
@@ -357,7 +400,7 @@ function Global:Get-SgwAccounts {
         $Uri += $Query
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -365,7 +408,7 @@ function Global:Get-SgwAccounts {
             return
         }
 
-        $Accounts = $Result.data
+        $Accounts = $Response.Json.data
 
         if ($Capabilities) {
             $Accounts = $Accounts | Where-Object { ($_.capabilities -join ",") -match ($Capabilities -join "|") }
@@ -379,12 +422,12 @@ function Global:Get-SgwAccounts {
 
         Write-Output $Accounts
 
-        if ($Limit -eq 0 -and $Result.data.count -eq 25) {
+        if ($Limit -eq 0 -and $Response.Json.data.count -eq 25) {
             if ($Capabilities) {
-                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order -Capabilities $Capabilities
+                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order -Capabilities $Capabilities
             }
             else {
-                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
             }
         }
     }
@@ -528,14 +571,14 @@ function Global:New-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Account = $Result.data
+        $Account = $Response.Json.data
 
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
@@ -584,7 +627,7 @@ function Global:Remove-SgwAccount {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
             Write-Verbose "Successfully deleted account with ID $id"
         }
         catch {
@@ -605,14 +648,14 @@ function Global:Get-SgwAccount {
 
     PARAM (
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 0,
                 ParameterSetName = "id",
                 HelpMessage = "ID of a StorageGRID Webscale Account to get information for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("Id")][String]$AccountId,
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 0,
                 ParameterSetName = "name",
                 HelpMessage = "Name of a StorageGRID Webscale Account to get information for.",
@@ -647,14 +690,14 @@ function Global:Get-SgwAccount {
             $Method = "GET"
 
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+                $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
 
-            $Account = $Result.data
+            $Account = $Response.Json.data
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
             $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.AccountId )"
@@ -753,14 +796,14 @@ function Global:Update-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Account = $Result.data
+        $Account = $Response.Json.data
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
         $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
@@ -855,14 +898,14 @@ function Global:Replace-SgwAccount {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Account = $Result.data
+        $Account = $Response.Json.data
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
         $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
@@ -929,14 +972,14 @@ function Global:Update-SgwSwiftAdminPassword {
 }
 "@
             try {
-                $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+                $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
                 Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
 
-            Write-Output $Result.data
+            Write-Output $Response.Json.data
         }
     }
 }
@@ -997,14 +1040,14 @@ function Global:Update-SgwPassword {
 }
 "@
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1055,14 +1098,14 @@ function Global:Get-SgwAccountUsage {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1223,7 +1266,7 @@ function global:Connect-SgwServer {
         $Server.BaseUri = "https://$Name/api/v2"
 
         Try {
-            $Response = Invoke-SgwRequest -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1247,7 +1290,7 @@ function global:Connect-SgwServer {
 
         $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
 
-        $Server.Session = $Response.Session
+        $Server.Session = $Session
         if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" })) {
             $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
             $Server.Headers["X-Csrf-Token"] = $XCsrfToken
@@ -1369,7 +1412,7 @@ function global:Disconnect-SgwServer {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1430,14 +1473,14 @@ function Global:Get-SgwAlarms {
         }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1477,7 +1520,7 @@ function Global:Get-SgwAudit {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1485,11 +1528,11 @@ function Global:Get-SgwAudit {
         }
 
         $Audit = [PSCustomObject]@{
-            LevelSystem = $Result.data.levels.system;
-            LevelStorage = $Result.data.levels.storage;
-            LevelProtocol = $Result.data.levels.protocol;
-            LevelManagement = $Result.data.levels.management;
-            LoggedHeaders = $Result.data.loggedHeaders
+            LevelSystem = $Response.Json.data.levels.system;
+            LevelStorage = $Response.Json.data.levels.storage;
+            LevelProtocol = $Response.Json.data.levels.protocol;
+            LevelManagement = $Response.Json.data.levels.management;
+            LoggedHeaders = $Response.Json.data.loggedHeaders
         }
 
         Write-Output $Audit
@@ -1563,7 +1606,7 @@ function Global:Replace-SgwAudit {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1571,11 +1614,11 @@ function Global:Replace-SgwAudit {
         }
 
         $Audit = [PSCustomObject]@{
-            LevelSystem = $Result.data.levels.system;
-            LevelStorage = $Result.data.levels.storage;
-            LevelProtocol = $Result.data.levels.protocol;
-            LevelManagement = $Result.data.levels.management;
-            LoggedHeaders = $Result.data.loggedHeaders
+            LevelSystem = $Response.Json.data.levels.system;
+            LevelStorage = $Response.Json.data.levels.storage;
+            LevelProtocol = $Response.Json.data.levels.protocol;
+            LevelManagement = $Response.Json.data.levels.management;
+            LoggedHeaders = $Response.Json.data.loggedHeaders
         }
 
         Write-Output $Audit
@@ -1621,14 +1664,14 @@ function Global:Get-SgwConfig {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1667,14 +1710,14 @@ function Global:Get-SgwConfigManagement {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1719,7 +1762,7 @@ function Global:Update-SgwConfigManagement {
         $Body = ConvertTo-Json -InputObject @{ minApiVersion = $MinApiVersion }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1728,7 +1771,7 @@ function Global:Update-SgwConfigManagement {
 
         $Server.SupportedApiVersions = @(Get-SgwVersions -Server $Server)
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1767,14 +1810,14 @@ function Global:Get-SgwProductVersion {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data.productVersion
+        Write-Output $Response.Json.data.productVersion
     }
 }
 
@@ -1808,7 +1851,7 @@ function Global:Get-SgwVersion {
 
         Try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-            $ApiVersion = $Response.APIVersion
+            $ApiVersion = $Response.Json.APIVersion
         }
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -1862,7 +1905,7 @@ function Global:Get-SgwVersions {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1951,7 +1994,7 @@ function Global:Get-SgwContainers {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2003,7 +2046,7 @@ function Global:Get-SgwContainerConsistency {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2061,7 +2104,7 @@ function Global:Update-SgwContainerConsistency {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2113,7 +2156,7 @@ function Global:Get-SgwContainerLastAccessTime {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2168,7 +2211,7 @@ function Global:Enable-SgwContainerLastAccessTime {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2223,7 +2266,7 @@ function Global:Disable-SgwContainerLastAccessTime {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -2277,8 +2320,8 @@ function Global:Get-SgwContainerMetadataNotification {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.metadataNotification) {
-            $Xml = [xml]$Response.data.metadataNotification
+        if ($Response.Json.data.metadataNotification) {
+            $Xml = [xml]$Response.Json.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
@@ -2436,8 +2479,8 @@ function Global:Add-SgwContainerMetadataNotificationRule {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.metadataNotification) {
-            $Xml = [xml]$Response.data.metadataNotification
+        if ($Response.Json.data.metadataNotification) {
+            $Xml = [xml]$Response.Json.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
@@ -2516,8 +2559,8 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.metadataNotification) {
-            $Xml = [xml]$Response.data.metadataNotification
+        if ($Response.Json.data.metadataNotification) {
+            $Xml = [xml]$Response.Json.data.metadataNotification
             foreach ($Rule in $Xml.MetadataNotificationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Urn }
                 Write-Output $Rule
@@ -2578,9 +2621,9 @@ function Global:Get-SgwContainerNotification {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.notification) {
-            Write-Verbose $Response.data.notification
-            $Xml = [xml]$Response.data.notification
+        if ($Response.Json.data.notification) {
+            Write-Verbose $Response.Json.data.notification
+            $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
                 $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
@@ -2749,9 +2792,9 @@ function Global:Add-SgwContainerNotificationTopic {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.notification) {
-            Write-Verbose $Response.data.notification
-            $Xml = [xml]$Response.data.notification
+        if ($Response.Json.data.notification) {
+            Write-Verbose $Response.Json.data.notification
+            $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
                 $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
@@ -2856,9 +2899,9 @@ function Global:Remove-SgwContainerNotificationTopic {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.notification) {
-            Write-Verbose $Response.data.notification
-            $Xml = [xml]$Response.data.notification
+        if ($Response.Json.data.notification) {
+            Write-Verbose $Response.Json.data.notification
+            $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
                 $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
                 Write-Output $Topic
@@ -2917,8 +2960,8 @@ function Global:Get-SgwContainerReplication {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.replication) {
-            $Xml = [xml]$Response.data.replication
+        if ($Response.Json.data.replication) {
+            $Xml = [xml]$Response.Json.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
@@ -3095,8 +3138,8 @@ function Global:Add-SgwContainerReplicationRule {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.replication) {
-            $Xml = [xml]$Response.data.replication
+        if ($Response.Json.data.replication) {
+            $Xml = [xml]$Response.Json.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
@@ -3175,8 +3218,8 @@ function Global:Remove-SgwContainerReplicationRule {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        if ($Response.data.replication) {
-            $Xml = [xml]$Response.data.replication
+        if ($Response.Json.data.replication) {
+            $Xml = [xml]$Response.Json.data.replication
             foreach ($Rule in $Xml.ReplicationConfiguration.Rule) {
                 $Rule = [PSCustomObject]@{ Bucket = $Name; Id = $Rule.ID; Status = $Rule.Status; Prefix = $Rule.Prefix; DestinationUrn = $Rule.Destination.Bucket; DestinationStorageClass = $Rule.Destination.StorageClass }
                 Write-Output $Rule
@@ -3227,14 +3270,14 @@ function Global:Get-SgwDeactivatedFeatures {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3340,14 +3383,14 @@ function Global:Update-SgwDeactivatedFeatures {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3387,14 +3430,14 @@ function Global:Get-SgwDNSServers {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3437,14 +3480,14 @@ function Global:Replace-SgwDNSServers {
         Write-Verbose $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3492,7 +3535,7 @@ function Global:Get-SgwEndpoints {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3588,7 +3631,7 @@ function Global:Add-SgwEndpoint {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3642,7 +3685,7 @@ function Global:Remove-SgwEndpoint {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3696,7 +3739,7 @@ function Global:Get-SgwEndpoint {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -3950,7 +3993,7 @@ function Global:Update-SgwEndpoint {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4335,7 +4378,7 @@ function Global:Update-SgwS3Endpoint {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4375,14 +4418,14 @@ function Global:Get-SgwEndpointDomainNames {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4425,14 +4468,14 @@ function Global:Replace-SgwEndpointDomainNames {
         $Body = ConvertTo-Json -InputObject $EndpointDomainNames
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4472,14 +4515,14 @@ function Global:Get-SgwEcProfiles {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4517,14 +4560,14 @@ function Global:Get-SgwEcSchemes {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4564,14 +4607,14 @@ function Global:Stop-SgwExpansion {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4607,14 +4650,14 @@ function Global:Get-SgwExpansion {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4650,14 +4693,14 @@ function Global:Start-SgwExpansion {
         $Method = "POST"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4698,14 +4741,14 @@ function Global:Invoke-SgwExpansion {
         $Body = ConvertTo-Json -InputObject @{ passphrase = $Passphrase }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4745,14 +4788,14 @@ function Global:Get-SgwExpansionNodes {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4794,14 +4837,14 @@ function Global:Remove-SgwExpansionNode {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4843,14 +4886,14 @@ function Global:Get-SgwExpansionNode {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4887,14 +4930,14 @@ function Global:New-SgwExpansionNode {
         $Method = "POST"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4936,14 +4979,14 @@ function Global:Reset-SgwExpansionNode {
         $Method = "POST"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -4983,14 +5026,14 @@ function Global:Get-SgwExpansionSites {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5034,14 +5077,14 @@ function Global:New-SgwExpansionSite {
         $Body = ConvertTo-Json -InputObject @{ name = $Name }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5083,14 +5126,14 @@ function Global:Remove-SgwExpansionSite {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5132,14 +5175,14 @@ function Global:Get-SgwExpansionSite {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5197,14 +5240,14 @@ function Global:Update-SgwExpansionSite {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5244,14 +5287,14 @@ function Global:Get-SgwGridNetworks {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5298,14 +5341,14 @@ function Global:Update-SgwGridNetworks {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5347,14 +5390,14 @@ function Global:Get-SgwGroups {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5503,14 +5546,14 @@ function Global:New-SgwGroup {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5554,14 +5597,14 @@ function Global:Get-SgwGroupByShortName {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5605,14 +5648,14 @@ function Global:Get-SgwFederatedGroupByShortName {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5658,14 +5701,14 @@ function Global:Delete-SgwGroup {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5711,14 +5754,14 @@ function Global:Get-SgwGroup {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5828,14 +5871,14 @@ function Global:Update-SgwGroup {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -5973,14 +6016,14 @@ function Global:Replace-SgwGroup {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6026,14 +6069,14 @@ function Global:Get-SgwAccountGroups {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6073,14 +6116,14 @@ function Global:Get-SgwHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6119,14 +6162,14 @@ function Global:Get-SgwTopologyHealth {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6170,14 +6213,14 @@ function Global:Get-SgwIdentitySources {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6299,14 +6342,14 @@ function Global:Update-SgwIdentitySources {
 "@
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6346,7 +6389,7 @@ function Global:Sync-SgwIdentitySources {
         $Method = "POST"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body "" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body "" -SkipCertificateCheck:$Server.SkipCertificateCheck
             Write-Host "Successfully synchronized users and groups of identity sources"
         }
         catch {
@@ -6354,7 +6397,7 @@ function Global:Sync-SgwIdentitySources {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6412,14 +6455,14 @@ function Global:Invoke-SgwIlmEvaluate {
         }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6458,14 +6501,14 @@ function Global:Get-SgwIlmMetadata {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6501,14 +6544,14 @@ function Global:Get-SgwIlmRules {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6548,14 +6591,14 @@ function Global:Get-SgwLicense {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6605,14 +6648,14 @@ function Global:Update-SgwLicense {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6653,14 +6696,14 @@ function Global:Get-SgwLogs {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6739,14 +6782,14 @@ function Global:Start-SgwLogCollection {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6782,14 +6825,14 @@ function Global:Remove-SgwLogCollection {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6846,14 +6889,14 @@ function Global:Get-SgwLogCollection {
         }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck -OutFile $OutFile
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck -OutFile $OutFile
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6891,14 +6934,14 @@ function Global:Get-SgwMetricNames {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -6954,14 +6997,14 @@ function Global:Get-SgwMetricQuery {
 
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Metrics = $Result.data.result | % { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
+        $Metrics = $Response.Json.data.result | % { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
 
         Write-Output $Metrics
     }
@@ -7005,14 +7048,14 @@ function Global:Get-SgwNtpServers {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7060,14 +7103,14 @@ function Global:Update-SgwNtpServers {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7081,17 +7124,32 @@ function Global:Update-SgwNtpServers {
     Retrieves metadata for an object
 #>
 function Global:Get-SgwObjectMetadata {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="objectid")]
 
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $True,
+                ParameterSetName="objectid",
                 Position = 1,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Object ID (e.g. S3 bucket/key or Swift container/object).")][String]$ObjectId,
-        [parameter(Mandatory = $False,
+        [parameter(Mandatory = $True,
+                ParameterSetName="ContainerAndKey",
+                Position = 1,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Bucket or Swift Container name.")][Alias("Bucket","BucketName","ContainerName")][String]$Container,
+        [parameter(Mandatory = $True,
+                ParameterSetName="ContainerAndKey",
                 Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Object Key or Swift Object Name.")][Alias("Key","Name")][String]$Object,
+        [parameter(Mandatory = $False,
+                Position = 3,
                 HelpMessage = "Maximum number of segements to return.")][Int]$MaxSegments
     )
 
@@ -7112,6 +7170,9 @@ function Global:Get-SgwObjectMetadata {
         $Method = "POST"
 
         $Body = @{}
+        if ($Container) {
+            $ObjectId = "$Container/$Object"
+        }
         $Body.objectId = $ObjectId
         if ($MaxSegments) {
             $Body.maxSegments = $MaxSegments
@@ -7120,14 +7181,14 @@ function Global:Get-SgwObjectMetadata {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7167,14 +7228,14 @@ function Global:Get-SgwRecoveryAvailableNodes {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7210,14 +7271,14 @@ function Global:Reset-SgwRecovery {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7253,14 +7314,14 @@ function Global:Get-SgwRecovery {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7328,14 +7389,14 @@ function Global:Start-SgwRecovery {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7424,7 +7485,7 @@ function Global:Get-SgwUsers {
         $Uri += $Query
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -7432,12 +7493,12 @@ function Global:Get-SgwUsers {
             return
         }
 
-        $Result.data | Add-Member -MemberType AliasProperty -Name userId -Value id
+        $Response.Json.data | Add-Member -MemberType AliasProperty -Name userId -Value id
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
 
-        if ($Limit -eq 0 -and $Result.data.count -eq 25) {
-            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Result.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+        if ($Limit -eq 0 -and $Response.Json.data.count -eq 25) {
+            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
         }
     }
 }
@@ -7508,13 +7569,13 @@ function Global:Get-SgwS3AccessKeys {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7586,14 +7647,14 @@ function Global:Get-SgwS3AccessKey {
         $Method = "GET"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Result.data
+        Write-Output $Response.Json.data
     }
 }
 
@@ -7676,14 +7737,14 @@ function Global:New-SgwS3AccessKey {
         }
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $AccessKey = $Result.data
+        $AccessKey = $Response.Json.data
 
         if (!$Server.AccessKeyStore[$AccountId]) {
             $Server.AccessKeyStore[$AccountId] = New-Object System.Collections.ArrayList
@@ -7762,7 +7823,7 @@ function Global:Remove-SgwS3AccessKey {
         $Method = "DELETE"
 
         try {
-            $Result = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -7859,17 +7920,17 @@ function Global:Get-SgwReport {
         $Uri = "https://$( $Server.Name )/NMS/render/JSP/DoXML.jsp?requestType=RPTX&mode=PAGE&start=$StartTimeString&end=$EndTimeString&attr=$AttributeCode&attrIndex=1&oid=$OID&type=text"
 
         try {
-            $Result = Invoke-SgwRequest -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -Method $Method -WebSession $Server.Session -Headers $Server.Headers -Uri $Uri -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Body = ($Result -split "`n" | ? { $_ -match "<body" })
+        $Body = ($Response -split "`n" | ? { $_ -match "<body" })
         Write-Verbose "Body: $Body"
 
-        if ($Result -match "Aggregate Time") {
+        if ($Response -match "Aggregate Time") {
             $Report = $Body -replace "<body.*Aggregate Time.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+", '$1;$2;$4;$6' | ? { $_ }
             foreach ($Line in $Report) {
                 $Time, $Average, $Minimum, $Maximum = $Line -split ';'
@@ -7879,7 +7940,7 @@ function Global:Get-SgwReport {
                 [PSCustomObject]@{ "Time Received" = [DateTime]$time; "Average $Attribute" = $Average; "Minimum $Attribute" = $Minimum; "Maximum $Attribute" = $Maximum }
             }
         }
-        elseif ($Result -match "Time Received") {
+        elseif ($Response -match "Time Received") {
             $Report = $Body -replace "<body.*Time Received.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+", '$1;$2' | ? { $_ }
             foreach ($Line in $Report) {
                 $Time, $Value = $Line -split ';'
