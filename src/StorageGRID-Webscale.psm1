@@ -7402,7 +7402,61 @@ function Global:Start-SgwRecovery {
 
 ## recovery-package ##
 
-# TODO: Implement recovery-package Cmdlets
+<#
+    .SYNOPSIS
+    Retrieves the log collection procedure status
+    .DESCRIPTION
+    Retrieves the log collection procedure status
+#>
+function Global:Get-SgwRecoveryPackage {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/recovery-package"
+        $Method = "POST"
+
+        if (!(Test-Path $Path)) {
+            Throw "Path $Path does not exist!"
+        }
+
+        $Body = @{}
+        $Body.passphrase = $Passphrase
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -OutFile $Path -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+    }
+}
 
 ## regions ##
 
