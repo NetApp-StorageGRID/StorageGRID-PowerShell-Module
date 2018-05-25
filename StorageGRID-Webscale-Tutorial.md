@@ -11,7 +11,7 @@ Import-Module -Name StorageGRID-Webscale
 ```
 
 List all Cmdlets included in the StorageGRID-Webscale Module
-	
+
 ```powershell
 Get-Command -Module StorageGRID-Webscale
 ```
@@ -157,6 +157,47 @@ $BucketAccounting = foreach ($Account in (Get-SgwAccounts | Where-Object { $_.ca
 $BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
 ```
 
+## Experimental Accounting of disk usage per tenant and bucket
+
+```powershell
+$Accounts = Get-SgwAccounts
+$TenantAccounting = @()
+$BucketAccounting = @()
+foreach ($Account in $Accounts) {
+    $AccountUsage = 0
+    $Buckets = $Account | Get-S3Buckets
+    foreach ($Bucket in $Buckets) {
+        $BucketUsage = 0
+        $Objects = $Bucket | Get-S3Objects
+        foreach ($Object in $Objects) {
+            $ObjectMetadata = $Object | Get-SgwObjectMetadata
+            $ReplicaCount = ($ObjectMetadata.locations | ? { $_.type -eq "replicated" }).Count
+            $ErasureCodeDataCount = ($ObjectMetadata.locations | ? { $_.type -eq "data" }).Count
+            $ErasureCodeParityCount = ($ObjectMetadata.locations | ? { $_.type -eq "parity" }).Count
+            if ($ReplicaCount) {
+                $SizeFactor = $ReplicaCount
+            }
+            elseif ($ErasureCodeDataCount) {
+                $SizeFactor = ($ErasureCodeDataCount + $ErasureCodeParityCount) / $ErasureCodeDataCount
+            }
+            else {
+                Write-Warning "No replicas and EC parts found for object $($Object.Key)"$
+            }
+            $SizeFactor = $ReplicaCount
+            if ($ObjectMetadata.diskSizeBytes) {
+                $BucketUsage += $SizeFactor * $ObjectMetadata.diskSizeBytes
+            }
+            else {
+                $BucketUsage += $SizeFactor * $ObjectMetadata.objectSizeBytes
+            }
+        }
+        $BucketAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;BucketName=$Bucket.BucketName;BucketUsage=$BucketUsage}
+        $AccountUsage += $BucketUsage
+    }
+    $TenantAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;AccountUsage=$AccountUsage}
+}
+```
+
 ## Report creation
 
 StorageGRID allows grid administrators to create reports for different metrics on grid, site and node level.
@@ -164,7 +205,7 @@ StorageGRID allows grid administrators to create reports for different metrics o
 You can check the available metrics by using Command Completion. Just type the following command and hit the Tabulator key (->|)
 
 ```powershell
-Get-SgwReport -Attribute 
+Get-SgwReport -Attribute
 ```
 
 The reports have a start and an end date. By default the attributes will be listed for the last hour. For attributes within the last 7 days StorageGRID will report the measure value in a specific interval. Attributes older than 7 days will be aggregated and StorageGRID will return average, minium and maximum value for each sample time. You can specify a time range using PowerShell DateTime objects.
@@ -200,5 +241,5 @@ Get-SgwMetricNames
 StorageGRID uses [Prometheus](https://prometheus.io/) to collect the metrics and [Prometheus Queries](https://prometheus.io/docs/querying/basics/) can be issued via e.g.
 
 ```powershell
-Get-SgwMetricQuery -Query 'storagegrid_s3_operations_successful'  
+Get-SgwMetricQuery -Query 'storagegrid_s3_operations_successful'
 ```
