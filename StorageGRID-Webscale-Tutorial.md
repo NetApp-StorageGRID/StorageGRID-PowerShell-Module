@@ -196,6 +196,8 @@ foreach ($Account in $Accounts) {
     }
     $TenantAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;AccountUsage=$AccountUsage}
 }
+$BucketAccounting | Export-Csv -Path $HOME\Downloads\BucketAccounting.csv -NoTypeInformation
+$TenantAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
 ```
 
 ## Report creation
