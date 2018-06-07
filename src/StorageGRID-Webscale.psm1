@@ -7663,20 +7663,20 @@ Set-Alias -Name Get-SgwAccountS3AccessKeys -Value Get-SgwS3AccessKeys
     Retrieve StorageGRID Webscale Account S3 Access Keys
 #>
 function Global:Get-SgwS3AccessKeys {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
         [parameter(
                 Mandatory = $False,
                 Position = 0,
+                ParameterSetName = "account",
                 HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 1,
+                ParameterSetName = "user",
                 HelpMessage = "ID of a StorageGRID Webscale User.",
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $False,
@@ -7735,26 +7735,25 @@ Set-Alias -Name Get-SgwAccountS3AccessKey -Value Get-SgwS3AccessKey
     Retrieve a StorageGRID Webscale Account S3 Access Key
 #>
 function Global:Get-SgwS3AccessKey {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
         [parameter(
                 Mandatory = $False,
                 Position = 0,
                 HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for",
-                ValueFromPipeline = $True,
+                ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 1,
                 HelpMessage = "ID of a StorageGRID Webscale User.",
-                ValueFromPipeline = $True,
+                ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Access Key to delete.",
-                ValueFromPipeline = $True,
+                HelpMessage = "Access Key to retrieve.",
                 ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey,
         [parameter(
                 Mandatory = $False,
@@ -7814,25 +7813,23 @@ Set-Alias -Name New-SgwAccountS3AccessKey -Value New-SgwS3AccessKey
     Create a new StorageGRID Webscale Account S3 Access Key
 #>
 function Global:New-SgwS3AccessKey {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = "none")]
 
     PARAM (
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(
                 Mandatory = $False,
                 Position = 1,
-                ValueFromPipeline = $True,
+                ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                ValueFromPipeline = $True,
+                ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
         [parameter(
@@ -7893,6 +7890,12 @@ function Global:New-SgwS3AccessKey {
         }
 
         $AccessKey = $Response.Json.data
+
+        if (!$AccessKey) {
+            Throw "Server did not return access key!"
+        }
+
+        Write-Verbose "Access Key response: $AccessKey"
 
         if (!$Server.AccessKeyStore[$AccountId]) {
             $Server.AccessKeyStore[$AccountId] = New-Object System.Collections.ArrayList
