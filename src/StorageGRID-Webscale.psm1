@@ -1,3 +1,6 @@
+$SGW_PROFILE_PATH = "$HOME/.sgw/"
+$SGW_CREDENTIALS_FILE = $SGW_PROFILE_PATH + "credentials"
+
 # workarounds for PowerShell issues
 if ($PSVersionTable.PSVersion.Major -lt 6) {
     Add-Type @"
@@ -150,6 +153,118 @@ function ConvertFrom-UnixTimestamp {
             }
             Write-Output $Date
         }
+    }
+}
+
+
+function ConvertFrom-SgwConfigFile {
+    #private
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="StorageGRID Config File")][String]$SgwConfigFile
+    )
+
+    Process {
+        # TODO: Verify that folder is only readable by current user
+
+        if (!(Test-Path $SgwConfigFile))
+        {
+            throw "Config file $SgwConfigFile does not exist!"
+        }
+
+        Write-Verbose "Reading StorageGRID Configuration from $SgwConfigFile"
+
+        $Content = Get-Content -Path $SgwConfigFile -Raw
+        # convert to JSON structure
+        # replace all carriage returns
+        $Content = $Content -replace "\r",""
+        # remove empty lines
+        $Content = $Content -replace "(\n$)*", ""
+        # remove profile string from profile section
+        $Content = $Content -replace "profile ", ""
+
+        # replace sections like s3 or iam where the line ends with a = with a JSON object including opening and closing curly brackets
+        $Content = $Content -replace "([a-zA-Z0-9]+)\s*=\s*((?:\n  .+)+)",'"$1":{ $2 },'
+        $Content = $Content -replace "([a-zA-Z0-9]+)\s*=\s*\n","`"`$1`":{ },`n"
+        $Content = $Content -replace "([a-zA-Z0-9]+)\s*=\s*\z",'"$1":{ },'
+
+        # replace key value pairs with quoted key value pairs and replace = with :
+        $Content = $Content -replace "\n\s*([^=^\s^`"]+)\s*=\s*([^\s^\n^}]*)","`n`"`$1`":`"`$2`","
+
+        # make sure that Profile is a Key Value inside the JSON Object
+        $Content = $Content -replace "\[([^\]]+)\]([^\[]+)","{`"ProfileName`":`"`$1`",`$2},`n"
+
+        # remove additional , before a closing curly bracket
+        $Content = $Content -replace "\s*,\s*\n?}","}"
+
+        # ensure that the complete output is an array consisting of multiple JSON objects
+        $Content = $Content -replace "\A","["
+        $Content = $Content -replace "},?\s*\n?\s*\z","}]"
+
+        $Config = ConvertFrom-Json -InputObject $Content
+        Write-Output $Config
+    }
+}
+
+function ConvertTo-SgwConfigFile {
+    #private
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+            Mandatory=$True,
+            Position=0,
+            HelpMessage="Configs to store in config file")][PSCustomObject]$Configs,
+        [parameter(
+            Mandatory=$True,
+            Position=1,
+            HelpMessage="StorageGRID Config File")][String]$SgwConfigFile
+    )
+
+    Process {
+        # TODO: Verify that folder is only readable by current user
+
+        if (!(Test-Path $SgwConfigFile)) {
+            New-Item -Path $SgwConfigFile -ItemType File -Force
+        }
+
+        Write-Verbose "Writing StorageGRID Configuration to $SgwConfigFile"
+
+        if ($SgwConfigFile -match "credentials$") {
+            foreach ($Config in $Configs) {
+                $Output += "[$( $Config.ProfileName )]`n"
+                $Output += "username = $($Config.username)`n"
+                $Output += "password = $($Config.password)`n"
+            }
+        }
+        else {
+            foreach ($Config in $Configs) {
+                if ($Config.ProfileName -eq "default") {
+                    $Output += "[$( $Config.ProfileName )]`n"
+                }
+                else {
+                    $Output += "[profile $( $Config.ProfileName )]`n"
+                }
+                $Properties = $Config.PSObject.Members | Where-Object { $_.MemberType -eq "NoteProperty" -and $_.Name -ne "ProfileName" -and $_.Value -isnot [PSCustomObject] }
+                $Sections = $Config.PSObject.Members | Where-Object { $_.MemberType -eq "NoteProperty" -and $_.Name -ne "ProfileName" -and $_.Value -is [PSCustomObject]}
+                foreach ($Property in $Properties) {
+                    $Output += "$($Property.Name) = $($Property.Value)`n"
+                }
+                foreach ($Section in $Sections) {
+                    $Output += "$($Section.Name) =`n"
+                    $Properties = $Section.Value.PSObject.Members | Where-Object { $_.MemberType -eq "NoteProperty" }
+                    foreach ($Property in $Properties) {
+                        $Output += "  $($Property.Name) = $($Property.Value)`n"
+                    }
+                }
+            }
+        }
+        Write-Debug "Output:`n$Output"
+        $Output | Out-File -FilePath $SgwConfigFile -NoNewline
     }
 }
 
@@ -329,6 +444,578 @@ function Invoke-SgwRequest {
 }
 
 ### Cmdlets ###
+
+## profile ##
+
+# TODO: Implement separate Update Cmdlet which does not overwrite values with defaults
+
+Set-Alias -Name Set-SgwProfile -Value Add-SgwProfile
+Set-Alias -Name New-SgwProfile -Value Add-SgwProfile
+Set-Alias -Name Update-SgwProfile -Value Add-SgwProfile
+Set-Alias -Name Set-SgwCredential -Value Add-SgwProfile
+Set-Alias -Name New-SgwCredential -Value Add-SgwProfile
+Set-Alias -Name Add-SgwCredential -Value Add-SgwProfile
+Set-Alias -Name Update-SgwCredential -Value Add-SgwProfile
+<#
+    .SYNOPSIS
+    Add StorageGRID Credentials
+    .DESCRIPTION
+    Add StorageGRID Credentials
+    .PARAMETER ProfileName
+    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    .PARAMETER ProfileLocation
+    StorageGRID Profile location if different than .aws/credentials
+    .PARAMETER Credential
+    Credential
+    .PARAMETER AccessKey
+    S3 Access Key
+    .PARAMETER SecretKey
+    S3 Secret Access Key
+    .PARAMETER Region
+    Default Region to use for all requests made with these credentials
+    .PARAMETER EndpointUrl
+    Custom endpoint URL if different than StorageGRID URL
+#>
+function Global:Add-SgwProfile {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+        [parameter(Position = 5,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+        [parameter(Position = 6,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
+        [parameter(Position = 7,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime = 3600,
+        [parameter(Position = 8,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
+        [parameter(Position = 9,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
+    )
+
+    Process {
+        $ConfigLocation = $ProfileLocation -replace "/[^/]+$", '/config'
+
+        if ($Credential) {
+            try {
+                $Credentials = ConvertFrom-SgwConfigFile -SgwConfigFile $ProfileLocation
+            }
+            catch {
+                Write-Verbose "Retrieving credentials from $ProfileLocation failed"
+            }
+
+            if (($Credentials | Where-Object { $_.ProfileName -eq $ProfileName })) {
+                $CredentialEntry = $Credentials | Where-Object { $_.ProfileName -eq $ProfileName }
+            }
+            else {
+                $CredentialEntry = [PSCustomObject]@{ ProfileName = $ProfileName }
+            }
+
+            $CredentialEntry | Add-Member -MemberType NoteProperty -Name username -Value $Credential.UserName -Force
+            $CredentialEntry | Add-Member -MemberType NoteProperty -Name password -Value $Credential.GetNetworkCredential().Password -Force
+
+            Write-Debug $CredentialEntry
+
+            $Credentials = @($Credentials | Where-Object { $_.ProfileName -ne $ProfileName }) + $CredentialEntry
+            ConvertTo-SgwConfigFile -Config $Credentials -SgwConfigFile $ProfileLocation
+        }
+
+        try {
+            $Configs = ConvertFrom-SgwConfigFile -SgwConfigFile $ConfigLocation
+        }
+        catch {
+            Write-Verbose "Retrieving config from $ConfigLocation failed"
+        }
+
+        $Config = $Configs | Where-Object { $_.ProfileName -eq $ProfileName }
+        if (!$Config) {
+            $Config = [PSCustomObject]@{ ProfileName = $ProfileName}
+        }
+
+        if ($Name) {
+            $Config | Add-Member -MemberType NoteProperty -Name name -Value $Name -Force
+        }
+
+        if ($AccountId) {
+            $Config | Add-Member -MemberType NoteProperty -Name account_id -Value $AccountId -Force
+        }
+
+        if ($DisableAutomaticAccessKeyGeneration) {
+            $Config | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value $DisableAutomaticAccessKeyGeneration -Force
+        }
+
+        if ($TemporaryAccessKeyExpirationTime -and $TemporaryAccessKeyExpirationTime -ne 3600) {
+            $Config | Add-Member -MemberType NoteProperty -Name temporary_access_key_expiration_time -Value $TemporaryAccessKeyExpirationTime -Force
+        }
+
+        if ($S3EndpointUrl) {
+            $S3EndpointUrlString = $S3EndpointUrl -replace "(http://.*:80)",'$1' -replace "(https://.*):443",'$1' -replace "/$",""
+            $Config | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $S3EndpointUrlString -Force
+        }
+
+        if ($SwiftEndpointUrl) {
+            $SwiftEndpointUrlString = $SwiftEndpointUrl -replace "(http://.*:80)",'$1' -replace "(https://.*):443",'$1' -replace "/$",""
+            $Config | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $SwiftEndpointUrlString -Force
+        }
+
+        if ($SkipCertificateCheck -ne $null) {
+            $Config | Add-Member -MemberType NoteProperty -Name skip_certificate_check -Value $SkipCertificateCheck -Force
+        }
+
+        $Configs = @($Configs | Where-Object { $_.ProfileName -ne $ProfileName}) + $Config
+        ConvertTo-SgwConfigFile -Config $Configs -SgwConfigFile $ConfigLocation
+    }
+}
+
+Set-Alias -Name Get-SgwCredentials -Value Get-SgwProfiles
+<#
+    .SYNOPSIS
+    Get the StorageGRID config for all profiles and if there is a connection to a StorageGRID, it includes the StorageGRID config of the connected tenant
+    .DESCRIPTION
+    Get the StorageGRID config for all profiles and if there is a connection to a StorageGRID, it includes the StorageGRID config of the connected tenant
+    .PARAMETER ProfileLocation
+    StorageGRID Profile location if different than .aws/credentials
+#>
+function Global:Get-SgwProfiles {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
+    )
+
+    Process {
+        if (!$ProfileLocation) {
+            $ProfileLocation = $StorageGRID_CREDENTIALS_FILE
+        }
+        $ConfigLocation = $ProfileLocation -replace "/[^/]+$",'/config'
+
+        if (!(Test-Path $ProfileLocation)) {
+            Write-Warning "Profile location $ProfileLocation does not exist!"
+            break
+        }
+
+        $Credentials = @()
+        $Config = @()
+        try {
+            $Credentials = ConvertFrom-SgwConfigFile -SgwConfigFile $ProfileLocation
+        }
+        catch {
+            Write-Verbose "Retrieving credentials from $ProfileLocation failed"
+        }
+        try {
+            $Configs = ConvertFrom-SgwConfigFile -SgwConfigFile $ConfigLocation
+        }
+        catch {
+            Write-Verbose "Retrieving credentials from $ConfigLocation failed"
+        }
+
+        foreach ($Credential in $Credentials) {
+            $Config = $Configs | Where-Object { $_.ProfileName -eq $Credential.ProfileName } | Select-Object -First 1
+            if (!$Config) {
+                $Config = [PSCustomObject]@{ProfileName=$Credential.ProfileName}
+                $Configs = @($Configs) + $Config
+            }
+            if ($Credential.username -and $Credential.password) {
+                $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.password | ConvertTo-SecureString -AsPlainText -Force))) -Force
+            }
+        }
+
+        foreach ($Config in $Configs) {
+            $Output = [PSCustomObject]@{ProfileName = $Config.ProfileName;Credential = $Config.Credential}
+
+            if ($Config.Name) {
+                $Output | Add-Member -MemberType NoteProperty -Name Name -Value $Config.Name
+            }
+            else {
+                Write-Warning "No StorageGRID name specified for Profile $($Config.ProfileName)"
+            }
+
+            if ($Config.AccountId) {
+                $Output | Add-Member -MemberType NoteProperty -Name AccountId -Value $Config.AccountId
+            }
+
+            if ($Config.DisableAutomaticAccessKeyGeneration) {
+                $Output | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value ([System.Convert]::ToBoolean($Config.DisableAutomaticAccessKeyGeneration))
+            }
+            else {
+                $Output | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value $False
+            }
+
+            if ($Config.TemporaryAccessKeyExpirationTime) {
+                $Output | Add-Member -MemberType NoteProperty -Name temporary_access_key_expiration_time -Value $Config.TemporaryAccessKeyExpirationTime
+            }
+            else {
+                $Output | Add-Member -MemberType NoteProperty -Name temporary_access_key_expiration_time -Value 3600
+            }
+
+            if ($Config.S3EndpointUrl) {
+                $Output | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $Config.S3EndpointUrlString
+            }
+
+            if ($Config.SwiftEndpointUrl) {
+                $Output | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $Config.SwiftEndpointUrlString
+            }
+
+            if ($Config.skip_certificate_check) {
+                $Output | Add-Member -MemberType NoteProperty -Name SkipCertificateCheck -Value ([System.Convert]::ToBoolean($Config.skip_certificate_check))
+            }
+            else {
+                $Output | Add-Member -MemberType NoteProperty -Name SkipCertificateCheck -Value $False
+            }
+            Write-Output $Output
+        }
+    }
+}
+
+Set-Alias -Name Get-AwsProfile -Value Get-SgwProfile
+Set-Alias -Name Get-AwsCredential -Value Get-SgwProfile
+<#
+    .SYNOPSIS
+    Get StorageGRID config
+    .DESCRIPTION
+    Get StorageGRID config
+    If there is a connection to a StorageGRID, this is the StorageGRID config of the connected tenant.
+    If a profile is provided, it is the StorageGRID config of the StorageGRID profile.
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used
+    .PARAMETER ProfileName
+    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    .PARAMETER ProfileLocation
+    StorageGRID Profile location if different than .aws/credentials
+    .PARAMETER Credential
+    Credential
+    .PARAMETER AccessKey
+    S3 Access Key
+    .PARAMETER SecretKey
+    S3 Secret Access Key
+    .PARAMETER AccountId
+    StorageGRID Account ID
+    .PARAMETER Region
+    Default Region to use for all requests made with these credentials
+    .PARAMETER EndpointUrl
+    Custom endpoint URL if different than StorageGRID URL
+#>
+function Global:Get-SgwProfile {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+                Mandatory=$False,
+                Position=0,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile to use which contains StorageGRID credentials and settings")][Alias("Profile")][String]$ProfileName="default",
+        [parameter(
+                Mandatory=$False,
+                Position=2,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
+        [parameter(
+                Mandatory=$False,
+                Position=3,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="S3 Access Key")][String]$AccessKey,
+        [parameter(
+                Mandatory=$False,
+                Position=4,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="S3 Secret Access Key")][String]$SecretKey,
+        [parameter(
+                Mandatory=$False,
+                Position=5,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Account ID")][String]$AccountId,
+        [parameter(
+                Mandatory=$False,
+                Position=6,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Default Region to use for all requests made with these credentials")][String]$Region,
+        [parameter(
+                Mandatory=$False,
+                Position=7,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Endpoint URL")][System.UriBuilder]$EndpointUrl,
+        [parameter(
+                Mandatory=$False,
+                Position=8,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="The maximum number of concurrent requests (Default: 10)")][Alias("max_concurrent_requests")][UInt16]$MaxConcurrentRequests,
+        [parameter(
+                Mandatory=$False,
+                Position=9,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="The maximum number of tasks in the task queue")][Alias("max_queue_size")][UInt16]$MaxQueueSize,
+        [parameter(
+                Mandatory=$False,
+                Position=10,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="The size threshold where multipart uploads are used of individual files (Default: 8MB)")][Alias("multipart_threshold")][String]$MultipartThreshold,
+        [parameter(
+                Mandatory=$False,
+                Position=11,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="When using multipart transfers, this is the chunk size that is used for multipart transfers of individual files (Default: 8MB)")][Alias("multipart_chunksize")][String]$MultipartChunksize,
+        [parameter(
+                Mandatory=$False,
+                Position=12,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="The maximum bandwidth that will be consumed for uploading and downloading data to and from Amazon S3")][Alias("max_bandwidth")][String]$MaxBandwidth,
+        [parameter(
+                Mandatory=$False,
+                Position=13,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Use the Amazon S3 Accelerate endpoint for all s3 and s3api commands. S3 Accelerate must first be enabled on the bucket before attempting to use the accelerate endpoint. This is mutually exclusive with the use_dualstack_endpoint option.")][Alias("use_accelerate_endpoint")][String]$UseAccelerateEndpoint,
+        [parameter(
+                Mandatory=$False,
+                Position=14,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Use the Amazon S3 dual IPv4 / IPv6 endpoint for all s3 commands. This is mutually exclusive with the use_accelerate_endpoint option.")][Alias("use_dualstack_endpoint")][String]$UseDualstackEndpoint,
+        [parameter(
+                Mandatory=$False,
+                Position=15,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Specifies which addressing style to use. This controls if the bucket name is in the hostname or part of the URL. Value values are: path, virtual, and auto. The default value is auto.")][Alias("addressing_style")][ValidateSet("auto","path","virtual")][String]$AddressingStyle,
+        [parameter(
+                Mandatory=$False,
+                Position=16,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="Refers to whether or not to SHA256 sign sigv4 payloads. By default, this is disabled for streaming uploads (UploadPart and PutObject) when using https.")][Alias("payload_signing_enabled")][String]$PayloadSigningEnabled,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                HelpMessage="Enable or disable skipping of certificate validation checks. This includes all validations such as expiration, revocation, trusted root authority, etc.")][String]$SkipCertificateCheck
+    )
+
+    Begin {
+        if (!$Server -and $CurrentSgwServer) {
+            $Server = $CurrentSgwServer.PSObject.Copy()
+        }
+    }
+
+    Process {
+        $Config = [PSCustomObject]@{ProfileName = $ProfileName;
+                                    AccessKey = $AccessKey;
+                                    SecretKey = $SecretKey;
+                                    Region = $Region;
+                                    EndpointUrl = $EndpointUrl;
+                                    MaxConcurrentRequests = $MaxConcurrentRequests;
+                                    MaxQueueSize = $MaxQueueSize;
+                                    MultipartThreshold = $MultipartThreshold;
+                                    MultipartChunksize = $MultipartChunksize;
+                                    MaxBandwidth = $MaxBandwidth;
+                                    UseAccelerateEndpoint = $UseAccelerateEndpoint;
+                                    UseDualstackEndpoint = $UseDualstackEndpoint;
+                                    AddressingStyle = $AddressingStyle;
+                                    PayloadSigningEnabled = $PayloadSigningEnabled;
+                                    SkipCertificateCheck = $SkipCertificateCheck}
+
+        if (!$ProfileName -and !$AccessKey -and !$Server) {
+            $ProfileName = "default"
+        }
+
+        if ($ProfileName) {
+            Write-Verbose "Profile $ProfileName specified, therefore returning StorageGRID config of this profile"
+            $Config = Get-SgwProfiles -ProfileLocation $ProfileLocation | Where-Object { $_.ProfileName -eq $ProfileName }
+            if (!$Config) {
+                Write-Verbose "Config for profile $ProfileName not found"
+                return
+            }
+        }
+        elseif ($AccessKey) {
+            Write-Verbose "Access Key $AccessKey and Secret Access Key specified, therefore returning StorageGRID config for the keys"
+        }
+        else {
+            # if an explicit endpoint URL is provided, use instead of the one from provided server
+            if ($Server.AccountId) {
+                $AccountId = $Server.AccountId
+            }
+            if (!$EndpointUrl) {
+                $EndpointUrl = $Server.S3EndpointUrl
+            }
+            if (!$Server.DisableAutomaticAccessKeyGeneration -and $AccountId) {
+                Write-Verbose "No profile and no access key specified, but connected to StorageGRID tenant with Account ID $AccountId. Therefore using autogenerated temporary StorageGRID credentials"
+                if ($Server.AccessKeyStore[$AccountId].expires -ge (Get-Date).ToUniversalTime().AddMinutes(1) -or ($Server.AccessKeyStore[$AccountId] -and !$Server.AccessKeyStore[$AccountId].expires)) {
+                    $Credential = $Server.AccessKeyStore[$AccountId] | Sort-Object -Property expires | Select-Object -Last 1
+                    Write-Verbose "Using existing Access Key $( $Credential.AccessKey )"
+                }
+                else {
+                    $Credential = New-SgwS3AccessKey -Server $Server -Expires (Get-Date).AddSeconds($Server.TemporaryAccessKeyExpirationTime) -AccountId $AccountId
+                    Write-Verbose "Created new temporary Access Key $( $Credential.AccessKey )"
+                }
+                $Config.AccessKey = $Credential.AccessKey
+                $Config.SecretKey = $Credential.SecretAccessKey
+                $Config.EndpointUrl = [System.UriBuilder]::new($EndpointUrl)
+            }
+        }
+
+        if ($Region) {
+            $Config.Region = $Region
+        }
+        elseif (!$Config.region) {
+            $Config.Region = "us-east-1"
+        }
+
+        if ($EndpointUrl) {
+            $Config.EndpointUrl = $EndpointUrl
+        }
+
+        if ($MaxConcurrentRequests) {
+            $Config.MaxConcurrentRequests = $MaxConcurrentRequests
+        }
+        elseif (!$Config.MaxConcurrentRequests) {
+            $Config.MaxConcurrentRequests = ([Environment]::ProcessorCount)
+        }
+
+        if ($MaxQueueSize) {
+            $Config.MaxQueueSize = $MaxQueueSize
+        }
+        elseif (!$Config.MaxQueueSize) {
+            $Config.MaxQueueSize = 1000
+        }
+
+        if ($MultipartThreshold) {
+            $Config.MultipartThreshold = $MultipartThreshold
+        }
+        elseif (!$Config.MultipartThreshold) {
+            $Config.MultipartThreshold = "8MB"
+        }
+
+        if ($MultipartChunksize) {
+            $Config.MultipartChunksize = $MultipartChunksize
+        }
+        elseif (!$Config.MultipartChunksize) {
+            $MultipartChunksize = "8MB"
+        }
+
+        if ($MaxBandwidth) {
+            $Config.MaxBandwidth = $MaxBandwidth
+        }
+
+        if ($UseAccelerateEndpoint) {
+            $Config.UseAccelerateEndpoint = ([System.Convert]::ToBoolean($UseAccelerateEndpoint))
+        }
+        elseif ($Config.UseAccelerateEndpoint -eq $null) {
+            $UseAccelerateEndpoint = $false
+        }
+
+        if ($UseDualstackEndpoint) {
+            $Config.UseDualstackEndpoint = ([System.Convert]::ToBoolean($UseDualstackEndpoint))
+        }
+        elseif ($Config.UseDualstackEndpoint -eq $null) {
+            $UseDualstackEndpoint = $false
+        }
+
+        if ($AddressingStyle) {
+            $Config.AddressingStyle = $AddressingStyle
+        }
+        elseif (!$Config.AddressingStyle) {
+            $AddressingStyle = "auto"
+        }
+
+        if ($PayloadSigningEnabled) {
+            $Config.PayloadSigningEnabled = ([System.Convert]::ToBoolean($PayloadSigningEnabled))
+        }
+        elseif ($Config.PayloadSigningEnabled -eq $null) {
+            $PayloadSigningEnabled = $false
+        }
+
+        if ($SkipCertificateCheck) {
+            $Config.SkipCertificateCheck = ([System.Convert]::ToBoolean($SkipCertificateCheck))
+        }
+        elseif ($SkipCertificateCheck -eq $null) {
+            $SkipCertificateCheck = $false
+        }
+
+        Write-Output $Config
+    }
+}
+
+Set-Alias -Name Remove-AwsProfile -Value Remove-SgwConfig
+Set-Alias -Name Remove-AwsCredential -Value Remove-SgwConfig
+<#
+    .SYNOPSIS
+    Remove StorageGRID Config
+    .DESCRIPTION
+    Remove StorageGRID Config
+    .PARAMETER ProfileName
+    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    .PARAMETER ProfileLocation
+    StorageGRID Profile location if different than .aws/credentials
+#>
+function Global:Remove-SgwConfig {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(
+                Mandatory=$True,
+                Position=0,
+                HelpMessage="StorageGRID Profile where config should be removed")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory=$False,
+                Position=1,
+                ValueFromPipelineByPropertyName=$True,
+                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
+    )
+
+    Process {
+        $ConfigLocation = $ProfileLocation -replace "/[^/]+$",'/config'
+
+        $Credentials = ConvertFrom-SgwConfigFile -SgwConfigFile $ProfileLocation
+        $Credentials = $Credentials | Where-Object { $_.ProfileName -ne $ProfileName }
+        ConvertTo-SgwConfigFile -Config $Credentials -SgwConfigFile $ProfileLocation
+
+        $Configs = ConvertFrom-SgwConfigFile -SgwConfigFile $ConfigLocation
+        $Configs = $Configs | Where-Object { $_.ProfileName -ne $ProfileName }
+        ConvertTo-SgwConfigFile -Config $Configs -SgwConfigFile $ConfigLocation
+    }
+}
 
 ## accounts ##
 
@@ -3570,7 +4257,7 @@ function Global:Add-SgwEndpoint {
                 HelpMessage = "Skip endpoint certificate check.")][Alias("insecureTLS")][Switch]$SkipCertificateCheck,
         [parameter(Mandatory = $False,
                 Position = 6,
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 6,
                 HelpMessage = "S3 Access Key authorized to use the endpoint.")][String]$AccessKey,
@@ -3845,23 +4532,23 @@ function Global:Update-SgwEndpoint {
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndUrnAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndNameAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndUrnAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndNameAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "NameOnlyAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndUrnAndKey",
@@ -4055,11 +4742,11 @@ function Global:Add-SgwS3Endpoint {
         [parameter(Mandatory = $False,
                 Position = 6,
                 ParameterSetName = "RegionAndName",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 6,
                 ParameterSetName = "NameOnly",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 6,
                 ParameterSetName = "RegionAndName",
@@ -4230,23 +4917,23 @@ function Global:Update-SgwS3Endpoint {
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndUrnAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndNameAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndUrnAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndNameAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "NameOnlyAndProfile",
-                HelpMessage = "AWS Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
+                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "UriAndUrnAndKey",
