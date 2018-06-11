@@ -232,6 +232,30 @@ function ConvertTo-SgwConfigFile {
             New-Item -Path $SgwConfigFile -ItemType File -Force
         }
 
+        $SgwConfigDirectory = ([System.IO.DirectoryInfo]$SgwConfigFile).Parent.FullName
+
+        # make sure that parent folder is only accessible by current user
+        try {
+            if ([environment]::OSVersion.Platform -match "win") {
+                $Acl = Get-Acl -Path $SgwConfigDirectory
+                # remove inheritance
+                $Acl.SetAccessRuleProtection($true,$false)
+                $AcessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+                    $env:USERNAME,"FullControl",
+                    ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit),
+                    [System.Security.AccessControl.PropagationFlags]::None,
+                    [System.Security.AccessControl.AccessControlType]::Allow)
+                $Acl.AddAccessRule($AcessRule)
+                Set-Acl -Path $SgwConfigDirectory -AclRule
+            }
+            else {
+                Invoke-Expression "chmod 700 $SgwConfigDirectory"
+            }
+        }
+        catch {
+            Write-Warning "Couldn't restrict access to directory $SgwConfigDirectory"
+        }
+
         Write-Verbose "Writing StorageGRID Configuration to $SgwConfigFile"
 
         if ($SgwConfigFile -match "credentials$") {
@@ -465,16 +489,22 @@ Set-Alias -Name Update-SgwCredential -Value Add-SgwProfile
     StorageGRID Profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
     StorageGRID Profile location if different than .aws/credentials
+    .PARAMETER Name
+    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
-    Credential
-    .PARAMETER AccessKey
-    S3 Access Key
-    .PARAMETER SecretKey
-    S3 Secret Access Key
-    .PARAMETER Region
-    Default Region to use for all requests made with these credentials
-    .PARAMETER EndpointUrl
-    Custom endpoint URL if different than StorageGRID URL
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    .PARAMETER SkipCertificateCheck
+    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.
+    .PARAMETER AccountId
+    Account ID of the StorageGRID Webscale tenant to connect to.
+    .PARAMETER DisableAutomaticAccessKeyGeneration
+    By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
+    .PARAMETER TemporaryAccessKeyExpirationTime
+    Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).
+    .PARAMETER S3EndpointUrl
+    S3 Endpoint URL to be used.
+    .PARAMETER SwiftEndpointUrl
+    Swift Endpoint URL to be used.
 #>
 function Global:Add-SgwProfile {
     [CmdletBinding()]
@@ -580,7 +610,7 @@ function Global:Add-SgwProfile {
         }
 
         if ($DisableAutomaticAccessKeyGeneration) {
-            $Config | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value $DisableAutomaticAccessKeyGeneration -Force
+            $Config | Add-Member -MemberType NoteProperty -Name disable_automatic_access_key_generation -Value $DisableAutomaticAccessKeyGeneration -Force
         }
 
         if ($TemporaryAccessKeyExpirationTime -and $TemporaryAccessKeyExpirationTime -ne 3600) {
@@ -594,7 +624,7 @@ function Global:Add-SgwProfile {
 
         if ($SwiftEndpointUrl) {
             $SwiftEndpointUrlString = $SwiftEndpointUrl -replace "(http://.*:80)",'$1' -replace "(https://.*):443",'$1' -replace "/$",""
-            $Config | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $SwiftEndpointUrlString -Force
+            $Config | Add-Member -MemberType NoteProperty -Name swift_endpoint_url -Value $SwiftEndpointUrlString -Force
         }
 
         if ($SkipCertificateCheck -ne $null) {
@@ -674,29 +704,29 @@ function Global:Get-SgwProfiles {
             }
 
             if ($Config.AccountId) {
-                $Output | Add-Member -MemberType NoteProperty -Name AccountId -Value $Config.AccountId
+                $Output | Add-Member -MemberType NoteProperty -Name AccountId -Value $Config.account_id
             }
 
             if ($Config.DisableAutomaticAccessKeyGeneration) {
-                $Output | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value ([System.Convert]::ToBoolean($Config.DisableAutomaticAccessKeyGeneration))
+                $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value ([System.Convert]::ToBoolean($Config.disalble_automatic_access_key_generation))
             }
             else {
-                $Output | Add-Member -MemberType NoteProperty -Name disalble_automatic_access_key_generation -Value $False
+                $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value $False
             }
 
             if ($Config.TemporaryAccessKeyExpirationTime) {
-                $Output | Add-Member -MemberType NoteProperty -Name temporary_access_key_expiration_time -Value $Config.TemporaryAccessKeyExpirationTime
+                $Output | Add-Member -MemberType NoteProperty -Name TemporaryAccessKeyExpirationTime -Value $Config.temporary_access_key_expiration_time
             }
             else {
-                $Output | Add-Member -MemberType NoteProperty -Name temporary_access_key_expiration_time -Value 3600
+                $Output | Add-Member -MemberType NoteProperty -Name TemporaryAccessKeyExpirationTime -Value 3600
             }
 
             if ($Config.S3EndpointUrl) {
-                $Output | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $Config.S3EndpointUrlString
+                $Output | Add-Member -MemberType NoteProperty -Name S3EndpointUrlString -Value $Config.s3_endpoint_url
             }
 
             if ($Config.SwiftEndpointUrl) {
-                $Output | Add-Member -MemberType NoteProperty -Name s3_endpoint_url -Value $Config.SwiftEndpointUrlString
+                $Output | Add-Member -MemberType NoteProperty -Name SwiftEndpointUrlString -Value $Config.swift_endpoint_url
             }
 
             if ($Config.skip_certificate_check) {
@@ -710,33 +740,32 @@ function Global:Get-SgwProfiles {
     }
 }
 
-Set-Alias -Name Get-AwsProfile -Value Get-SgwProfile
-Set-Alias -Name Get-AwsCredential -Value Get-SgwProfile
+Set-Alias -Name Get-SgwCredential -Value Get-SgwProfile
 <#
     .SYNOPSIS
-    Get StorageGRID config
+    Add StorageGRID Credentials
     .DESCRIPTION
-    Get StorageGRID config
-    If there is a connection to a StorageGRID, this is the StorageGRID config of the connected tenant.
-    If a profile is provided, it is the StorageGRID config of the StorageGRID profile.
-    .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used
+    Add StorageGRID Credentials
     .PARAMETER ProfileName
     StorageGRID Profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
     StorageGRID Profile location if different than .aws/credentials
+    .PARAMETER Name
+    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
-    Credential
-    .PARAMETER AccessKey
-    S3 Access Key
-    .PARAMETER SecretKey
-    S3 Secret Access Key
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    .PARAMETER SkipCertificateCheck
+    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.
     .PARAMETER AccountId
-    StorageGRID Account ID
-    .PARAMETER Region
-    Default Region to use for all requests made with these credentials
-    .PARAMETER EndpointUrl
-    Custom endpoint URL if different than StorageGRID URL
+    Account ID of the StorageGRID Webscale tenant to connect to.
+    .PARAMETER DisableAutomaticAccessKeyGeneration
+    By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
+    .PARAMETER TemporaryAccessKeyExpirationTime
+    Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).
+    .PARAMETER S3EndpointUrl
+    S3 Endpoint URL to be used.
+    .PARAMETER SwiftEndpointUrl
+    Swift Endpoint URL to be used.
 #>
 function Global:Get-SgwProfile {
     [CmdletBinding()]
@@ -746,91 +775,52 @@ function Global:Get-SgwProfile {
                 Mandatory=$False,
                 Position=0,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage="StorageGRID Profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
         [parameter(
                 Mandatory=$False,
                 Position=1,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile to use which contains StorageGRID credentials and settings")][Alias("Profile")][String]$ProfileName="default",
-        [parameter(
-                Mandatory=$False,
-                Position=2,
                 ValueFromPipelineByPropertyName=$True,
                 HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
-        [parameter(
-                Mandatory=$False,
-                Position=3,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="S3 Access Key")][String]$AccessKey,
-        [parameter(
-                Mandatory=$False,
-                Position=4,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="S3 Secret Access Key")][String]$SecretKey,
-        [parameter(
-                Mandatory=$False,
-                Position=5,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Account ID")][String]$AccountId,
-        [parameter(
-                Mandatory=$False,
-                Position=6,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Default Region to use for all requests made with these credentials")][String]$Region,
-        [parameter(
-                Mandatory=$False,
-                Position=7,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Endpoint URL")][System.UriBuilder]$EndpointUrl,
-        [parameter(
-                Mandatory=$False,
-                Position=8,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="The maximum number of concurrent requests (Default: 10)")][Alias("max_concurrent_requests")][UInt16]$MaxConcurrentRequests,
-        [parameter(
-                Mandatory=$False,
-                Position=9,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="The maximum number of tasks in the task queue")][Alias("max_queue_size")][UInt16]$MaxQueueSize,
-        [parameter(
-                Mandatory=$False,
-                Position=10,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="The size threshold where multipart uploads are used of individual files (Default: 8MB)")][Alias("multipart_threshold")][String]$MultipartThreshold,
-        [parameter(
-                Mandatory=$False,
-                Position=11,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="When using multipart transfers, this is the chunk size that is used for multipart transfers of individual files (Default: 8MB)")][Alias("multipart_chunksize")][String]$MultipartChunksize,
-        [parameter(
-                Mandatory=$False,
-                Position=12,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="The maximum bandwidth that will be consumed for uploading and downloading data to and from Amazon S3")][Alias("max_bandwidth")][String]$MaxBandwidth,
-        [parameter(
-                Mandatory=$False,
-                Position=13,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Use the Amazon S3 Accelerate endpoint for all s3 and s3api commands. S3 Accelerate must first be enabled on the bucket before attempting to use the accelerate endpoint. This is mutually exclusive with the use_dualstack_endpoint option.")][Alias("use_accelerate_endpoint")][String]$UseAccelerateEndpoint,
-        [parameter(
-                Mandatory=$False,
-                Position=14,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Use the Amazon S3 dual IPv4 / IPv6 endpoint for all s3 commands. This is mutually exclusive with the use_accelerate_endpoint option.")][Alias("use_dualstack_endpoint")][String]$UseDualstackEndpoint,
-        [parameter(
-                Mandatory=$False,
-                Position=15,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Specifies which addressing style to use. This controls if the bucket name is in the hostname or part of the URL. Value values are: path, virtual, and auto. The default value is auto.")][Alias("addressing_style")][ValidateSet("auto","path","virtual")][String]$AddressingStyle,
-        [parameter(
-                Mandatory=$False,
-                Position=16,
-                ValueFromPipelineByPropertyName=$True,
-                HelpMessage="Refers to whether or not to SHA256 sign sigv4 payloads. By default, this is disabled for streaming uploads (UploadPart and PutObject) when using https.")][Alias("payload_signing_enabled")][String]$PayloadSigningEnabled,
-        [parameter(
-                Mandatory=$False,
-                Position=1,
-                HelpMessage="Enable or disable skipping of certificate validation checks. This includes all validations such as expiration, revocation, trusted root authority, etc.")][String]$SkipCertificateCheck
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+        [parameter(Position = 5,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+        [parameter(Position = 6,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
+        [parameter(Position = 7,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime,
+        [parameter(Position = 8,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
+        [parameter(Position = 9,
+                Mandatory = $False,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
     )
 
     Begin {
@@ -840,152 +830,79 @@ function Global:Get-SgwProfile {
     }
 
     Process {
-        $Config = [PSCustomObject]@{ProfileName = $ProfileName;
-                                    AccessKey = $AccessKey;
-                                    SecretKey = $SecretKey;
-                                    Region = $Region;
-                                    EndpointUrl = $EndpointUrl;
-                                    MaxConcurrentRequests = $MaxConcurrentRequests;
-                                    MaxQueueSize = $MaxQueueSize;
-                                    MultipartThreshold = $MultipartThreshold;
-                                    MultipartChunksize = $MultipartChunksize;
-                                    MaxBandwidth = $MaxBandwidth;
-                                    UseAccelerateEndpoint = $UseAccelerateEndpoint;
-                                    UseDualstackEndpoint = $UseDualstackEndpoint;
-                                    AddressingStyle = $AddressingStyle;
-                                    PayloadSigningEnabled = $PayloadSigningEnabled;
-                                    SkipCertificateCheck = $SkipCertificateCheck}
-
-        if (!$ProfileName -and !$AccessKey -and !$Server) {
+        if (!$ProfileName) {
             $ProfileName = "default"
         }
 
-        if ($ProfileName) {
-            Write-Verbose "Profile $ProfileName specified, therefore returning StorageGRID config of this profile"
-            $Config = Get-SgwProfiles -ProfileLocation $ProfileLocation | Where-Object { $_.ProfileName -eq $ProfileName }
-            if (!$Config) {
-                Write-Verbose "Config for profile $ProfileName not found"
-                return
-            }
-        }
-        elseif ($AccessKey) {
-            Write-Verbose "Access Key $AccessKey and Secret Access Key specified, therefore returning StorageGRID config for the keys"
-        }
-        else {
-            # if an explicit endpoint URL is provided, use instead of the one from provided server
-            if ($Server.AccountId) {
-                $AccountId = $Server.AccountId
-            }
-            if (!$EndpointUrl) {
-                $EndpointUrl = $Server.S3EndpointUrl
-            }
-            if (!$Server.DisableAutomaticAccessKeyGeneration -and $AccountId) {
-                Write-Verbose "No profile and no access key specified, but connected to StorageGRID tenant with Account ID $AccountId. Therefore using autogenerated temporary StorageGRID credentials"
-                if ($Server.AccessKeyStore[$AccountId].expires -ge (Get-Date).ToUniversalTime().AddMinutes(1) -or ($Server.AccessKeyStore[$AccountId] -and !$Server.AccessKeyStore[$AccountId].expires)) {
-                    $Credential = $Server.AccessKeyStore[$AccountId] | Sort-Object -Property expires | Select-Object -Last 1
-                    Write-Verbose "Using existing Access Key $( $Credential.AccessKey )"
-                }
-                else {
-                    $Credential = New-SgwS3AccessKey -Server $Server -Expires (Get-Date).AddSeconds($Server.TemporaryAccessKeyExpirationTime) -AccountId $AccountId
-                    Write-Verbose "Created new temporary Access Key $( $Credential.AccessKey )"
-                }
-                $Config.AccessKey = $Credential.AccessKey
-                $Config.SecretKey = $Credential.SecretAccessKey
-                $Config.EndpointUrl = [System.UriBuilder]::new($EndpointUrl)
-            }
+        $Configs = Get-SgwProfiles
+
+        $Config = $Configs | Where-Object { $_.ProfileName -eq $ProfileName }
+
+        if (!$Config) {
+            $Config = [PSCustomObject]@{ProfileName = $ProfileName;
+                Name = $Name;
+                Credential = $Credential;
+                SkipCertificateCheck = $SkipCertificateCheck;
+                AccountId = $AccountId;
+                DisableAutomaticAccessKeyGeneration = $DisableAutomaticAccessKeyGeneration;
+                TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime;
+                S3EndpointUrl = $S3EndpointUrl;
+                SwiftEndpointUrl = $SwiftEndpointUrl}
         }
 
-        if ($Region) {
-            $Config.Region = $Region
-        }
-        elseif (!$Config.region) {
-            $Config.Region = "us-east-1"
+        if ($Name) {
+            $Config.Name = $Name
         }
 
-        if ($EndpointUrl) {
+        if ($Credential) {
             $Config.EndpointUrl = $EndpointUrl
         }
 
-        if ($MaxConcurrentRequests) {
-            $Config.MaxConcurrentRequests = $MaxConcurrentRequests
+        if ($SkipCertificateCheck -ne $null) {
+            $Config.SkipCertificateCheck = $SkipCertificateCheck
         }
-        elseif (!$Config.MaxConcurrentRequests) {
-            $Config.MaxConcurrentRequests = ([Environment]::ProcessorCount)
-        }
-
-        if ($MaxQueueSize) {
-            $Config.MaxQueueSize = $MaxQueueSize
-        }
-        elseif (!$Config.MaxQueueSize) {
-            $Config.MaxQueueSize = 1000
+        elseif (!$Config.SkipCertificateCheck) {
+            $Config.SkipCertificateCheck = $False
         }
 
-        if ($MultipartThreshold) {
-            $Config.MultipartThreshold = $MultipartThreshold
-        }
-        elseif (!$Config.MultipartThreshold) {
-            $Config.MultipartThreshold = "8MB"
+        if ($AccountId) {
+            $Config.AccountId = $AccountId
         }
 
-        if ($MultipartChunksize) {
-            $Config.MultipartChunksize = $MultipartChunksize
+        if ($DisableAutomaticAccessKeyGeneration) {
+            $Config.DisableAutomaticAccessKeyGeneration = $DisableAutomaticAccessKeyGeneration
         }
-        elseif (!$Config.MultipartChunksize) {
-            $MultipartChunksize = "8MB"
-        }
-
-        if ($MaxBandwidth) {
-            $Config.MaxBandwidth = $MaxBandwidth
+        elseif (!$Config.DisableAutomaticAccessKeyGeneration) {
+            $Config.DisableAutomaticAccessKeyGeneration = $False
         }
 
-        if ($UseAccelerateEndpoint) {
-            $Config.UseAccelerateEndpoint = ([System.Convert]::ToBoolean($UseAccelerateEndpoint))
+        if ($TemporaryAccessKeyExpirationTime) {
+            $Config.TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime
         }
-        elseif ($Config.UseAccelerateEndpoint -eq $null) {
-            $UseAccelerateEndpoint = $false
-        }
-
-        if ($UseDualstackEndpoint) {
-            $Config.UseDualstackEndpoint = ([System.Convert]::ToBoolean($UseDualstackEndpoint))
-        }
-        elseif ($Config.UseDualstackEndpoint -eq $null) {
-            $UseDualstackEndpoint = $false
+        elseif (!$Config.TemporaryAccessKeyExpirationTime) {
+            $Config.TemporaryAccessKeyExpirationTime = 3600
         }
 
-        if ($AddressingStyle) {
-            $Config.AddressingStyle = $AddressingStyle
-        }
-        elseif (!$Config.AddressingStyle) {
-            $AddressingStyle = "auto"
+        if ($S3EndpointUrl) {
+            $Config.S3EndpointUrl = $S3EndpointUrl
         }
 
-        if ($PayloadSigningEnabled) {
-            $Config.PayloadSigningEnabled = ([System.Convert]::ToBoolean($PayloadSigningEnabled))
-        }
-        elseif ($Config.PayloadSigningEnabled -eq $null) {
-            $PayloadSigningEnabled = $false
-        }
-
-        if ($SkipCertificateCheck) {
-            $Config.SkipCertificateCheck = ([System.Convert]::ToBoolean($SkipCertificateCheck))
-        }
-        elseif ($SkipCertificateCheck -eq $null) {
-            $SkipCertificateCheck = $false
+        if ($SwiftEndpointUrl) {
+            $Config.SwiftEndpointUrl = $SwiftEndpointUrl
         }
 
         Write-Output $Config
     }
 }
 
-Set-Alias -Name Remove-AwsProfile -Value Remove-SgwConfig
-Set-Alias -Name Remove-AwsCredential -Value Remove-SgwConfig
+Set-Alias -Name Remove-SgwCredential -Value Remove-SgwConfig
 <#
     .SYNOPSIS
     Remove StorageGRID Config
     .DESCRIPTION
     Remove StorageGRID Config
     .PARAMETER ProfileName
-    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    StorageGRID Profile to remove which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
     StorageGRID Profile location if different than .aws/credentials
 #>
@@ -4192,7 +4109,10 @@ function Global:Get-SgwEndpoints {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.")][String]$Profile
     )
 
     Begin {
