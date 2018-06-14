@@ -337,6 +337,7 @@ function Invoke-SgwRequest {
 
         try {
             if ($PSVersionTable.PSVersion.Major -lt 6) {
+                Write-Verbose "Using Invoke-WebRequest for PowerShell 5 and earlier"
                 if ($SkipCertificateCheck.isPresent) {
                     $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
@@ -385,6 +386,7 @@ function Invoke-SgwRequest {
                 }
             }
             else {
+                Write-Verbose "Using Invoke-WebRequest for PowerShell 6 and later"
                 if ($Body) {
                     Write-Verbose "Body:`n$Body"
                     if ($SessionVariable) {
@@ -684,7 +686,7 @@ function Global:Get-SgwProfiles {
                 $Configs = @($Configs) + $Config
             }
             if ($Credential.username -and $Credential.password) {
-                $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.password | ConvertTo-SecureString -AsPlainText -Force))) -Force
+                $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.password | ConvertTo-SecureString -AsPlainText -Force))) -Force
             }
         }
 
@@ -1919,7 +1921,22 @@ function global:Connect-SgwServer {
         $Server.BaseUri = "https://$Name/api/v2"
 
         Try {
-            $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+            if ($PSVersionTable.PSVersion.Major -lt 6) {
+                $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
+                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+                try {
+                    $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
+                }
+                catch {
+                    Throw
+                }
+                finally {
+                    [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
+                }
+            }
+            else {
+                $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+            }
         }
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
