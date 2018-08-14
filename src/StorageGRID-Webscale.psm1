@@ -470,8 +470,6 @@ function Invoke-SgwRequest {
 
 ## profile ##
 
-# TODO: Implement separate Update Cmdlet which does not overwrite values with defaults
-
 Set-Alias -Name Set-SgwProfile -Value Add-SgwProfile
 Set-Alias -Name New-SgwProfile -Value Add-SgwProfile
 Set-Alias -Name Update-SgwProfile -Value Add-SgwProfile
@@ -481,9 +479,9 @@ Set-Alias -Name Add-SgwCredential -Value Add-SgwProfile
 Set-Alias -Name Update-SgwCredential -Value Add-SgwProfile
 <#
     .SYNOPSIS
-    Add StorageGRID Credentials
+    Add StorageGRID Profile
     .DESCRIPTION
-    Add StorageGRID Credentials
+    Add StorageGRID Profile
     .PARAMETER ProfileName
     StorageGRID Profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
@@ -630,9 +628,9 @@ function Global:Add-SgwProfile {
 Set-Alias -Name Get-SgwCredentials -Value Get-SgwProfiles
 <#
     .SYNOPSIS
-    Get the StorageGRID config for all profiles and if there is a connection to a StorageGRID, it includes the StorageGRID config of the connected tenant
+    Get all StorageGRID profiles
     .DESCRIPTION
-    Get the StorageGRID config for all profiles and if there is a connection to a StorageGRID, it includes the StorageGRID config of the connected tenant
+    Get the StorageGRID profiles
     .PARAMETER ProfileLocation
     StorageGRID Profile location if different than .aws/credentials
 #>
@@ -734,9 +732,9 @@ function Global:Get-SgwProfiles {
 Set-Alias -Name Get-SgwCredential -Value Get-SgwProfile
 <#
     .SYNOPSIS
-    Add StorageGRID Credentials
+    Get StorageGRID Profile
     .DESCRIPTION
-    Add StorageGRID Credentials
+    Get StorageGRID Profile
     .PARAMETER ProfileName
     StorageGRID Profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
@@ -886,12 +884,12 @@ function Global:Get-SgwProfile {
     }
 }
 
-Set-Alias -Name Remove-SgwCredential -Value Remove-SgwConfig
+Set-Alias -Name Remove-SgwCredential -Value Remove-SgwProfile
 <#
     .SYNOPSIS
-    Remove StorageGRID Config
+    Remove StorageGRID Profile
     .DESCRIPTION
-    Remove StorageGRID Config
+    Remove StorageGRID Profile
     .PARAMETER ProfileName
     StorageGRID Profile to remove which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
