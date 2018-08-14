@@ -156,7 +156,6 @@ function ConvertFrom-UnixTimestamp {
     }
 }
 
-
 function ConvertFrom-SgwConfigFile {
     #private
     [CmdletBinding()]
@@ -187,8 +186,11 @@ function ConvertFrom-SgwConfigFile {
         # remove profile string from profile section
         $Content = $Content -replace "profile ", ""
 
+        # remove keys with empty value
+        $Content = $Content -replace "\n\s*([^=\s`"]+)\s*=\s*\n","`n"
+
         # replace key value pairs with quoted key value pairs and replace = with :
-        $Content = $Content -replace "\n\s*([^=^\s^`"]+)\s*=\s*([^\s^\n]*)","`n`"`$1`":`"`$2`","
+        $Content = $Content -replace "\n\s*([^=\s`"]+)\s*=\s*([^\s\n]*)","`n`"`$1`":`"`$2`","
 
         # make sure that Profile is a Key Value inside the JSON Object
         $Content = $Content -replace "\[([^\]]+)\]([^\[]+)","{`"ProfileName`":`"`$1`",`$2},`n"
@@ -519,42 +521,34 @@ function Global:Add-SgwProfile {
                 HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
         [parameter(Mandatory = $False,
                 Position = 2,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
         [parameter(Mandatory = $True,
                 Position = 3,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory = $False,
                 Position = 4,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
         [parameter(Position = 5,
                 Mandatory = $False,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
         [parameter(Position = 6,
                 Mandatory = $False,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.")][Switch]$DisableAutomaticAccessKeyGeneration,
         [parameter(Position = 7,
                 Mandatory = $False,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Time in seconds until automatically generated temporary S3 Access Keys expire (default 3600 seconds).")][Int]$TemporaryAccessKeyExpirationTime = 3600,
         [parameter(Position = 8,
                 Mandatory = $False,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "S3 Endpoint URL to be used.")][System.UriBuilder]$S3EndpointUrl,
         [parameter(Position = 9,
                 Mandatory = $False,
-                ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
     )
