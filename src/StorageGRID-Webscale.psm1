@@ -1019,6 +1019,9 @@ function Global:Get-SgwAccounts {
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
             $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+            $Account | Add-Member -MemberType ScriptProperty -Name useAccountIdentitySource -Value { $this.Policy.useAccountIdentitySource }
+            $Account | Add-Member -MemberType ScriptProperty -Name allowPlatformServices -Value { $this.Policy.allowPlatformServices }
+            $Account | Add-Member -MemberType ScriptProperty -Name quota -Value { $this.Policy.quotaObjectBytes }
         }
 
         Write-Output $Accounts
@@ -1106,7 +1109,7 @@ function Global:New-SgwAccount {
                 Position = 6,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Quota for tenant in bytes.")][Long]$Quota,
+                HelpMessage = "Quota for tenant in bytes.")][Alias("QuotaObjectBytes")][Long]$Quota,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
