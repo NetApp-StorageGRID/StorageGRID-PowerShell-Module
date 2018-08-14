@@ -925,13 +925,27 @@ function Global:Remove-SgwProfile {
 
 ## accounts ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieve all StorageGRID Webscale Accounts
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Accounts
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Limit
+    Maximum number of results.
+    .PARAMETER Marker
+    Pagination offset (value is Account's id).
+    .PARAMETER IncludeMarker
+    If set, the marker element is also returned.
+    .PARAMETER Order
+    Pagination order (desc requires marker).
+    .PARAMETER Capabilities
+    Comma separated list of capabilities of the accounts to return. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).
 #>
 function Global:Get-SgwAccounts {
     [CmdletBinding()]
@@ -942,7 +956,7 @@ function Global:Get-SgwAccounts {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Maximum number of results.")][Int]$Limit = 0,
@@ -951,17 +965,20 @@ function Global:Get-SgwAccounts {
                 HelpMessage = "Pagination offset (value is Account's id).")][String]$Marker,
         [parameter(Mandatory = $False,
                 Position = 4,
-                HelpMessage = "if set, the marker element is also returned.")][Switch]$IncludeMarker,
+                HelpMessage = "If set, the marker element is also returned.")][Switch]$IncludeMarker,
         [parameter(Mandatory = $False,
                 Position = 5,
-                HelpMessage = "pagination order (desc requires marker).")][ValidateSet("asc", "desc")][String]$Order = "asc",
+                HelpMessage = "Pagination order (desc requires marker).")][ValidateSet("asc", "desc")][String]$Order = "asc",
         [parameter(Mandatory = $False,
                 Position = 6,
                 HelpMessage = "Comma separated list of capabilities of the accounts to return. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).")][ValidateSet("swift", "s3", "management")][String[]]$Capabilities
     )
 
     Begin {
-        if (!$Server -and !$CurrentSgwServer.Name) {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -1044,6 +1061,8 @@ function Global:Get-SgwAccounts {
     Create a StorageGRID Webscale Account
     .PARAMETER Server
     StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
     .PARAMETER Name
     Name of the StorageGRID Webscale Account to be created.
     .PARAMETER Capabilities
@@ -1079,7 +1098,7 @@ function Global:New-SgwAccount {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -1123,6 +1142,14 @@ function Global:New-SgwAccount {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1199,27 +1226,41 @@ function Global:New-SgwAccount {
     Delete a StorageGRID Webscale Account
     .DESCRIPTION
     Delete a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to delete.
 #>
 function Global:Remove-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale Account to delete.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "ID of a StorageGRID Webscale Account to delete.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1251,6 +1292,14 @@ function Global:Remove-SgwAccount {
     Retrieve a StorageGRID Webscale Account
     .DESCRIPTION
     Retrieve a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to get information for.
+    .PARAMETER Name
+    Name of a StorageGRID Webscale Account to get information for.
 #>
 function Global:Get-SgwAccount {
     [CmdletBinding(DefaultParameterSetName = "id")]
@@ -1262,7 +1311,7 @@ function Global:Get-SgwAccount {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -1280,6 +1329,14 @@ function Global:Get-SgwAccount {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1313,6 +1370,9 @@ function Global:Get-SgwAccount {
             $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
             $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
             $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.AccountId )"
+            $Account | Add-Member -MemberType ScriptProperty -Name useAccountIdentitySource -Value { $this.Policy.useAccountIdentitySource }
+            $Account | Add-Member -MemberType ScriptProperty -Name allowPlatformServices -Value { $this.Policy.allowPlatformServices }
+            $Account | Add-Member -MemberType ScriptProperty -Name quota -Value { $this.Policy.quotaObjectBytes }
 
             Write-Output $Account
         }
@@ -1324,6 +1384,22 @@ function Global:Get-SgwAccount {
     Update a StorageGRID Webscale Account
     .DESCRIPTION
     Update a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to update.
+    .PARAMETER Capabilities
+    Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).
+    .PARAMETER Name
+    New name of the StorageGRID Webscale Account.
+    .PARAMETER UseAccountIdentitySource
+    Use account identity source (supported since StorageGRID 10.4).
+    .PARAMETER AllowPlatformServices
+    Allow platform services to be used (supported since StorageGRID 11.0).
+    .PARAMETER Quota
+    Quota for tenant in bytes.
 #>
 function Global:Update-SgwAccount {
     [CmdletBinding()]
@@ -1335,7 +1411,7 @@ function Global:Update-SgwAccount {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -1357,7 +1433,7 @@ function Global:Update-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
+                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $false,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
@@ -1365,6 +1441,14 @@ function Global:Update-SgwAccount {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1422,6 +1506,9 @@ function Global:Update-SgwAccount {
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
         $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+        $Account | Add-Member -MemberType ScriptProperty -Name useAccountIdentitySource -Value { $this.Policy.useAccountIdentitySource }
+        $Account | Add-Member -MemberType ScriptProperty -Name allowPlatformServices -Value { $this.Policy.allowPlatformServices }
+        $Account | Add-Member -MemberType ScriptProperty -Name quota -Value { $this.Policy.quotaObjectBytes }
 
         Write-Output $Account
     }
@@ -1432,6 +1519,22 @@ function Global:Update-SgwAccount {
     Replace a StorageGRID Webscale Account
     .DESCRIPTION
     Replace a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to replace.
+    .PARAMETER Capabilities
+    Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).
+    .PARAMETER Name
+    New name of the StorageGRID Webscale Account.
+    .PARAMETER UseAccountIdentitySource
+    Use account identity source (supported since StorageGRID 10.4).
+    .PARAMETER AllowPlatformServices
+    Allow platform services to be used (supported since StorageGRID 11.0).
+    .PARAMETER Quota
+    Quota for tenant in bytes.
 #>
 function Global:Replace-SgwAccount {
     [CmdletBinding()]
@@ -1443,11 +1546,11 @@ function Global:Replace-SgwAccount {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                HelpMessage = "ID of a StorageGRID Webscale Account to replace.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
@@ -1465,7 +1568,7 @@ function Global:Replace-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
+                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $false,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
@@ -1473,6 +1576,14 @@ function Global:Replace-SgwAccount {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1495,6 +1606,9 @@ function Global:Replace-SgwAccount {
     }
 
     Process {
+        $Uri = $Server.BaseURI + "/grid/accounts/$id"
+        $Method = "PUT"
+
         $Body = @{ }
         if ($Name) {
             $Body.name = $Name
@@ -1527,6 +1641,9 @@ function Global:Replace-SgwAccount {
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
         $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+        $Account | Add-Member -MemberType ScriptProperty -Name useAccountIdentitySource -Value { $this.Policy.useAccountIdentitySource }
+        $Account | Add-Member -MemberType ScriptProperty -Name allowPlatformServices -Value { $this.Policy.allowPlatformServices }
+        $Account | Add-Member -MemberType ScriptProperty -Name quota -Value { $this.Policy.quotaObjectBytes }
 
         Write-Output $Account
     }
@@ -1537,35 +1654,53 @@ function Global:Replace-SgwAccount {
     Change Swift Admin Password for StorageGRID Webscale Account
     .DESCRIPTION
     Change Swift Admin Password for StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to update.
+    .PARAMETER OldPassword
+    Old Password.
+    .PARAMETER NewPassword
+    New Password.
 #>
 function Global:Update-SgwSwiftAdminPassword {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String[]]$Id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Old Password.")][String]$OldPassword,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
                 Mandatory = $True,
                 Position = 3,
-                HelpMessage = "New Password.")][String]$NewPassword,
+                HelpMessage = "Old Password.")][String]$OldPassword,
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 4,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "New Password.")][String]$NewPassword
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1573,7 +1708,7 @@ function Global:Update-SgwSwiftAdminPassword {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
-            Write-Error "This Cmdlet is only supported with API Version 1.0. Use the new Update-SgwPassword Cmdlet instead!"
+            Throw "This Cmdlet is only supported with API Version 1.0. Use the new Update-SgwPassword Cmdlet instead!"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -1581,27 +1716,20 @@ function Global:Update-SgwSwiftAdminPassword {
     }
 
     Process {
-        $Id = @($Id)
-        foreach ($Id in $Id) {
-            $Uri = $Server.BaseURI + "/grid/accounts/$id/swift-admin-password"
-            $Method = "POST"
+        $Uri = $Server.BaseURI + "/grid/accounts/$id/swift-admin-password"
+        $Method = "POST"
 
-            $Body = @"
-{
-  "password": "$NewPassword",
-  "currentPassword": "$OldPassword"
-}
-"@
-            try {
-                $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
-            }
-            catch {
-                $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+        $Body = ConvertTo-Json -InputObject @{password = $NewPassword;currentPassword = $OldPassword}
 
-            Write-Output $Response.Json.data
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
     }
 }
 
@@ -1610,35 +1738,53 @@ function Global:Update-SgwSwiftAdminPassword {
     Changes the root user password for the Storage Tenant Account
     .DESCRIPTION
     Changes the root user password for the Storage Tenant Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to update.
+    .PARAMETER OldPassword
+    Old Password.
+    .PARAMETER NewPassword
+    CNew Password.
 #>
 function Global:Update-SgwPassword {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$Id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Old Password.")][String]$OldPassword,
+                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
                 Mandatory = $True,
                 Position = 3,
-                HelpMessage = "New Password.")][String]$NewPassword,
+                HelpMessage = "Old Password.")][String]$OldPassword,
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 4,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "New Password.")][String]$NewPassword
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1657,12 +1803,8 @@ function Global:Update-SgwPassword {
         $Uri = $Server.BaseURI + "/grid/accounts/$id/change-password"
         $Method = "POST"
 
-        $Body = @"
-{
-  "password": "$NewPassword",
-  "currentPassword": "$OldPassword"
-}
-"@
+        $Body = ConvertTo-Json -InputObject @{password = $NewPassword;currentPassword = $OldPassword}
+
         try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
@@ -1680,6 +1822,12 @@ function Global:Update-SgwPassword {
     Retrieve StorageGRID Webscale Account Usage Report
     .DESCRIPTION
     Retrieve StorageGRID Webscale Account Usage Report
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to get usage information for.
 #>
 function Global:Get-SgwAccountUsage {
     [CmdletBinding()]
@@ -1688,19 +1836,27 @@ function Global:Get-SgwAccountUsage {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale Account to get usage information for.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "ID of a StorageGRID Webscale Account to get usage information for.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -1732,6 +1888,9 @@ function Global:Get-SgwAccountUsage {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name id -Value $Id
+
         Write-Output $Response.Json.data
     }
 }
