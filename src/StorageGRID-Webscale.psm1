@@ -1103,7 +1103,7 @@ function Global:New-SgwAccount {
                 Position = 5,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $true,
+                HelpMessage = "Allow platform services to be used (default: true - supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $false,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
@@ -1162,13 +1162,9 @@ function Global:New-SgwAccount {
         if ($Server.APIVersion -ge 2) {
             $Body.password = $Password
             $Body.policy = $Policy
-            if ($UseAccountIdentitySource) {
-                $Body.policy.useAccountIdentitySource = $UseAccountIdentitySource
-            }
+            $Body.policy.useAccountIdentitySource = $UseAccountIdentitySource
             if ($Server.APIVersion -ge 2.1) {
-                if ($AllowPlatformServices) {
-                    $Body.policy.allowPlatformServices = $AllowPlatformServices
-                }
+                $Body.policy.allowPlatformServices = $AllowPlatformServices
             }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
@@ -1190,6 +1186,9 @@ function Global:New-SgwAccount {
         $Account | Add-Member -MemberType AliasProperty -Name accountId -Value id
         $Account | Add-Member -MemberType AliasProperty -Name tenant -Value name
         $Account | Add-Member -MemberType NoteProperty -Name tenantPortal -Value "https://$( $Server.Name )/?accountId=$( $Account.id )"
+        $Account | Add-Member -MemberType ScriptProperty -Name useAccountIdentitySource -Value { $this.Policy.useAccountIdentitySource }
+        $Account | Add-Member -MemberType ScriptProperty -Name allowPlatformServices -Value { $this.Policy.allowPlatformServices }
+        $Account | Add-Member -MemberType ScriptProperty -Name quota -Value { $this.Policy.quotaObjectBytes }
 
         Write-Output $Account
     }
@@ -1210,7 +1209,7 @@ function Global:Remove-SgwAccount {
                 Position = 0,
                 HelpMessage = "ID of a StorageGRID Webscale Account to delete.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
+                ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$id,
         [parameter(Mandatory = $False,
                 Position = 1,
                 HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
@@ -1270,7 +1269,7 @@ function Global:Get-SgwAccount {
                 ParameterSetName = "id",
                 HelpMessage = "ID of a StorageGRID Webscale Account to get information for.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Id")][String]$AccountId,
+                ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$Id,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
