@@ -1895,6 +1895,209 @@ function Global:Get-SgwAccountUsage {
     }
 }
 
+## alarms ##
+
+# complete as of API 2.1
+
+<#
+    .SYNOPSIS
+    Retrieve all StorageGRID Webscale Alarms
+    .DESCRIPTION
+    Retrieve all StorageGRID Webscale Alarms
+#>
+function Global:Get-SgwAlarms {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Maximum number of results")][int]$limit
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + '/grid/alarms'
+        $Method = "GET"
+
+        $Separator = "?"
+        if ($includeAcknowledged) {
+            $Uri += "$( $Separator )includeAcknowledged=true"
+            $Separator = "&"
+        }
+        if ($limit) {
+            $Uri += "$( $Separator )limit=$limit"
+        }
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+## audit ##
+
+# complete as of API 2.1
+
+<#
+    .SYNOPSIS
+    Gets the audit configuration
+    .DESCRIPTION
+    Gets the audit configuration
+#>
+function Global:Get-SgwAudit {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + '/grid/audit'
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Audit = [PSCustomObject]@{
+            LevelSystem = $Response.Json.data.levels.system;
+            LevelStorage = $Response.Json.data.levels.storage;
+            LevelProtocol = $Response.Json.data.levels.protocol;
+            LevelManagement = $Response.Json.data.levels.management;
+            LoggedHeaders = $Response.Json.data.loggedHeaders
+        }
+
+        Write-Output $Audit
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replace the audit configuration
+    .DESCRIPTION
+    Replace the audit configuration
+#>
+function Global:Replace-SgwAudit {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for system.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelSystem,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for storage.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelStorage,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for protocol.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelProtocol,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Audit log level for management.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelManagement,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Logged headers.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String[]]$LoggedHeaders
+    )
+
+    Begin {
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + '/grid/audit'
+        $Method = "PUT"
+
+        $Body = @{}
+        $Body.levels = @{}
+        $Body.levels.system = $LevelSystem
+        $Body.levels.storage = $LevelStorage
+        $Body.levels.protocol = $LevelProtocol
+        $Body.levels.management = $LevelManagement
+        $Body.loggedHeaders = $LoggedHeaders
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Audit = [PSCustomObject]@{
+            LevelSystem = $Response.Json.data.levels.system;
+            LevelStorage = $Response.Json.data.levels.storage;
+            LevelProtocol = $Response.Json.data.levels.protocol;
+            LevelManagement = $Response.Json.data.levels.management;
+            LoggedHeaders = $Response.Json.data.loggedHeaders
+        }
+
+        Write-Output $Audit
+    }
+}
+
 ## auth ##
 
 # complete as of API 2.1
@@ -2242,209 +2445,6 @@ function global:Disconnect-SgwServer {
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
-    }
-}
-
-## alarms ##
-
-# complete as of API 2.1
-
-<#
-    .SYNOPSIS
-    Retrieve all StorageGRID Webscale Alarms
-    .DESCRIPTION
-    Retrieve all StorageGRID Webscale Alarms
-#>
-function Global:Get-SgwAlarms {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $False,
-                Position = 1,
-                HelpMessage = "If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
-        [parameter(Mandatory = $False,
-                Position = 2,
-                HelpMessage = "Maximum number of results")][int]$limit
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSgwServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
-        }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
-    }
-
-    Process {
-        $Uri = $Server.BaseURI + '/grid/alarms'
-        $Method = "GET"
-
-        $Separator = "?"
-        if ($includeAcknowledged) {
-            $Uri += "$( $Separator )includeAcknowledged=true"
-            $Separator = "&"
-        }
-        if ($limit) {
-            $Uri += "$( $Separator )limit=$limit"
-        }
-
-        try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-        }
-
-        Write-Output $Response.Json.data
-    }
-}
-
-## audit ##
-
-# complete as of API 2.1
-
-<#
-    .SYNOPSIS
-    Gets the audit configuration
-    .DESCRIPTION
-    Gets the audit configuration
-#>
-function Global:Get-SgwAudit {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSgwServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
-        }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
-    }
-
-    Process {
-        $Uri = $Server.BaseURI + '/grid/audit'
-        $Method = "GET"
-
-        try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-        }
-
-        $Audit = [PSCustomObject]@{
-            LevelSystem = $Response.Json.data.levels.system;
-            LevelStorage = $Response.Json.data.levels.storage;
-            LevelProtocol = $Response.Json.data.levels.protocol;
-            LevelManagement = $Response.Json.data.levels.management;
-            LoggedHeaders = $Response.Json.data.loggedHeaders
-        }
-
-        Write-Output $Audit
-    }
-}
-
-<#
-    .SYNOPSIS
-    Replace the audit configuration
-    .DESCRIPTION
-    Replace the audit configuration
-#>
-function Global:Replace-SgwAudit {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Audit log level for system.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelSystem,
-        [parameter(Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Audit log level for storage.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelStorage,
-        [parameter(Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Audit log level for protocol.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelProtocol,
-        [parameter(Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Audit log level for management.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelManagement,
-        [parameter(Mandatory = $False,
-                Position = 2,
-                HelpMessage = "Logged headers.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String[]]$LoggedHeaders
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSgwServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
-        }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
-    }
-
-    Process {
-        $Uri = $Server.BaseURI + '/grid/audit'
-        $Method = "PUT"
-
-        $Body = @{}
-        $Body.levels = @{}
-        $Body.levels.system = $LevelSystem
-        $Body.levels.storage = $LevelStorage
-        $Body.levels.protocol = $LevelProtocol
-        $Body.levels.management = $LevelManagement
-        $Body.loggedHeaders = $LoggedHeaders
-
-        $Body = ConvertTo-Json -InputObject $Body
-
-        try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -ContentType "application/json" -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-        }
-
-        $Audit = [PSCustomObject]@{
-            LevelSystem = $Response.Json.data.levels.system;
-            LevelStorage = $Response.Json.data.levels.storage;
-            LevelProtocol = $Response.Json.data.levels.protocol;
-            LevelManagement = $Response.Json.data.levels.management;
-            LoggedHeaders = $Response.Json.data.loggedHeaders
-        }
-
-        Write-Output $Audit
     }
 }
 
