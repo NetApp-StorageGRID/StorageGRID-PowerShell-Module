@@ -2159,13 +2159,15 @@ function Global:Replace-SgwAudit {
 
 ## auth ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Connect to StorageGRID Webscale Management Server
     .DESCRIPTION
     Connect to StorageGRID Webscale Management Server
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
     .PARAMETER Name
     The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
@@ -2467,9 +2469,11 @@ function global:Connect-SgwServer {
 
 <#
     .SYNOPSIS
-    Connect to StorageGRID Webscale Management Server
+    Disconnect to StorageGRID Webscale Management Server
     .DESCRIPTION
-    Connect to StorageGRID Webscale Management Server
+    Disconnect to StorageGRID Webscale Management Server
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
 #>
 function global:Disconnect-SgwServer {
     [CmdletBinding()]
