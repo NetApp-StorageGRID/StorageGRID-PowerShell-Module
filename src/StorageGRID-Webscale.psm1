@@ -2597,7 +2597,13 @@ function Global:Get-SgwCompliance {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/compliance-global"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/compliance-global"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/compliance-global"
+        }
+
         $Method = "GET"
 
         try {
@@ -2651,6 +2657,9 @@ function Global:Enable-SgwCompliance {
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
     }
 
