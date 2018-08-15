@@ -1897,13 +1897,19 @@ function Global:Get-SgwAccountUsage {
 
 ## alarms ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieve all StorageGRID Webscale Alarms
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Alarms
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER IncludeAcknowledged
+    If set, acknowledged alarms are also returned.
+    .PARAMETER Limit
+    Maximum number of results.
 #>
 function Global:Get-SgwAlarms {
     [CmdletBinding()]
@@ -1914,13 +1920,24 @@ function Global:Get-SgwAlarms {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "If set, acknowledged alarms are also returned")][Switch]$includeAcknowledged,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Maximum number of results")][int]$limit
+                HelpMessage = "If set, acknowledged alarms are also returned.")][Switch]$IncludeAcknowledged,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Maximum number of results.")][int]$Limit
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
