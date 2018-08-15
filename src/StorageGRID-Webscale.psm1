@@ -1904,6 +1904,8 @@ function Global:Get-SgwAccountUsage {
     Retrieve all StorageGRID Webscale Alarms
     .DESCRIPTION
     Retrieve all StorageGRID Webscale Alarms
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
     StorageGRID Profile to use for connection.
     .PARAMETER IncludeAcknowledged
@@ -1976,13 +1978,17 @@ function Global:Get-SgwAlarms {
 
 ## audit ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Gets the audit configuration
     .DESCRIPTION
     Gets the audit configuration
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwAudit {
     [CmdletBinding()]
@@ -1990,10 +1996,21 @@ function Global:Get-SgwAudit {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -2034,6 +2051,20 @@ function Global:Get-SgwAudit {
     Replace the audit configuration
     .DESCRIPTION
     Replace the audit configuration
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER LevelSystem
+    Audit log level for system.
+    .PARAMETER LevelStorage
+    Audit log level for storage.
+    .PARAMETER LevelProtocol
+    Audit log level for protocol.
+    .PARAMETER LevelManagement
+    Audit log level for management.
+    .PARAMETER LoggedHeaders
+    Logged headers.
 #>
 function Global:Replace-SgwAudit {
     [CmdletBinding()]
@@ -2042,34 +2073,45 @@ function Global:Replace-SgwAudit {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Audit log level for system.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelSystem,
         [parameter(Mandatory = $True,
-                Position = 1,
+                Position = 3,
                 HelpMessage = "Audit log level for storage.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelStorage,
         [parameter(Mandatory = $True,
-                Position = 1,
+                Position = 4,
                 HelpMessage = "Audit log level for protocol.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelProtocol,
         [parameter(Mandatory = $True,
-                Position = 1,
+                Position = 5,
                 HelpMessage = "Audit log level for management.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("off","error","normal","debug")][String]$LevelManagement,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 6,
                 HelpMessage = "Logged headers.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String[]]$LoggedHeaders
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
