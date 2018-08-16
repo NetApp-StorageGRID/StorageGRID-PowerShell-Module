@@ -1211,7 +1211,7 @@ function Global:New-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Response.Json.data
@@ -1291,7 +1291,7 @@ function Global:Remove-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -1375,7 +1375,7 @@ function Global:Get-SgwAccount {
             }
             catch {
                 $ResponseBody = ParseErrorForResponseBody $_
-                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
 
             $Account = $Response.Json.data
@@ -1514,7 +1514,7 @@ function Global:Update-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Response.Json.data
@@ -1652,7 +1652,7 @@ function Global:Replace-SgwAccount {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Account = $Response.Json.data
@@ -1747,7 +1747,7 @@ function Global:Update-SgwSwiftAdminPassword {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -1834,7 +1834,7 @@ function Global:Update-SgwPassword {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -1912,7 +1912,7 @@ function Global:Get-SgwAccountUsage {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
 
@@ -1999,7 +1999,7 @@ function Global:Get-SgwAlarms {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -2064,7 +2064,7 @@ function Global:Get-SgwAudit {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Audit = [PSCustomObject]@{
@@ -2178,7 +2178,7 @@ function Global:Replace-SgwAudit {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Audit = [PSCustomObject]@{
@@ -2544,7 +2544,7 @@ function global:Disconnect-SgwServer {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             return
         }
     }
@@ -2594,6 +2594,9 @@ function Global:Get-SgwCompliance {
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
+        if ($Server.APIVersion -lt 2.2) {
+            Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
+        }
     }
 
     Process {
@@ -2611,7 +2614,7 @@ function Global:Get-SgwCompliance {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -2661,6 +2664,9 @@ function Global:Enable-SgwCompliance {
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
         }
+        if ($Server.APIVersion -lt 2.2) {
+            Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
+        }
     }
 
     Process {
@@ -2682,7 +2688,7 @@ function Global:Enable-SgwCompliance {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -2750,7 +2756,7 @@ function Global:Get-SgwConfig {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -2814,7 +2820,7 @@ function Global:Get-SgwConfigManagement {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -2886,7 +2892,7 @@ function Global:Update-SgwConfigManagement {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Server.SupportedApiVersions = @(Get-SgwVersions -Server $Server)
@@ -2952,7 +2958,7 @@ function Global:Get-SgwProductVersion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data.productVersion
@@ -3017,7 +3023,7 @@ function Global:Get-SgwVersion {
             }
             else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
         }
 
@@ -3076,7 +3082,7 @@ function Global:Get-SgwVersions {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -3085,12 +3091,20 @@ function Global:Get-SgwVersions {
 
 ## containers ##
 
+# complete as of API 2.2
+
 Set-Alias -Name Get-SgwBucketOwner -Value Get-SgwContainerOwner
 <#
     .SYNOPSIS
     Retrieves the Owner of an S3 bucket or Swift container
     .DESCRIPTION
     Retrieves the Owner of an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Swift Container or S3 Bucket name.
 #>
 function Global:Get-SgwContainerOwner {
     [CmdletBinding()]
@@ -3099,25 +3113,42 @@ function Global:Get-SgwContainerOwner {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
     }
 
     Process {
         foreach ($Account in (Get-SgwAccounts -Server $Server)) {
-            if ($Account | Get-SgwAccountUsage | select -ExpandProperty buckets | ? { $_.name -eq $Name }) {
+            if ($Account | Get-SgwAccountUsage  -Server $Server | select -ExpandProperty buckets | ? { $_.name -eq $Name } | Select -First 1) {
                 Write-Output $Account
                 break
             }
@@ -3131,6 +3162,10 @@ Set-Alias -Name Get-SgwBuckets -Value Get-SgwContainers
     Lists the S3 buckets or Swift containers for a tenant account
     .DESCRIPTION
     Lists the S3 buckets or Swift containers for a tenant account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwContainers {
     [CmdletBinding()]
@@ -3138,10 +3173,27 @@ function Global:Get-SgwContainers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Include complaince and / or region information in response.")][ValidateSet("compliance","region")][String[]]$Include
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3160,13 +3212,308 @@ function Global:Get-SgwContainers {
         $Uri = $Server.BaseURI + "/org/containers"
         $Method = "GET"
 
+        $IncludeString = $Include -join ","
+        if ($IncludeString) {
+            $Uri += "?include=$IncludeString"
+        }
+
         Try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        if ($Include -match "compliance") {
+            $Response.Json.data | Add-Member -MemberType ScriptProperty -Name autoDelete -Value { $this.compliance.autoDelete }
+            $Response.Json.data | Add-Member -MemberType ScriptProperty -Name legalHold -Value { $this.compliance.legalHold }
+            $Response.Json.data | Add-Member -MemberType ScriptProperty -Name retentionPeriodMinutes -Value { $this.compliance.retentionPeriodMinutes }
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+Set-Alias -Name New-SgwBucket -Value New-SgwContainer
+<#
+    .SYNOPSIS
+    Create a bucket for an S3 tenant account
+    .DESCRIPTION
+    Create a bucket for an S3 tenant account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:New-SgwContainer {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Bucket name (must be DNS-compatible).",
+                ValueFromPipelineByPropertyName = $True)][String]$Name,
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "The region for this bucket, which must already be defined (defaults to us-east-1 if not specified).",
+                ValueFromPipelineByPropertyName = $True)][String]$Region="us-east-1",
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "If specified, Objects in this bucket will be deleted automatically when their retention period expires, unless the bucket is under a legal hold.",
+                ValueFromPipelineByPropertyName = $True)][Switch]$AutoDelete,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "If specified, the objects in the bucket will be put under a legal hold (objects cannot be deleted).",
+                ValueFromPipelineByPropertyName = $True)][Switch]$LegalHold,
+        [parameter(
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "The length of the retention period for objects added to this bucket, in minutes, starting when the object is ingested into the grid.",
+                ValueFromPipelineByPropertyName = $True)][ValidateRange(1,[Int]::MaxValue)][Int]$RetentionPeriodMinutes
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.2) {
+            Throw "Managing Containers is only Supported from StorageGRID 11.1"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers"
+        $Method = "POST"
+
+        $ContainerCreate = @{
+            name = $Name;
+            region = $Region;
+        }
+
+        if ($AutoDelete.IsPresent -or $LegalHold.IsPresent -or $RetentionPeriodMinutes) {
+            $ContainerCreate.Compliance = @{
+                autoDelete = $AutoDelete.IsPresent;
+                legalHold = $LegalHold.IsPresent;
+            }
+            if ($RetentionPeriodMinutes) {
+                $ContainerCreate.Compliance.retentionPeriodMinutes = $RetentionPeriodMinutes
+            }
+        }
+
+        $Body = ConvertTo-Json -InputObject $ContainerCreate
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+Set-Alias -Name Get-SgwBucketCompliance -Value Get-SgwContainerCompliance
+<#
+    .SYNOPSIS
+    Gets the compliance settings for an S3 bucket
+    .DESCRIPTION
+    Gets the compliance settings for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Swift Container or S3 Bucket name.
+#>
+function Global:Get-SgwContainerCompliance {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.2) {
+            Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/compliance"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
+
+        Write-Output $Response.Json.data
+    }
+}
+
+Set-Alias -Name Update-SgwBucketCompliance -Value Update-SgwContainerCompliance
+<#
+    .SYNOPSIS
+    Update the compliance settings for an S3 bucket
+    .DESCRIPTION
+    Update the compliance settings for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Swift Container or S3 Bucket name.
+    .PARAMETER AutoDelete
+    If specified, Objects in this bucket will be deleted automatically when their retention period expires, unless the bucket is under a legal hold.
+    .PARAMETER LegalHold
+    If specified, the objects in the bucket will be put under a legal hold (objects cannot be deleted).
+    .PARAMETER RetentionPeriodMinutes
+    The length of the retention period for objects added to this bucket, in minutes, starting when the object is ingested into the grid.
+#>
+function Global:Update-SgwContainerCompliance {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
+        [parameter(
+                Mandatory = $False,
+                Position = 3,
+                HelpMessage = "If specified, Objects in this bucket will be deleted automatically when their retention period expires, unless the bucket is under a legal hold.",
+                ValueFromPipelineByPropertyName = $True)][Switch]$AutoDelete,
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "If specified, the objects in the bucket will be put under a legal hold (objects cannot be deleted).",
+                ValueFromPipelineByPropertyName = $True)][Switch]$LegalHold,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "The length of the retention period for objects added to this bucket, in minutes, starting when the object is ingested into the grid.",
+                ValueFromPipelineByPropertyName = $True)][ValidateRange(1,[Int]::MaxValue)][Int]$RetentionPeriodMinutes
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 2.2) {
+            Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
+        }
+        if (!$Server.AccountId) {
+            throw "Not connected as tenant user. Use Connect-SgwServer with the parameter accountId to connect to a tenant."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/org/containers/$Name/compliance"
+        $Method = "PUT"
+
+        $ContainerComplianceSettings = @{
+            autoDelete              = $autoDelete.IsPresent;
+            legalHold               = $LegalHold.IsPresent;
+            retentionPeriodMinutes  = $RetentionPeriodMinutes
+        }
+
+        $Body = ConvertTo-Json -InputObject $ContainerComplianceSettings
+
+        Try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3178,6 +3525,12 @@ Set-Alias -Name Get-SgwBucketConsistency -Value Get-SgwContainerConsistency
     Gets the consistency level for an S3 bucket or Swift container
     .DESCRIPTION
     Gets the consistency level for an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Swift Container or S3 Bucket name.
 #>
 function Global:Get-SgwContainerConsistency {
     [CmdletBinding()]
@@ -3186,14 +3539,28 @@ function Global:Get-SgwContainerConsistency {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3217,8 +3584,10 @@ function Global:Get-SgwContainerConsistency {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3227,9 +3596,17 @@ function Global:Get-SgwContainerConsistency {
 Set-Alias -Name Update-SgwBucketConsistency -Value Update-SgwContainerConsistency
 <#
     .SYNOPSIS
-    Gets the consistency level for an S3 bucket or Swift container
+    Updates the consistency level for an S3 bucket or Swift container
     .DESCRIPTION
-    Gets the consistency level for an S3 bucket or Swift container
+    Updates the consistency level for an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Swift Container or S3 Bucket name.
+    .PARAMETER Consistency
+    Consistency level.
 #>
 function Global:Update-SgwContainerConsistency {
     [CmdletBinding()]
@@ -3238,17 +3615,31 @@ function Global:Update-SgwContainerConsistency {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 3,
                 HelpMessage = "Consistency level.")][ValidateSet("all", "strong-global", "strong-site", "default", "available", "weak")][String]$Consistency
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3275,8 +3666,10 @@ function Global:Update-SgwContainerConsistency {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3288,6 +3681,12 @@ Set-Alias -Name Get-SgwBucketLastAccessTime -Value Get-SgwContainerLastAccessTim
     Determines if last access time is enabled for an S3 bucket
     .DESCRIPTION
     Determines if last access time is enabled for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Get-SgwContainerLastAccessTime {
     [CmdletBinding()]
@@ -3296,14 +3695,28 @@ function Global:Get-SgwContainerLastAccessTime {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3327,8 +3740,10 @@ function Global:Get-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3340,6 +3755,12 @@ Set-Alias -Name Enable-SgwBucketLastAccessTime -Value Enable-SgwContainerLastAcc
     Enables last access time updates for an S3 bucket
     .DESCRIPTION
     Enables last access time updates for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Enable-SgwContainerLastAccessTime {
     [CmdletBinding()]
@@ -3348,14 +3769,28 @@ function Global:Enable-SgwContainerLastAccessTime {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3382,8 +3817,10 @@ function Global:Enable-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3395,6 +3832,12 @@ Set-Alias -Name Disable-SgwBucketLastAccessTime -Value Disable-SgwContainerLastA
     Disables last access time updates for an S3 bucket
     .DESCRIPTION
     Disables last access time updates for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Disable-SgwContainerLastAccessTime {
     [CmdletBinding()]
@@ -3403,14 +3846,28 @@ function Global:Disable-SgwContainerLastAccessTime {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3437,8 +3894,10 @@ function Global:Disable-SgwContainerLastAccessTime {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        $Response.Json.data | Add-Member -MemberType NoteProperty -Name Name -Value $Name
 
         Write-Output $Response.Json.data
     }
@@ -3452,6 +3911,12 @@ Set-Alias -Name Get-SgwContainerMetadataNotificationRules -Value Get-SgwContaine
     Gets the metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
     Gets the metadata notification (search) configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Get-SgwContainerMetadataNotification {
     [CmdletBinding()]
@@ -3460,14 +3925,28 @@ function Global:Get-SgwContainerMetadataNotification {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3491,7 +3970,7 @@ function Global:Get-SgwContainerMetadataNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.metadataNotification) {
@@ -3510,6 +3989,12 @@ Set-Alias -Name Remove-SgwBucketMetadataNotification -Value Remove-SgwContainerM
     Romoves the metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
     Removes the metadata notification (search) configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Remove-SgwContainerMetadataNotification {
     [CmdletBinding()]
@@ -3518,14 +4003,28 @@ function Global:Remove-SgwContainerMetadataNotification {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3552,7 +4051,7 @@ function Global:Remove-SgwContainerMetadataNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -3565,6 +4064,20 @@ Set-Alias -Name Add-SgwBucketMetadataNotificationRule -Value Add-SgwContainerMet
     Adds a new rule for metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
     Adds a new rule for metadata notification (search) configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Rule ID - should be a short descriptive string.
+    .PARAMETER Status
+    Rule Status.
+    .PARAMETER Prefix
+    S3 Key Prefix.
+    .PARAMETER DestinationUrn
+    URN of the Destination.
 #>
 function Global:Add-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
@@ -3573,14 +4086,17 @@ function Global:Add-SgwContainerMetadataNotificationRule {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Rule ID.",
+                HelpMessage = "Rule ID - should be a short descriptive string.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(Mandatory = $False,
@@ -3595,6 +4111,17 @@ function Global:Add-SgwContainerMetadataNotificationRule {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3650,7 +4177,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.metadataNotification) {
@@ -3669,6 +4196,14 @@ Set-Alias -Name Remove-SgwBucketMetadataNotificationRule -Value Remove-SgwContai
     Removes a rule for metadata notification (search) configuration for an S3 bucket
     .DESCRIPTION
     Removes a rule for metadata notification (search) configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Rule ID.
 #>
 function Global:Remove-SgwContainerMetadataNotificationRule {
     [CmdletBinding()]
@@ -3677,19 +4212,33 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 3,
                 HelpMessage = "Rule ID.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3730,7 +4279,7 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.metadataNotification) {
@@ -3753,6 +4302,12 @@ Set-Alias -Name Get-SgwContainerNotificationTopics -Value Get-SgwContainerNotifi
     Gets the notification configuration for an S3 bucket
     .DESCRIPTION
     Gets the notification configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Get-SgwContainerNotification {
     [CmdletBinding()]
@@ -3761,14 +4316,28 @@ function Global:Get-SgwContainerNotification {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3792,7 +4361,7 @@ function Global:Get-SgwContainerNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.notification) {
@@ -3812,6 +4381,12 @@ Set-Alias -Name Remove-SgwBucketNotification -Value Remove-SgwContainerNotificat
     Remove the notification configuration for an S3 bucket
     .DESCRIPTION
     Remove the notification configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Remove-SgwContainerNotification {
     [CmdletBinding()]
@@ -3820,14 +4395,28 @@ function Global:Remove-SgwContainerNotification {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3854,7 +4443,7 @@ function Global:Remove-SgwContainerNotification {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -3867,6 +4456,22 @@ Set-Alias -Name Add-SgwContainerNotificationRule -Value Add-SgwContainerNotifica
     Add a topic to the notification configuration for an S3 bucket
     .DESCRIPTION
     Add a topic to the notification configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Topic ID - should be a short descriptive string.
+    .PARAMETER Topic
+    URN of the Topic.
+    .PARAMETER Events
+    Events to trigger notifications for.
+    .PARAMETER Prefix
+    Prefix filter.
+    .PARAMETER Suffix
+    Suffix filter.
 #>
 function Global:Add-SgwContainerNotificationTopic {
     [CmdletBinding()]
@@ -3875,32 +4480,45 @@ function Global:Add-SgwContainerNotificationTopic {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Topic ID.",
+                HelpMessage = "S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "Topic ID - should be a short descriptive string.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(Mandatory = $True,
-                Position = 3,
+                Position = 4,
                 HelpMessage = "URN of the Topic.")][Alias("TopicUrn", "Urn")][System.UriBuilder]$Topic,
         [parameter(Mandatory = $False,
-                Position = 4,
-                HelpMessage = "Event to trigger notifications for.")][Alias("Event")][String[]]$Events,
-        [parameter(Mandatory = $False,
                 Position = 5,
+                HelpMessage = "Events to trigger notifications for.")][Alias("Event")][String[]]$Events,
+        [parameter(Mandatory = $False,
+                Position = 6,
                 HelpMessage = "Prefix filter.")][String]$Prefix,
         [parameter(Mandatory = $False,
-                Position = 5,
+                Position = 7,
                 HelpMessage = "Suffix filter.")][String]$Suffix
-
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -3963,7 +4581,7 @@ function Global:Add-SgwContainerNotificationTopic {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.notification) {
@@ -3985,6 +4603,14 @@ Set-Alias -Name Remove-SgwContainerNotificationRule -Value Remove-SgwContainerNo
     Remove a topic from the notification configuration for an S3 bucket
     .DESCRIPTION
     Remove a topic from the notification configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Topic ID.
 #>
 function Global:Remove-SgwContainerNotificationTopic {
     [CmdletBinding()]
@@ -3993,19 +4619,33 @@ function Global:Remove-SgwContainerNotificationTopic {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 3,
                 HelpMessage = "Topic ID.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -4070,7 +4710,7 @@ function Global:Remove-SgwContainerNotificationTopic {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.notification) {
@@ -4089,9 +4729,15 @@ Set-Alias -Name Get-SgwBucketReplicationRules -Value Get-SgwContainerReplication
 Set-Alias -Name Get-SgwContainerReplicationRules -Value Get-SgwContainerReplication
 <#
     .SYNOPSIS
-    Gets the replication configuration for an S3 bucket or Swift container
+    Gets the replication configuration for an S3 bucket
     .DESCRIPTION
-    Gets the replication configuration for an S3 bucket or Swift container
+    Gets the replication configuration for an S3 bucket
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Get-SgwContainerReplication {
     [CmdletBinding()]
@@ -4100,14 +4746,28 @@ function Global:Get-SgwContainerReplication {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -4131,7 +4791,7 @@ function Global:Get-SgwContainerReplication {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.replication) {
@@ -4150,6 +4810,12 @@ Set-Alias -Name Remove-SgwBucketReplication -Value Remove-SgwContainerReplicatio
     Removes the replication configuration for an S3 bucket or Swift container
     .DESCRIPTION
     Removes the replication configuration for an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
 #>
 function Global:Remove-SgwContainerReplication {
     [CmdletBinding()]
@@ -4158,14 +4824,28 @@ function Global:Remove-SgwContainerReplication {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "S3 Bucket name.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -4192,7 +4872,7 @@ function Global:Remove-SgwContainerReplication {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -4205,6 +4885,26 @@ Set-Alias -Name Add-SgwBucketReplicationRule -Value Add-SgwContainerReplicationR
     Adds a replication configuration rule for an S3 bucket or Swift container
     .DESCRIPTION
     Adds a replication configuration rule for an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Rule ID - a short descriptive string.
+    .PARAMETER Status
+    Rule Status.
+    .PARAMETER Prefix
+    S3 Key Prefix.
+    .PARAMETER DestinationBucket
+    Destination Bucket name.
+    .PARAMETER DestinationUrn
+    Destination Bucket URN.
+    .PARAMETER DestinationStorageClass
+    Destination Storage Class.
+    .PARAMETER Role
+    IAM Role.
 #>
 function Global:Add-SgwContainerReplicationRule {
     [CmdletBinding(DefaultParameterSetName = "bucket")]
@@ -4213,39 +4913,53 @@ function Global:Add-SgwContainerReplicationRule {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name to be replicated.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Rule ID.",
+                HelpMessage = "Swift Container or S3 Bucket name to be replicated.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "Rule ID - a short descriptive string.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 4,
                 HelpMessage = "Rule Status.")][ValidateSet("Enabled", "Disabled")][String]$Status = "Enabled",
         [parameter(Mandatory = $False,
-                Position = 3,
+                Position = 5,
                 HelpMessage = "S3 Key Prefix.")][String]$Prefix = "",
         [parameter(Mandatory = $True,
-                Position = 4,
+                Position = 6,
                 ParameterSetName = "bucket",
                 HelpMessage = "Destination Bucket name.")][String]$DestinationBucket,
         [parameter(Mandatory = $True,
-                Position = 4,
+                Position = 6,
                 ParameterSetName = "urn",
-                HelpMessage = "Destination Bucket name.")][String]$DestinationUrn,
+                HelpMessage = "Destination Bucket URN.")][String]$DestinationUrn,
         [parameter(Mandatory = $False,
-                Position = 5,
+                Position = 7,
                 HelpMessage = "Destination Storage Class.")][ValidateSet("STANDARD", "STANDARD_IA", "RRS")][String]$DestinationStorageClass = "STANDARD",
         [parameter(Mandatory = $False,
-                Position = 6,
+                Position = 8,
                 HelpMessage = "IAM Role.")][String]$Role
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -4309,7 +5023,7 @@ function Global:Add-SgwContainerReplicationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.replication) {
@@ -4328,6 +5042,14 @@ Set-Alias -Name Remove-SgwBucketReplicationRule -Value Remove-SgwContainerReplic
     Removes a replication configuration rule for an S3 bucket or Swift container
     .DESCRIPTION
     Removes a replication configuration rule for an S3 bucket or Swift container
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    S3 Bucket name.
+    .PARAMETER Id
+    Rule ID.
 #>
 function Global:Remove-SgwContainerReplicationRule {
     [CmdletBinding()]
@@ -4336,19 +5058,33 @@ function Global:Remove-SgwContainerReplicationRule {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Swift Container or S3 Bucket name.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket")][String]$Name,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
+                HelpMessage = "Swift Container or S3 Bucket name.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][Alias("Container", "Bucket","ContainerName","BucketName")][String]$Name,
+        [parameter(Mandatory = $True,
+                Position = 3,
                 HelpMessage = "Rule ID.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -4389,7 +5125,7 @@ function Global:Remove-SgwContainerReplicationRule {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Response.Json.data.replication) {
@@ -4448,7 +5184,7 @@ function Global:Get-SgwDeactivatedFeatures {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4561,7 +5297,7 @@ function Global:Update-SgwDeactivatedFeatures {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4608,7 +5344,7 @@ function Global:Get-SgwDNSServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4658,7 +5394,7 @@ function Global:Replace-SgwDNSServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4720,7 +5456,7 @@ function Global:Get-SgwEndpoints {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4827,7 +5563,7 @@ function Global:Add-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4889,7 +5625,7 @@ function Global:Remove-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -4943,7 +5679,7 @@ function Global:Get-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5197,7 +5933,7 @@ function Global:Update-SgwEndpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5582,7 +6318,7 @@ function Global:Update-SgwS3Endpoint {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5629,7 +6365,7 @@ function Global:Get-SgwEndpointDomainNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5679,7 +6415,7 @@ function Global:Replace-SgwEndpointDomainNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5726,7 +6462,7 @@ function Global:Get-SgwEcProfiles {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5771,7 +6507,7 @@ function Global:Get-SgwEcSchemes {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5818,7 +6554,7 @@ function Global:Stop-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5861,7 +6597,7 @@ function Global:Get-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5904,7 +6640,7 @@ function Global:Start-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5952,7 +6688,7 @@ function Global:Invoke-SgwExpansion {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -5999,7 +6735,7 @@ function Global:Get-SgwExpansionNodes {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6048,7 +6784,7 @@ function Global:Remove-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6097,7 +6833,7 @@ function Global:Get-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6141,7 +6877,7 @@ function Global:New-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6190,7 +6926,7 @@ function Global:Reset-SgwExpansionNode {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6237,7 +6973,7 @@ function Global:Get-SgwExpansionSites {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6288,7 +7024,7 @@ function Global:New-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6337,7 +7073,7 @@ function Global:Remove-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6386,7 +7122,7 @@ function Global:Get-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6451,7 +7187,7 @@ function Global:Update-SgwExpansionSite {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6498,7 +7234,7 @@ function Global:Get-SgwGridNetworks {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6552,7 +7288,7 @@ function Global:Update-SgwGridNetworks {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6601,7 +7337,7 @@ function Global:Get-SgwGroups {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6757,7 +7493,7 @@ function Global:New-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6808,7 +7544,7 @@ function Global:Get-SgwGroupByShortName {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6859,7 +7595,7 @@ function Global:Get-SgwFederatedGroupByShortName {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6912,7 +7648,7 @@ function Global:Delete-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -6965,7 +7701,7 @@ function Global:Get-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7082,7 +7818,7 @@ function Global:Update-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7227,7 +7963,7 @@ function Global:Replace-SgwGroup {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7280,7 +8016,7 @@ function Global:Get-SgwAccountGroups {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7327,7 +8063,7 @@ function Global:Get-SgwHealth {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7373,7 +8109,7 @@ function Global:Get-SgwTopologyHealth {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7424,7 +8160,7 @@ function Global:Get-SgwIdentitySources {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7553,7 +8289,7 @@ function Global:Update-SgwIdentitySources {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7601,7 +8337,7 @@ function Global:Sync-SgwIdentitySources {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7666,7 +8402,7 @@ function Global:Invoke-SgwIlmEvaluate {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7712,7 +8448,7 @@ function Global:Get-SgwIlmMetadata {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7755,7 +8491,7 @@ function Global:Get-SgwIlmRules {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7802,7 +8538,7 @@ function Global:Get-SgwLicense {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7859,7 +8595,7 @@ function Global:Update-SgwLicense {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7907,7 +8643,7 @@ function Global:Get-SgwLogs {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -7993,7 +8729,7 @@ function Global:Start-SgwLogCollection {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8036,7 +8772,7 @@ function Global:Remove-SgwLogCollection {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8100,7 +8836,7 @@ function Global:Get-SgwLogCollection {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8145,7 +8881,7 @@ function Global:Get-SgwMetricNames {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8208,7 +8944,7 @@ function Global:Get-SgwMetricQuery {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Metrics = $Response.Json.data.result | % { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
@@ -8259,7 +8995,7 @@ function Global:Get-SgwNtpServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8314,7 +9050,7 @@ function Global:Update-SgwNtpServers {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8392,7 +9128,7 @@ function Global:Get-SgwObjectMetadata {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8439,7 +9175,7 @@ function Global:Get-SgwRecoveryAvailableNodes {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8482,7 +9218,7 @@ function Global:Reset-SgwRecovery {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8525,7 +9261,7 @@ function Global:Get-SgwRecovery {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8600,7 +9336,7 @@ function Global:Start-SgwRecovery {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8660,7 +9396,7 @@ function Global:Get-SgwRecoveryPackage {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
     }
 }
@@ -8703,7 +9439,7 @@ function Global:Get-SgwRegions {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8756,7 +9492,7 @@ function Global:Update-SgwRegions {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -8928,7 +9664,7 @@ function Global:Get-SgwS3AccessKeys {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
         Write-Output $Response.Json.data
     }
@@ -9005,7 +9741,7 @@ function Global:Get-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
@@ -9093,7 +9829,7 @@ function Global:New-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $AccessKey = $Response.Json.data
@@ -9185,7 +9921,7 @@ function Global:Remove-SgwS3AccessKey {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         if ($Server.AccessKeyStore[$AccountId].id -match $AccessKey -or $Server.AccessKeyStore[$AccountId].accessKey -match $AccessKey) {
@@ -9282,7 +10018,7 @@ function Global:Get-SgwReport {
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
-            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         $Body = ($Response -split "`n" | ? { $_ -match "<body" })
