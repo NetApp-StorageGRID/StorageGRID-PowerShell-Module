@@ -2329,8 +2329,8 @@ function global:Connect-SgwServer {
             User = $Credential.UserName;
             Credential = $Credential;
             BaseUri = "https://$Name/api/v2";
-            Session = [Microsoft.PowerShell.Commands.WebRequestSession]::new();
-            Headers = [Hashtable]::new();
+            Session = New-Object -TypeName Microsoft.PowerShell.Commands.WebRequestSession
+            Headers = New-Object -TypeName Hashtable
             ApiVersion = 0;
             SupportedApiVersions = @();
             S3EndpointUrl = $null;
