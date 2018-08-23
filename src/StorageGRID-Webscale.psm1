@@ -247,6 +247,7 @@ function ConvertTo-SgwConfigFile {
             }
             else {
                 Invoke-Expression "chmod 700 $SgwConfigDirectory"
+                Invoke-Expression "chmod 600 $SgwConfigFile"
             }
         }
         catch {
@@ -554,6 +555,9 @@ function Global:Add-SgwProfile {
     Process {
         $ConfigLocation = $ProfileLocation -replace "/[^/]+$", '/config'
 
+        $Credentials = @()
+        $Configs = @()
+
         if ($Credential) {
             try {
                 $Credentials = ConvertFrom-SgwConfigFile -SgwConfigFile $ProfileLocation
@@ -574,7 +578,7 @@ function Global:Add-SgwProfile {
 
             Write-Debug $CredentialEntry
 
-            $Credentials = @($Credentials | Where-Object { $_.ProfileName -ne $ProfileName }) + $CredentialEntry
+            $Credentials = (@($Credentials | Where-Object { $_.ProfileName -ne $ProfileName }) + $CredentialEntry) | Where-Object { $_.ProfileName }
             ConvertTo-SgwConfigFile -Config $Credentials -SgwConfigFile $ProfileLocation
         }
 
@@ -620,7 +624,7 @@ function Global:Add-SgwProfile {
             $Config | Add-Member -MemberType NoteProperty -Name skip_certificate_check -Value $SkipCertificateCheck -Force
         }
 
-        $Configs = @($Configs | Where-Object { $_.ProfileName -ne $ProfileName}) + $Config
+        $Configs = (@($Configs | Where-Object { $_.ProfileName -ne $ProfileName}) + $Config) | Where-Object { $_.ProfileName }
         ConvertTo-SgwConfigFile -Config $Configs -SgwConfigFile $ConfigLocation
     }
 }
@@ -5140,13 +5144,17 @@ function Global:Remove-SgwContainerReplicationRule {
 
 ## deactivated-features ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieves the deactivated features configuration
     .DESCRIPTION
     Retrieves the deactivated features configuration
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwDeactivatedFeatures {
     [CmdletBinding()]
@@ -5154,10 +5162,24 @@ function Global:Get-SgwDeactivatedFeatures {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -5196,6 +5218,10 @@ function Global:Get-SgwDeactivatedFeatures {
     Deactivates specific features. If no feature is selected, all features will be enabled again.
     .DESCRIPTION
     Deactivates specific features. If no feature is selected, all features will be enabled again.
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Update-SgwDeactivatedFeatures {
     [CmdletBinding()]
@@ -5203,31 +5229,49 @@ function Global:Update-SgwDeactivatedFeatures {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "Deactivate Alarm Acknowledgements.")][Boolean]$AlarmAcknowledgment,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Deactivate Other Grid Configuration.")][Boolean]$OtherGridConfiguration,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Deactivate Grid Topology Page Configuration.")][Boolean]$GridTopologyPageConfiguration,
+                HelpMessage = "Deactivate ability to acknowledge alarms.")][Boolean]$AlarmAcknowledgment,
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Deactivate Management of Tenant Accounts.")][Boolean]$TenantAccounts,
+                HelpMessage = "Deactivate ability to access configuration pages not covered by other permissions.")][Boolean]$OtherGridConfiguration,
         [parameter(Mandatory = $False,
                 Position = 4,
-                HelpMessage = "Deactivate changing of tenant root passwords.")][Boolean]$ChangeTenantRootPassword,
-        [parameter(Mandatory = $False,
-                Position = 4,
-                HelpMessage = "Deactivate maintenance.")][Boolean]$Maintenance,
+                HelpMessage = "Deactivate ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.")][Boolean]$GridTopologyPageConfiguration,
         [parameter(Mandatory = $False,
                 Position = 5,
-                HelpMessage = "Deactivates activating features. This cannot be undone!")][Boolean]$ActivateFeatures,
+                HelpMessage = "Deactivate ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).")][Boolean]$TenantAccounts,
         [parameter(Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Deactivates managing of own S3 Credentials.")][Boolean]$ManageOwnS3Credentials,
+                HelpMessage = "Deactivate ability to reset the root user password for tenant accounts.")][Boolean]$ChangeTenantRootPassword,
         [parameter(Mandatory = $False,
                 Position = 7,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "Deactivate ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.")][Boolean]$Maintenance,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Deactivate ability to perform custom Prometheus metrics queries.")][Boolean]$MetricsQuery,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Deactivates ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.)")][Boolean]$ActivateFeatures,
+        [parameter(Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Deactivates ability to add, edit, or set ILM policies, ILM rules, and EC profiles; ability to simulate ILM evaluation of objects on the grid.)")][Boolean]$Ilm,
+        [parameter(Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Deactivates ability to look up object metadata for any object stored on the grid.)")][Boolean]$ObjectMetadata,
+        [parameter(Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Deactivates ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies).")][Boolean]$ManageAllContainers,
+        [parameter(Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Deactivates ability to manage all S3 endpoints for this tenant account.")][Boolean]$ManageEndpoints,
+        [parameter(Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Deactivates ability to manage your personal S3 credentials.")][Boolean]$ManageOwnS3Credentials
     )
 
     Begin {
@@ -5271,6 +5315,9 @@ function Global:Update-SgwDeactivatedFeatures {
         if ($Maintenance) {
             $Body.grid.maintenance = $Maintenance
         }
+        if ($MetricsQuery) {
+            $Body.grid.metricsQuery = $MetricsQuery
+        }
         if ($ActivateFeatures) {
             $caption = "Please Confirm"
             $message = "Are you sure you want to proceed with permanently deactivating the activation of features (this can't be undone!):"
@@ -5287,8 +5334,23 @@ function Global:Update-SgwDeactivatedFeatures {
                 return
             }
         }
+        if ($Ilm) {
+            $Body.grid.ilm = $Ilm
+        }
+        if ($ObjectMetadata) {
+            $Body.grid.objectMetadata = $ObjectMetadata
+        }
+        if ($ManageAllContainers -or $ManageEndpoints -or $ManageOwnS3Credentials) {
+            $Body.tenant = @{}
+        }
+        if ($ManageAllContainers) {
+            $Body.tenant.manageAllContainers = $ManageAllContainers
+        }
+        if ($ManageEndpoints) {
+            $Body.tenant.manageEndpoints = $ManageEndpoints
+        }
         if ($ManageOwnS3Credentials) {
-            $Body.tenant = @{ manageOwnS3Credentials = $ManageOwnS3Credentials }
+            $Body.tenant.manageOwnS3Credentials = $ManageOwnS3Credentials
         }
         $Body = ConvertTo-Json -InputObject $Body
 
