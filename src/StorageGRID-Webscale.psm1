@@ -5222,6 +5222,32 @@ function Global:Get-SgwDeactivatedFeatures {
     StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
     StorageGRID Profile to use for connection.
+    .PARAMETER AlarmAcknowledgment
+    Deactivate ability to acknowledge alarms.
+    .PARAMETER OtherGridConfiguration
+    Deactivate ability to access configuration pages not covered by other permissions.
+    .PARAMETER GridTopologyPageConfiguration
+    Deactivate ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.
+    .PARAMETER TenantAccounts
+    Deactivate ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).
+    .PARAMETER ChangeTenantRootPassword
+    Deactivate ability to reset the root user password for tenant accounts.
+    .PARAMETER Maintenance
+    Deactivate ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.
+    .PARAMETER MetricsQuery
+    Deactivate ability to perform custom Prometheus metrics queries.
+    .PARAMETER ActivateFeatures
+    Deactivates ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.)
+    .PARAMETER Ilm
+    Deactivates ability to add, edit, or set ILM policies, ILM rules, and EC profiles; ability to simulate ILM evaluation of objects on the grid.)
+    .PARAMETER ObjectMetadata
+    Deactivates ability to look up object metadata for any object stored on the grid.)
+    .PARAMETER ManageAllContainers
+    Deactivates ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies).
+    .PARAMETER ManageEndpoints
+    Deactivates ability to manage all S3 endpoints for this tenant account.
+    .PARAMETER ManageOwnS3Credentials
+    Deactivates ability to manage your personal S3 credentials.
 #>
 function Global:Update-SgwDeactivatedFeatures {
     [CmdletBinding()]
@@ -5275,6 +5301,17 @@ function Global:Update-SgwDeactivatedFeatures {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -5368,24 +5405,42 @@ function Global:Update-SgwDeactivatedFeatures {
 
 ## dns-servers ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieve StorageGRID DNS Servers
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
-function Global:Get-SgwDNSServers {
+function Global:Get-SgwDnsServers {
     [CmdletBinding()]
 
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -5418,20 +5473,40 @@ function Global:Get-SgwDNSServers {
     Retrieve StorageGRID DNS Servers
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER DnsServers
+    List of IP addresses of the external DNS servers.
 #>
-function Global:Replace-SgwDNSServers {
+function Global:Replace-SgwDnsServers {
     [CmdletBinding()]
 
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "List of IP addresses of the external DNS servers.")][String[]]$DNSServers
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "List of IP addresses of the external DNS servers.")][String[]]$DnsServers
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
