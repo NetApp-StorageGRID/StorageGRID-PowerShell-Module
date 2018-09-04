@@ -40,6 +40,14 @@ To get detailed help including examples for a specific Cmdlet (e.g. for Connect-
 Get-Help Connect-SgwServer -Detailed
 ```
 
+## Profile Management
+
+It is recommended to use profiles to manage the connections to StorageGRID. The profile contains the login information which will be saved under 
+
+```powershell
+Add-SgwProfile -ProfileName MyProfile -Name adminnode.example.com -Credential (Get-Credential)
+```
+
 ## Tutorial for Tenant Users
 
 This section is dedicated to Tenant Users. If you are a Grid Administrator, check section [Tutorial for Grid Administrators]()

@@ -5540,6 +5540,8 @@ function Global:Replace-SgwDnsServers {
 
 ## endpoints ##
 
+# complete as of API 2.2
+
 <#
     .SYNOPSIS
     Gets the list of endpoints
@@ -6492,13 +6494,17 @@ function Global:Add-SgwS3Endpoint {
 
 ## endpoint-domain-names ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Lists endpoint domain names
     .DESCRIPTION
     Lists endpoint domain names
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwEndpointDomainNames {
     [CmdletBinding()]
@@ -6506,10 +6512,24 @@ function Global:Get-SgwEndpointDomainNames {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -6537,27 +6557,47 @@ function Global:Get-SgwEndpointDomainNames {
     }
 }
 
-Set-Alias -Name Add-SgwEndpointDomainNames -Value Replace-SgwEndpointDomainNames
-Set-Alias -Name New-SgwEndpointDomainNames -Value Replace-SgwEndpointDomainNames
+Set-Alias -Name Replace-SgwEndpointDomainNames -Value Set-SgwEndpointDomainNames
+Set-Alias -Name New-SgwEndpointDomainNames -Value Set-SgwEndpointDomainNames
 <#
     .SYNOPSIS
     Change the endpoint domain names
     .DESCRIPTION
     Change the endpoint domain names
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER EndpointDomainNames
+    List of DNS names to be used as S3/Swift endpoints.
 #>
-function Global:Replace-SgwEndpointDomainNames {
+function Global:Set-SgwEndpointDomainNames {
     [CmdletBinding()]
 
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -6584,6 +6624,76 @@ function Global:Replace-SgwEndpointDomainNames {
         }
 
         Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Add an endpoint domain name
+    .DESCRIPTION
+    Add an endpoint domain name
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER EndpointDomainName
+    DNS name to be used as S3/Swift endpoints.
+#>
+function Global:Add-SgwEndpointDomainName {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
+    )
+
+    Process {
+        $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName
+        $EndpointDomainNames += $EndpointDomainName
+
+        Set-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName -EndpointDomainNames $EndpointDomainNames
+    }
+}
+
+<#
+    .SYNOPSIS
+    Remove an endpoint domain name
+    .DESCRIPTION
+    Remove an endpoint domain name
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER EndpointDomainName
+    DNS Endpoint to be removed.
+#>
+function Global:Remove-SgwEndpointDomainName {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
+    )
+
+    Process {
+        $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName
+        $EndpointDomainNames = $EndpointDomainNames | Where-Object { $_ -ne $EndpointDomainName }
+
+        Set-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName -EndpointDomainNames $EndpointDomainNames
     }
 }
 
