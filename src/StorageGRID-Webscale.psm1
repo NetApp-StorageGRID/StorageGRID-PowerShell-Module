@@ -6654,6 +6654,29 @@ function Global:Add-SgwEndpointDomainName {
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
     )
 
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
     Process {
         $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName
         $EndpointDomainNames += $EndpointDomainName
@@ -6689,6 +6712,29 @@ function Global:Remove-SgwEndpointDomainName {
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
     )
 
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
     Process {
         $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server -ProfileName $ProfileName
         $EndpointDomainNames = $EndpointDomainNames | Where-Object { $_ -ne $EndpointDomainName }
@@ -6699,13 +6745,17 @@ function Global:Remove-SgwEndpointDomainName {
 
 ## erasure-coding
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
-    Lists EC profiles
+    Lists Erasure Coding profiles
     .DESCRIPTION
-    Lists EC profiles
+    Lists Erasure Coding profiles
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwEcProfiles {
     [CmdletBinding()]
@@ -6713,10 +6763,24 @@ function Global:Get-SgwEcProfiles {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -6748,9 +6812,13 @@ function Global:Get-SgwEcProfiles {
 
 <#
     .SYNOPSIS
-    Lists EC profiles
+    Lists Erasure Coding schemes
     .DESCRIPTION
-    Lists EC profiles
+    Lists Erasure Coding schemes
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwEcSchemes {
     [CmdletBinding()]
@@ -6758,10 +6826,24 @@ function Global:Get-SgwEcSchemes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
