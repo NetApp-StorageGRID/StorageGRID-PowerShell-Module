@@ -10109,6 +10109,10 @@ function Global:New-SgwS3AccessKey {
 
         $AccessKey = $Response.Json.data
 
+        if ($AccessKey.expires) {
+            $AccessKey.expires = [System.TimeZoneInfo]::ConvertTimeFromUtc($AccessKey.expires, [System.TimeZoneInfo]::Local)
+        }
+
         if (!$AccessKey) {
             Throw "Server did not return access key!"
         }
