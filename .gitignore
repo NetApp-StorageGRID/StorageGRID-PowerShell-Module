@@ -4,3 +4,5 @@ out/
 .idea/
 /StorageGRID-Webscale.iml
 StorageGRID-Webscale/
+.DS_Store
+examples/
