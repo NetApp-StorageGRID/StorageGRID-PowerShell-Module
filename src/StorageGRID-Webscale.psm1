@@ -7840,6 +7840,12 @@ function Global:Remove-SgwExpansionNode {
     Resets a grid node's configuration and returns it back to pending state
     .DESCRIPTION
     Resets a grid node's configuration and returns it back to pending state
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID node eligible for expansion.
 #>
 function Global:Reset-SgwExpansionNode {
     [CmdletBinding()]
@@ -7907,6 +7913,10 @@ function Global:Reset-SgwExpansionNode {
     Retrieves the list of existing and new sites (empty until expansion is started)
     .DESCRIPTION
     Retrieves the list of existing and new sites (empty until expansion is started)
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwExpansionSites {
     [CmdletBinding()]
@@ -7914,10 +7924,24 @@ function Global:Get-SgwExpansionSites {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -7950,23 +7974,43 @@ function Global:Get-SgwExpansionSites {
     Adds a new site
     .DESCRIPTION
     Adds a new site
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Name of the new site
 #>
 function Global:New-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
-                Position = 0,
-                HelpMessage = "Name of new site.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$Name,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Name of the new site.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -7979,7 +8023,7 @@ function Global:New-SgwExpansionSite {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/site"
+        $Uri = $Server.BaseURI + "/grid/expansion/sites"
         $Method = "POST"
 
         $Body = ConvertTo-Json -InputObject @{ name = $Name }
@@ -8001,23 +8045,43 @@ function Global:New-SgwExpansionSite {
     Delete a site
     .DESCRIPTION
     Delete a site
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale site to remove from expansion.
 #>
 function Global:Remove-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale site to remove from expansion.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID Webscale site to remove from expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -8050,23 +8114,43 @@ function Global:Remove-SgwExpansionSite {
     Retrieve a site
     .DESCRIPTION
     Retrieve a site
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale site.
 #>
 function Global:Get-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
-                Position = 0,
-                HelpMessage = "ID of a StorageGRID site.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID Webscale site.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -8099,29 +8183,53 @@ function Global:Get-SgwExpansionSite {
     Updates the details of a site
     .DESCRIPTION
     Updates the details of a site
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID site to be updated.
+    .PARAMETER NewId
+    New ID for the StorageGRID site.
+    .PARAMETER Name
+    New name for the StorageGRID site.
 #>
 function Global:Update-SgwExpansionSite {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID site to be updated.")][String]$ID,
-        [parameter(
-                Mandatory = $True,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "New ID for the StorageGRID site.")][String]$NewID,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "New name for the StorageGRID site.")][String]$Name,
-        [parameter(Mandatory = $False,
+                HelpMessage = "ID of a StorageGRID site to be updated.")][String]$Id,
+        [parameter(
+                Mandatory = $False,
                 Position = 3,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "New ID for the StorageGRID site.")][String]$NewId,
+        [parameter(
+                Mandatory = $True,
+                Position = 4,
+                HelpMessage = "New name for the StorageGRID site.")][String]$Name
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -8134,7 +8242,7 @@ function Global:Update-SgwExpansionSite {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/site/$id"
+        $Uri = $Server.BaseURI + "/grid/expansion/sites/$id"
         $Method = "PUT"
 
         $Body = @{ }
@@ -8144,11 +8252,14 @@ function Global:Update-SgwExpansionSite {
         if ($NewID) {
             $Body.id = $NewID
         }
+        else {
+            $Body.id = $Id
+        }
 
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
