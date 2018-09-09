@@ -5403,6 +5403,288 @@ function Global:Update-SgwDeactivatedFeatures {
     }
 }
 
+## decomissioning ##
+
+# complete as of API 2.2
+
+<#
+    .SYNOPSIS
+    Get decomission status
+    .DESCRIPTION
+    Get decomission status
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwDecommission {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+
+        Write-Warning "This is currently a private REST API and may change in future versions"
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/private/decommission"
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Start decomission
+    .DESCRIPTION
+    Start decomission
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER NodeIds
+    List of Node IDs to be decommissioned.
+    .PARAMETER Passphrase
+    StorageGRID Passphrase.
+    .PARAMETER Force
+    Force decommission of nodes.
+#>
+function Global:Start-SgwDecommission {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "List of Node IDs to be decommissioned.")][String[]]$NodeIds,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Force decommission of nodes.")][Switch]$Force
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+
+        Write-Warning "This is currently a private REST API and may change in future versions"
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/private/decommission"
+        $Method = "POST"
+
+        $Decommission = @{}
+        if ($Force.IsPresent) {
+            $Decommission.forceNodeIds = $NodeIds
+        }
+        else {
+            $Decommission.nodeIds = $NodeIds
+        }
+        $Decommission.passphrase = $Passphrase
+
+        $Body = ConvertTo-Json -InputObject $Decommission
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Suspend decomission
+    .DESCRIPTION
+    Suspend decomission
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Suspend-SgwDecommission {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+
+        Write-Warning "This is currently a private REST API and may change in future versions"
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/private/decommission/pause"
+        $Method = "POST"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Resume decomission
+    .DESCRIPTION
+    Resume decomission
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Resume-SgwDecommission {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+
+        Write-Warning "This is currently a private REST API and may change in future versions"
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/private/decommission/resume"
+        $Method = "POST"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
 ## dns-servers ##
 
 # complete as of API 2.2
