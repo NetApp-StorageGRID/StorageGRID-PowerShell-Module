@@ -2429,9 +2429,6 @@ function global:Connect-SgwServer {
         $Server.ApiVersion = $Response.apiVersion
 
         $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
-        if (!$SupportedApiVersions.Contains(1)) {
-            Write-Warning "API Version 1 not supported. API Version 1 is required to autogenerate S3 credentials for Grid Administrators. If you want to run the S3 Cmdlets as Grid Administrator and let the Cmdlets autogenerate S3 credentials, then enable API Version 1 with`nUpdate-SgwConfigManagement -MinApiVersion 1"
-        }
         $Server.SupportedApiVersions = $SupportedApiVersions
 
         if ($S3EndpointUrl) {
@@ -5843,7 +5840,7 @@ function Global:Get-SgwEndpoints {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -5926,7 +5923,7 @@ function Global:Add-SgwEndpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
@@ -6047,7 +6044,7 @@ function Global:Remove-SgwEndpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -6121,7 +6118,7 @@ function Global:Get-SgwEndpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -6216,7 +6213,7 @@ function Global:Update-SgwEndpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -6488,7 +6485,7 @@ function Global:Get-SgwS3Endpoints {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Process {
@@ -6534,7 +6531,7 @@ function Global:Add-SgwS3Endpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
@@ -6671,7 +6668,7 @@ function Global:Add-SgwS3Endpoint {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -6797,7 +6794,7 @@ function Global:Get-SgwEndpointDomainNames {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -6862,7 +6859,7 @@ function Global:Set-SgwEndpointDomainNames {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
@@ -6930,7 +6927,7 @@ function Global:Add-SgwEndpointDomainName {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
@@ -6988,7 +6985,7 @@ function Global:Remove-SgwEndpointDomainName {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
@@ -7048,7 +7045,7 @@ function Global:Get-SgwEcProfiles {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7111,7 +7108,7 @@ function Global:Get-SgwEcSchemes {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7176,7 +7173,7 @@ function Global:Stop-SgwExpansion {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7237,7 +7234,7 @@ function Global:Get-SgwExpansion {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7298,7 +7295,7 @@ function Global:Start-SgwExpansion {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default"
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7361,7 +7358,7 @@ function Global:Invoke-SgwExpansion {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
@@ -7410,13 +7407,17 @@ function Global:Invoke-SgwExpansion {
 
 ## expansion-nodes ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieves the list of grid nodes available for expansion
     .DESCRIPTION
     Retrieves the list of grid nodes available for expansion
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwExpansionNodes {
     [CmdletBinding()]
@@ -7424,10 +7425,24 @@ function Global:Get-SgwExpansionNodes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -7451,6 +7466,302 @@ function Global:Get-SgwExpansionNodes {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
+        $ExpansionNodes = $Response.Json.data
+
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkMac -Value { $this.networks.grid.mac }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkIp -Value { $this.networks.grid.ip }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkGateway -Value { $this.networks.grid.gateway }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkConfig -Value { $this.networks.grid.config }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkMac -Value { $this.networks.admin.mac }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkIp -Value { $this.networks.admin.ip }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkGateway -Value { $this.networks.admin.gateway }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkConfig -Value { $this.networks.admin.config }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkSubnets -Value { $this.networks.admin.subnets }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkMac -Value { $this.networks.client.mac }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkIp -Value { $this.networks.client.ip }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkGateway -Value { $this.networks.client.gateway }
+        $ExpansionNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkConfig -Value { $this.networks.client.config }
+
+        Write-Output $ExpansionNodes
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a grid node eligbible for expansion
+    .DESCRIPTION
+    Retrieves a grid node eligbible for expansion
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID node eligible for expansion.
+#>
+function Global:Get-SgwExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        $ExpansionNode = $Response.Json.data
+
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name GridNetworkMac -Value { $this.networks.grid.mac }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name GridNetworkIp -Value { $this.networks.grid.ip }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name GridNetworkGateway -Value { $this.networks.grid.gateway }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name GridNetworkConfig -Value { $this.networks.grid.config }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkMac -Value { $this.networks.admin.mac }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkIp -Value { $this.networks.admin.ip }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkGateway -Value { $this.networks.admin.gateway }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkConfig -Value { $this.networks.admin.config }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkSubnets -Value { $this.networks.admin.subnets }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkMac -Value { $this.networks.client.mac }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkIp -Value { $this.networks.client.ip }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkGateway -Value { $this.networks.client.gateway }
+        $ExpansionNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkConfig -Value { $this.networks.client.config }
+
+        Write-Output $ExpansionNode
+    }
+}
+
+<#
+    .SYNOPSIS
+    Configures a grid node expansion
+    .DESCRIPTION
+    Configures a grid node expansion
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:New-SgwExpansionNode {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(
+                Mandatory = $True,
+                Position = 3,
+                HelpMessage = "ID or name of the site to which the node should be assigned.",
+                ValueFromPipelineByPropertyName = $True)][String]$Site,
+        [parameter(
+                Mandatory = $True,
+                Position = 4,
+                HelpMessage = "The name of the node (must be a valid hostname).",
+                ValueFromPipelineByPropertyName = $True)][ValidatePattern("^(?:[A-Za-z0-9]?|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$")][String]$Name,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "The NTP role assigned to the nod. If not specified, StorageGRID will decide.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","primary","client")][String]$NtpRole,
+        [parameter(
+                Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Whether the grid node has an ADC (Administrative Domain Controller) service. If not specified, StorageGRID will determine automatically if the node should have an ADC service. At least three Storage Nodes per site must contain an ADC service.",
+                ValueFromPipelineByPropertyName = $True)][String]$HasAdc,
+        [parameter(
+                Mandatory = $True,
+                Position = 7,
+                HelpMessage = "The name of the node (must be a valid hostname).",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("adminNode","apiGatewayNode","archiveNode","storageNode")][String]$Type,
+        [parameter(
+                Mandatory = $False,
+                Position = 8,
+                HelpMessage = "Whether this Admin Node is the primary Admin Node.",
+                ValueFromPipelineByPropertyName = $True)][String]$IsPrimaryAdmin,
+        [parameter(
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Whether required properties for this node have been configured and the node has been added to a site.",
+                ValueFromPipelineByPropertyName = $True)][Boolean]$Configured,
+        [parameter(
+                Mandatory = $True,
+                Position = 10,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("static","dhcp","fixed")][String]$GridNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$GridNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "The gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$GridNetworkGateway,
+        [parameter(
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$AdminNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "the default gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkGateway,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$ClientNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 17,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 18,
+                HelpMessage = "the default gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkGateway
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
+        $Method = "PUT"
+
+        $ExpansionNode = @{}
+        $ExpansionNode.id = $Id
+        try {
+            [Guid]::Parse($Site)
+        }
+        catch {
+            Write-Verbose "Site is not a valid GUID, check if site is the site name"
+            $Topology = Get-SgwTopologyHealth -Server $Server -Depth site
+            $Site = $Topology.children | Where-Object { $_.name -eq $Site } | Select-Object -ExpandProperty id
+            if (!$Site) {
+                Throw "Site ID could not be found for $Site"
+            }
+        }
+        $ExpansionNode.site = $Site
+        $ExpansionNode.name = $Name
+        if ($NtpRole) {
+            $ExpansionNode.ntpRole = $NtpRole
+        }
+        if ($HasAdc) {
+            $ExpansionNode.hasAdc = $HasAdc
+        }
+        $ExpansionNode.type = $Type
+        if ($IsPrimaryAdmin) {
+            $ExpansionNode.isPrimaryAdmin = $IsPrimaryAdmin
+        }
+        $ExpansionNode.configured = $Configured
+        $ExpansionNode.networks = @{}
+        $ExpansionNode.networks.grid = @{}
+        # TODO: remove next line
+        #$ExpansionNode.networks.grid.mac = "00:50:56:b4:98:10"
+        $ExpansionNode.networks.grid.ip = $GridNetworkIp
+        $ExpansionNode.networks.grid.gateway = $GridNetworkGateway
+        $ExpansionNode.networks.grid.config = $GridNetworkConfig
+        if ($AdminNetworkIp) {
+            $ExpansionNode.networks.admin = @{}
+            $ExpansionNode.networks.admin.ip = $AdminNetworkIp
+            $ExpansionNode.networks.admin.gateway = $AdminNetworkGateway
+            $ExpansionNode.networks.admin.config = $AdminNetworkConfig
+            $ExpansionNode.networks.admin.subnets = $AdminNetworkSubnets
+        }
+        if ($ClientNetworkIp) {
+            $ExpansionNode.networks.client = @{}
+            $ExpansionNode.networks.client.ip = $ClientNetworkIp
+            $ExpansionNode.networks.client.gateway = $ClientNetworkGateway
+            $ExpansionNode.networks.client.config = $ClientNetworkConfig
+        }
+
+        $Body = ConvertTo-Json -InputObject $ExpansionNode
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
         Write-Output $Response.Json.data
     }
 }
@@ -7460,23 +7771,43 @@ function Global:Get-SgwExpansionNodes {
     Removes a grid node from all procedures; the grid node may be added back in by rebooting it
     .DESCRIPTION
     Removes a grid node from all procedures; the grid node may be added back in by rebooting it
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID node eligible for expansion.
 #>
 function Global:Remove-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID Webscale node to remove from expansion.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID Webscale node to remove from expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -7506,99 +7837,6 @@ function Global:Remove-SgwExpansionNode {
 
 <#
     .SYNOPSIS
-    Retrieves a grid node eligbible for expansion
-    .DESCRIPTION
-    Retrieves a grid node eligbible for expansion
-#>
-function Global:Get-SgwExpansionNode {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(
-                Mandatory = $True,
-                Position = 0,
-                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
-        [parameter(Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSgwServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
-        }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
-    }
-
-    Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id"
-        $Method = "GET"
-
-        try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-        }
-
-        Write-Output $Response.Json.data
-    }
-}
-
-# TODO: Implement
-<#
-    .SYNOPSIS
-    Configures a grid node expansion
-    .DESCRIPTION
-    Configures a grid node expansion
-#>
-function Global:New-SgwExpansionNode {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
-    )
-
-    Begin {
-        if (!$Server) {
-            $Server = $Global:CurrentSgwServer
-        }
-        if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
-        }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
-    }
-
-    Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/start"
-        $Method = "POST"
-
-        try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
-        }
-        catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-        }
-
-        Write-Output $Response.Json.data
-    }
-}
-
-<#
-    .SYNOPSIS
     Resets a grid node's configuration and returns it back to pending state
     .DESCRIPTION
     Resets a grid node's configuration and returns it back to pending state
@@ -7607,18 +7845,32 @@ function Global:Reset-SgwExpansionNode {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID of a StorageGRID node eligible for expansion.",
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -7631,7 +7883,7 @@ function Global:Reset-SgwExpansionNode {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/expansion/node/$id"
+        $Uri = $Server.BaseURI + "/grid/expansion/nodes/$id/reset"
         $Method = "POST"
 
         try {
