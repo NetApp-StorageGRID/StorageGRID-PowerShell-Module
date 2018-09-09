@@ -7359,7 +7359,7 @@ function Global:Invoke-SgwExpansion {
         [parameter(Mandatory = $False,
                 Position = 1,
                 HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
-        [parameter(Mandatory = $False,
+        [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
     )
@@ -7394,7 +7394,7 @@ function Global:Invoke-SgwExpansion {
         $Body = ConvertTo-Json -InputObject @{ passphrase = $Passphrase }
 
         try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
