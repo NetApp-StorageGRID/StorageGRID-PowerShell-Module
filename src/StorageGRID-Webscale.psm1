@@ -7906,7 +7906,7 @@ function Global:Reset-SgwExpansionNode {
 
 ## expansion-sites ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
@@ -8272,13 +8272,17 @@ function Global:Update-SgwExpansionSite {
 
 ## grid-networks ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Lists the current Grid Networks
     .DESCRIPTION
     Lists the current Grid Networks
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwGridNetworks {
     [CmdletBinding()]
@@ -8286,10 +8290,24 @@ function Global:Get-SgwGridNetworks {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -8322,6 +8340,14 @@ function Global:Get-SgwGridNetworks {
     Change the Grid Network list
     .DESCRIPTION
     Change the Grid Network list
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Subnets
+    List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).
+    .PARAMETER Passphrase
+    StorageGRID Passphrase.
 #>
 function Global:Update-SgwGridNetworks {
     [CmdletBinding()]
@@ -8330,15 +8356,29 @@ function Global:Update-SgwGridNetworks {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
+                HelpMessage = "List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
+        [parameter(Mandatory = $True,
+                Position = 3,
                 HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
