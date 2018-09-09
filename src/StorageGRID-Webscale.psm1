@@ -835,7 +835,7 @@ function Global:Get-SgwProfile {
             $Config = [PSCustomObject]@{ProfileName = $ProfileName;
                 Name = $Name;
                 Credential = $Credential;
-                SkipCertificateCheck = $SkipCertificateCheck;
+                SkipCertificateCheck = $SkipCertificateCheck.IsPresent;
                 AccountId = $AccountId;
                 DisableAutomaticAccessKeyGeneration = $DisableAutomaticAccessKeyGeneration;
                 TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime;
@@ -851,8 +851,8 @@ function Global:Get-SgwProfile {
             $Config.Credential = $Credential
         }
 
-        if ($SkipCertificateCheck -ne $null) {
-            $Config.SkipCertificateCheck = $SkipCertificateCheck
+        if ($SkipCertificateCheck.IsPresent) {
+            $Config.SkipCertificateCheck = $SkipCertificateCheck.IsPresent
         }
         elseif (!$Config.SkipCertificateCheck) {
             $Config.SkipCertificateCheck = $False
@@ -7082,7 +7082,7 @@ function Global:Invoke-SgwExpansion {
                 HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase,
+                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
     )
 
     Begin {
