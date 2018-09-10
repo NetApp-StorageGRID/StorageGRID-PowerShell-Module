@@ -469,6 +469,1989 @@ function Invoke-SgwRequest {
 
 ### Cmdlets ###
 
+## install ##
+
+# grid #
+
+<#
+    .SYNOPSIS
+    Reset all user-provided information for installation and primary Admin Node recovery
+    .DESCRIPTION
+    Reset all user-provided information for installation and primary Admin Node recovery
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Reset-SgwInstall {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install"
+        $Method = "DELETE"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve grid-wide details
+    .DESCRIPTION
+    Retrieve grid-wide details
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallGridDetails {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/grid-details"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+Set-Alias -Name Set-SgwInstallGridDetails -Value Update-SgwInstallGridDetails
+<#
+    .SYNOPSIS
+    Update grid-wide details
+    .DESCRIPTION
+    Update grid-wide details
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Name of the Grid.
+    .PARAMETER License
+    The grid license.
+#>
+function Global:Update-SgwInstallGridDetails {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Name of the Grid.")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "The grid license.")][String]$License
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/grid-details"
+        $Method = "PUT"
+
+        $GridDetails = Get-SgwInstallGridDetails -AdminNode $AdminNode
+        $GridDetails.name = $Name
+        if (!$License -and !$GridDetails.license) {
+            Write-Warning "No license provided, using default PoC license"
+            $GridDetails.license = 'eyJzdGF0dXNSZXNwIjp7InN0YXR1c0NvZGUiOiJTMDA3IiwibWVzc2FnZSI6IlN1Y2Nlc3MiLCJzblN0YXR1cyI6IkFjdGl2ZSIsIndhcnJhbnR5U3RhcnQiOiIyMDE2LTAxLTAxIiwid2FycmFudHlFbmQiOiIyMDE2LTAxLTAyIiwiY21hdElEIjoiNTAwMTY0MiIsImNvbXBhbnlCUElEIjoiMDAwMTAzMjc2NyIsInNpdGVCUElEIjoiMDAwMTM1MDQ5MSIsImNvbnRyYWN0U3RhcnQiOiIyMDE2LTAxLTAxIiwiY29udHJhY3RFbmQiOiIyMDE2LTAxLTAyIiwidmVyc2lvbiI6IjEiLCJzZXJpYWxOdW1iZXIiOiIwMDAwMDAiLCJsaWNlbnNlcyI6eyJ0eXBlIjoiY2FwYWNpdHkiLCJwYWNrYWdlIjoiU0ctV0VCU0NBTEUiLCJjYXBhY2l0eSI6IjAiLCJlbmREYXRlIjoiMjAxNi0wMS0wMSJ9fSwiU2lnbmF0dXJlIjoiUG5kdWQ0RGZWd2ppL0VBU3VWNXhQcU5MbWVwdndmRlQ1a0NMc2tzZEtOK0l3Z0tvdGE2VG0xemRNY1V6T01xTHFCZTFwS2QzR1JybzFVQjJpRlJWMlVwalp2V2JaOHhBWDU0NVBQb0VNNFNsNFQydks3ZGhBd2pCTTlXMS8yNmxWMjVHVU1wSjFabjc2VUtDWWRieFdJSjVrSXplTHFJRVVKOWZGRG1aRWxiV01DTXV0czBvcW9KRWlCbFFOUUpBQytVekZhOGZxalk2K3Rhakc2WkN1dE1kWTlYYnI4b3c4RTNrekFpK2oxcmR6c092ODY3ZjMyZDdCdFBFWVg4NGZiUlVETHMzdHZub1JIcGdFbnF3U2tlWmZZekNzRTRLZ0lodmFXV0MyakRQUkUvMytRMUNLV1B5dUhSd01jVmd4d2F5ME1ab0lFMWJpSW1PRDVXSmZRPT0iLCJ0cmFja2luZ0lkIjoiZDA1ZTU5MmQtZjM0MC00N2E1LWE5ZjYtNGJmNDVjZGMzYTEyIn0='
+        }
+        else {
+            # convert license to Base-64
+            $GridDetails.license = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($License))
+        }
+
+        $Body = ConvertTo-Json -InputObject $GridDetails
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -Body $Body
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve the list of Grid Network subnets
+    .DESCRIPTION
+    Retrieve the list of Grid Network subnets
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallGridNetworks {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/grid-networks"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+Set-Alias -Name Set-SgwInstallGridNetworks -Value Update-SgwInstallGridNetworks
+<#
+    .SYNOPSIS
+    Update the list of Grid Network subnets
+    .DESCRIPTION
+    Update the list of Grid Network subnets
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER GridNetworks
+    The list of Grid Network subnets (in CIDR notation)
+#>
+function Global:Update-SgwInstallGridNetworks {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "The list of Grid Network subnets (in CIDR notation).")][Alias("Networks")][String[]]$GridNetworks
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/grid-networks"
+        $Method = "PUT"
+
+        $Body = ConvertTo-Json -InputObject $GridNetworks
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -Body $Body
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve grid passwords
+    .DESCRIPTION
+    Retrieve grid passwords
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallPasswords {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/passwords"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+Set-Alias -Name Set-SgwInstallPasswords -Value Update-SgwInstallPasswords
+<#
+    .SYNOPSIS
+    Update grid passwords
+    .DESCRIPTION
+    Update grid passwords
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Provision
+    The password used during maintenance procedures to make changes to the grid topology and to download the grid Recovery Package; optional once set
+    .PARAMETER Management
+    The password for the grid management root user, which can log into the grid management interface and has access to all features; optional once set
+    .PARAMETER UseRandom
+    Whether the grid will use random passwords for the command line root user, or the default passwords.
+#>
+function Global:Update-SgwInstallPasswords {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "The password used during maintenance procedures to make changes to the grid topology and to download the grid Recovery Package; optional once set.")][Alias("ProvisionPassphrase","Passphrase")][String]$Provision,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "The password for the grid management root user, which can log into the grid management interface and has access to all features; optional once set.")][String]$Management,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Whether the grid will use random passwords for the command line root user, or the default passwords.")][Boolean]$UseRandom
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/passwords"
+        $Method = "PUT"
+
+        $Passwords = Get-SgwInstallPasswords -AdminNode $AdminNode
+        if ($Provision) {
+            $Passwords.provision = $Provision
+        }
+        if ($Management) {
+            $Passwords.management = $Management
+        }
+        if ($UseRandom) {
+            $Passwords.useRandom = $UseRandom
+        }
+
+        $Body = ConvertTo-Json -InputObject $Passwords
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -Body $Body
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve the list of NTP server IP addresses
+    .DESCRIPTION
+    Retrieve the list of NTP server IP addresses
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallNtpServers {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/ntp-servers"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+Set-Alias -Name Set-SgwInstallNtpServers -Value Update-SgwInstallNtpServers
+<#
+    .SYNOPSIS
+    Update the list of NTP server IP addresses
+    .DESCRIPTION
+    Update the list of NTP server IP addresses
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER NtpServers
+    List of NTP Server IP addresses.
+#>
+function Global:Update-SgwInstallNtpServers {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "List of NTP Server IP addresses.")][Alias("ProvisionPassphrase","Passphrase")][String[]]$NtpServers
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/ntp-servers"
+        $Method = "PUT"
+
+        $Body = ConvertTo-Json -InputObject $NtpServers
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -Body $Body
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve the list of DNS server IP addresses
+    .DESCRIPTION
+    Retrieve the list of DNS server IP addresses
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallDnsServers {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/dns-servers"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+Set-Alias -Name Set-SgwInstallDnsServers -Value Update-SgwInstallDnsServers
+<#
+    .SYNOPSIS
+    Update the list of DNS server IP addresses
+    .DESCRIPTION
+    Update the list of DNS server IP addresses
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER NtpServers
+    List of DNS Server IP addresses.
+#>
+function Global:Update-SgwInstallDnsServers {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "List of NTP Server IP addresses.")][Alias("ProvisionPassphrase","Passphrase")][String[]]$DnsServers
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/dns-servers"
+        $Method = "PUT"
+
+        $Body = ConvertTo-Json -InputObject $DnsServers
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -Body $Body
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+# nodes #
+
+<#
+    .SYNOPSIS
+    Retrieve the list of grid nodes
+    .DESCRIPTION
+    Retrieve the list of grid nodes
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallNodes {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/nodes"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        $InstallNodes = $Response.Json.Data
+
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkMac -Value { $this.networks.grid.mac }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkIp -Value { $this.networks.grid.ip }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkGateway -Value { $this.networks.grid.gateway }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name GridNetworkConfig -Value { $this.networks.grid.config }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkMac -Value { $this.networks.admin.mac }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkIp -Value { $this.networks.admin.ip }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkGateway -Value { $this.networks.admin.gateway }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkConfig -Value { $this.networks.admin.config }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name AdminNetworkSubnets -Value { $this.networks.admin.subnets }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkMac -Value { $this.networks.client.mac }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkIp -Value { $this.networks.client.ip }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkGateway -Value { $this.networks.client.gateway }
+        $InstallNodes | Add-Member -MemberType ScriptProperty -Name ClientNetworkConfig -Value { $this.networks.client.config }
+
+        Write-Output $InstallNodes
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve a grid node
+    .DESCRIPTION
+    Retrieve a grid node
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Node ID
+#>
+function Global:Get-SgwInstallNode {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Node ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/nodes/$id"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        $InstallNode = $Response.Json.Data
+
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name GridNetworkMac -Value { $this.networks.grid.mac }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name GridNetworkIp -Value { $this.networks.grid.ip }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name GridNetworkGateway -Value { $this.networks.grid.gateway }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name GridNetworkConfig -Value { $this.networks.grid.config }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkMac -Value { $this.networks.admin.mac }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkIp -Value { $this.networks.admin.ip }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkGateway -Value { $this.networks.admin.gateway }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkConfig -Value { $this.networks.admin.config }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name AdminNetworkSubnets -Value { $this.networks.admin.subnets }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkMac -Value { $this.networks.client.mac }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkIp -Value { $this.networks.client.ip }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkGateway -Value { $this.networks.client.gateway }
+        $InstallNode | Add-Member -MemberType ScriptProperty -Name ClientNetworkConfig -Value { $this.networks.client.config }
+
+        Write-Output $InstallNode
+    }
+}
+
+<#
+    .SYNOPSIS
+    Configure a grid node
+    .DESCRIPTION
+    Configure a grid node
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Node ID
+#>
+function Global:Update-SgwInstallNode {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Node ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                HelpMessage = "ID or name of the site to which the node should be assigned.",
+                ValueFromPipelineByPropertyName = $True)][String]$Site,
+        [parameter(
+                Mandatory = $True,
+                Position = 3,
+                HelpMessage = "The name of the node (must be a valid hostname).",
+                ValueFromPipelineByPropertyName = $True)][ValidatePattern("^(?:[A-Za-z0-9]?|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$")][String]$Name,
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
+                HelpMessage = "The NTP role assigned to the nod. If not specified, StorageGRID will decide.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","primary","client")][String]$NtpRole,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Whether the grid node has an ADC (Administrative Domain Controller) service. If not specified, StorageGRID will determine automatically if the node should have an ADC service. At least three Storage Nodes per site must contain an ADC service.",
+                ValueFromPipelineByPropertyName = $True)][String]$HasAdc,
+        [parameter(
+                Mandatory = $True,
+                Position = 6,
+                HelpMessage = "The name of the node (must be a valid hostname).",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("adminNode","apiGatewayNode","archiveNode","storageNode")][String]$Type,
+        [parameter(
+                Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Whether this Admin Node is the primary Admin Node.",
+                ValueFromPipelineByPropertyName = $True)][String]$IsPrimaryAdmin,
+        [parameter(
+                Mandatory = $True,
+                Position = 8,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("static","dhcp","fixed")][String]$GridNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$GridNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 19,
+                HelpMessage = "The gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$GridNetworkGateway,
+        [parameter(
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$AdminNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "the default gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkGateway,
+        [parameter(
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
+                ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$ClientNetworkConfig,
+        [parameter(
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "The CIDR network address for the network interface.",
+                ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkIp,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "the default gateway of the network.",
+                ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkGateway
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/nodes/$id"
+        $Method = "PUT"
+
+        $InstallNode = @{}
+        $InstallNode.id = $Id
+        try {
+            [Guid]::Parse($Site)
+        }
+        catch {
+            Write-Verbose "Site is not a valid GUID, check if site is the site name"
+            $Sites = Get-SgwInstallSites -AdminNode $AdminNode
+            $Site = $Sites | Where-Object { $_.name -eq $Site } | Select-Object -ExpandProperty id
+            if (!$Site) {
+                Throw "Site ID could not be found for $Site"
+            }
+        }
+        $InstallNode.site = $Site
+        $InstallNode.name = $Name
+        if ($NtpRole) {
+            $InstallNode.ntpRole = $NtpRole
+        }
+        if ($HasAdc) {
+            $InstallNode.hasAdc = $HasAdc
+        }
+        $InstallNode.type = $Type
+        if ($IsPrimaryAdmin) {
+            $InstallNode.isPrimaryAdmin = $IsPrimaryAdmin
+        }
+        $InstallNode.configured = $true
+        $InstallNode.networks = @{}
+        $InstallNode.networks.grid = @{}
+        $InstallNode.networks.grid.ip = $GridNetworkIp
+        $InstallNode.networks.grid.gateway = $GridNetworkGateway
+        $InstallNode.networks.grid.config = $GridNetworkConfig
+        if ($AdminNetworkIp) {
+            $InstallNode.networks.admin = @{}
+            $InstallNode.networks.admin.ip = $AdminNetworkIp
+            $InstallNode.networks.admin.gateway = $AdminNetworkGateway
+            $InstallNode.networks.admin.config = $AdminNetworkConfig
+            $InstallNode.networks.admin.subnets = $AdminNetworkSubnets
+        }
+        if ($ClientNetworkIp) {
+            $InstallNode.networks.client = @{}
+            $InstallNode.networks.client.ip = $ClientNetworkIp
+            $InstallNode.networks.client.gateway = $ClientNetworkGateway
+            $InstallNode.networks.client.config = $ClientNetworkConfig
+        }
+
+        $Body = ConvertTo-Json -InputObject $InstallNode
+
+        Write-Verbose "Body: $Body"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -Body $Body -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Remove a grid node from all procedures; the grid node may be added back in by rebooting it
+    .DESCRIPTION
+    Remove a grid node from all procedures; the grid node may be added back in by rebooting it
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Node ID
+#>
+function Global:Remove-SgwInstallNode {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Node ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/nodes/$id"
+        $Method = "DELETE"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Reset a grid node's configuration and returns it back to pending state
+    .DESCRIPTION
+    Reset a grid node's configuration and returns it back to pending state
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Node ID
+#>
+function Global:Reset-SgwInstallNode {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Node ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/nodes/$id/reset"
+        $Method = "POST"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+# provision #
+
+<#
+    .SYNOPSIS
+    Retrieve the status of the provisioning operation
+    .DESCRIPTION
+    Retrieve the status of the provisioning operation
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallStatus {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/start"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Start the provisioning operation, which starts grid installation
+    .DESCRIPTION
+    Start the provisioning operation, which starts grid installation
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Start-SgwInstall {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/start"
+        $Method = "POST"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+# recovery-package #
+
+<#
+    .SYNOPSIS
+    Downloads the Recovery Package
+    .DESCRIPTION
+    Downloads the Recovery Package
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallRecoveryPackage {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/recovery-package"
+        $Method = "GET"
+
+        if (!(Test-Path $Path)) {
+            Throw "Path $Path does not exist!"
+        }
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck -OutFile $Path
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Provides the Recovery Package download confirmation status
+    .DESCRIPTION
+    Provides the Recovery Package download confirmation status
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/recovery-package-confirm"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Confirms download of the Recovery Package
+    .DESCRIPTION
+    Confirms download of the Recovery Package
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Confirm-SgwInstallRecoveryPackageDownload {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/recovery-package-confirm"
+        $Method = "POST"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+# sites #
+
+<#
+    .SYNOPSIS
+    Retrieve the list of sites
+    .DESCRIPTION
+    Retrieve the list of sites
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwInstallSites {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/sites"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Create a new site
+    .DESCRIPTION
+    Create a new site
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    Site name
+#>
+function Global:New-SgwInstallSite {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Site name.")][String]$Name
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/sites"
+        $Method = "POST"
+
+        $Site = @{name=$Name}
+
+        $Body = ConvertTo-Json -InputObject $Site
+
+        Write-Verbose "Body: $Body"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -Body $Body -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve a site
+    .DESCRIPTION
+    Retrieve a site
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Site ID
+#>
+function Global:Get-SgwInstallSite {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Site ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/sites/$Id"
+        $Method = "GET"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Update the details of a site
+    .DESCRIPTION
+    Update the details of a site
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Site ID
+    .PARAMETER Name
+    Site name
+#>
+function Global:Update-SgwInstallSite {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "Site ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Site name.",
+                ValueFromPipelineByPropertyName=$true)][String]$Name
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/sites/$Id"
+        $Method = "PUT"
+
+        $Site = @{}
+        $Site.id = $Id
+        $Site.name = $Name
+
+        $Body = ConvertTo-Json -InputObject $Site
+
+        Write-Verbose "Body: $Body"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -Body $Body -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Deletes a site
+    .DESCRIPTION
+    Deletes a site
+    .PARAMETER AdminNode
+    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    Site ID
+#>
+function Global:Remove-SgwInstallSite {
+    [CmdletBinding(DefaultParameterSetName="AdminNode")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                ParameterSetName="AdminNode")][String]$AdminNode,
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Profile to use for connection.",
+                ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 1,
+                HelpMessage = "Site ID.",
+                ValueFromPipelineByPropertyName=$true)][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$AdminNode) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $AdminNode = $Profile.Name
+        }
+
+        if (!$AdminNode) {
+            Throw "No StorageGRID Webscale Management Server management server found."
+        }
+    }
+
+    Process {
+        $Uri = "https://" + $AdminNode + "/api/v2/install/sites/$Id"
+        $Method = "DELETE"
+
+        Try {
+            $Response = Invoke-SgwRequest -Method $Method -Uri $Uri -SkipCertificateCheck
+        }
+        Catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Host "$ResponseBody"
+            if ($ResponseBody -match "apiVersion") {
+                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
+            }
+            else {
+                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+            }
+        }
+
+        Write-Output $Response.Json.Data
+    }
+}
+
 ## profile ##
 
 Set-Alias -Name Set-SgwProfile -Value Add-SgwProfile
@@ -7627,53 +9610,48 @@ function Global:New-SgwExpansionNode {
                 HelpMessage = "Whether this Admin Node is the primary Admin Node.",
                 ValueFromPipelineByPropertyName = $True)][String]$IsPrimaryAdmin,
         [parameter(
-                Mandatory = $False,
-                Position = 9,
-                HelpMessage = "Whether required properties for this node have been configured and the node has been added to a site.",
-                ValueFromPipelineByPropertyName = $True)][Boolean]$Configured,
-        [parameter(
                 Mandatory = $True,
-                Position = 10,
+                Position = 9,
                 HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("static","dhcp","fixed")][String]$GridNetworkConfig,
         [parameter(
                 Mandatory = $False,
-                Position = 11,
+                Position = 10,
                 HelpMessage = "The CIDR network address for the network interface.",
                 ValueFromPipelineByPropertyName = $True)][String]$GridNetworkIp,
         [parameter(
                 Mandatory = $False,
-                Position = 12,
+                Position = 11,
                 HelpMessage = "The gateway of the network.",
                 ValueFromPipelineByPropertyName = $True)][String]$GridNetworkGateway,
         [parameter(
                 Mandatory = $False,
-                Position = 13,
+                Position = 12,
                 HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$AdminNetworkConfig,
         [parameter(
                 Mandatory = $False,
-                Position = 14,
+                Position = 13,
                 HelpMessage = "The CIDR network address for the network interface.",
                 ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkIp,
         [parameter(
                 Mandatory = $False,
-                Position = 15,
+                Position = 14,
                 HelpMessage = "the default gateway of the network.",
                 ValueFromPipelineByPropertyName = $True)][String]$AdminNetworkGateway,
         [parameter(
                 Mandatory = $False,
-                Position = 16,
+                Position = 15,
                 HelpMessage = "Describes how the interface is configured. A value of ‘fixed’ indicates that the configuration cannot be changed. A value of ‘dhcp’ indicates that the interface is configured by DHCP. A value of ‘static’ indicates that the interface is statically configured. Interfaces configured by DHCP can be changed to static and vice versa.",
                 ValueFromPipelineByPropertyName = $True)][ValidateSet("","static","dhcp","fixed")][String]$ClientNetworkConfig,
         [parameter(
                 Mandatory = $False,
-                Position = 17,
+                Position = 16,
                 HelpMessage = "The CIDR network address for the network interface.",
                 ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkIp,
         [parameter(
                 Mandatory = $False,
-                Position = 18,
+                Position = 17,
                 HelpMessage = "the default gateway of the network.",
                 ValueFromPipelineByPropertyName = $True)][String]$ClientNetworkGateway
     )
@@ -7730,11 +9708,9 @@ function Global:New-SgwExpansionNode {
         if ($IsPrimaryAdmin) {
             $ExpansionNode.isPrimaryAdmin = $IsPrimaryAdmin
         }
-        $ExpansionNode.configured = $Configured
+        $ExpansionNode.configured = $true
         $ExpansionNode.networks = @{}
         $ExpansionNode.networks.grid = @{}
-        # TODO: remove next line
-        #$ExpansionNode.networks.grid.mac = "00:50:56:b4:98:10"
         $ExpansionNode.networks.grid.ip = $GridNetworkIp
         $ExpansionNode.networks.grid.gateway = $GridNetworkGateway
         $ExpansionNode.networks.grid.config = $GridNetworkConfig
