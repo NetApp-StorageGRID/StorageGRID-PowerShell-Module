@@ -12850,6 +12850,17 @@ function Global:Update-SgwNtpServers {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12885,12 +12896,25 @@ function Global:Update-SgwNtpServers {
 
 ## objects ##
 
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieves metadata for an object
     .DESCRIPTION
     Retrieves metadata for an object
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER ObjectId
+    Protocol-specific object identifier: my-bucket/my-object-key, my-container/my-object-name, UUID (all uppercase), CBID (all uppercase) (e.g. S3 bucket/key or Swift container/object).
+    .PARAMETER Container
+    S3 Bucket or Swift Container name.
+    .PARAMETER Object
+    S3 Object Key or Swift Object Name.
+    .PARAMETER MaxSegments
+    Maximum number of segements to return.
 #>
 function Global:Get-SgwObjectMetadata {
     [CmdletBinding(DefaultParameterSetName="objectid")]
@@ -12899,30 +12923,44 @@ function Global:Get-SgwObjectMetadata {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 ParameterSetName="objectid",
-                Position = 1,
+                Position = 2,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Object ID (e.g. S3 bucket/key or Swift container/object).")][String]$ObjectId,
-        [parameter(Mandatory = $True,
-                ParameterSetName="ContainerAndKey",
-                Position = 1,
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "S3 Bucket or Swift Container name.")][Alias("Bucket","BucketName","ContainerName")][String]$Container,
+                HelpMessage = "Protocol-specific object identifier: my-bucket/my-object-key, my-container/my-object-name, UUID (all uppercase), CBID (all uppercase) (e.g. S3 bucket/key or Swift container/object).")][String]$ObjectId,
         [parameter(Mandatory = $True,
                 ParameterSetName="ContainerAndKey",
                 Position = 2,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "S3 Bucket or Swift Container name.")][Alias("Bucket","BucketName","ContainerName")][String]$Container,
+        [parameter(Mandatory = $True,
+                ParameterSetName="ContainerAndKey",
+                Position = 3,
+                ValueFromPipeline = $True,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "S3 Object Key or Swift Object Name.")][Alias("Key","Name")][String]$Object,
         [parameter(Mandatory = $False,
-                Position = 3,
+                Position = 4,
                 HelpMessage = "Maximum number of segements to return.")][Int]$MaxSegments
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
