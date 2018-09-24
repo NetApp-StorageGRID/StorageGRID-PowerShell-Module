@@ -13209,11 +13209,17 @@ function Global:Start-SgwRecovery {
 
 ## recovery-package ##
 
+# complete as of API 2.2
+
 <#
     .SYNOPSIS
-    Retrieves the log collection procedure status
+    Downloads the Recovery Package
     .DESCRIPTION
-    Retrieves the log collection procedure status
+    Downloads the Recovery Package
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwRecoveryPackage {
     [CmdletBinding()]
@@ -13222,15 +13228,29 @@ function Global:Get-SgwRecoveryPackage {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $True,
-                Position = 1,
+                Position = 3,
                 HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
