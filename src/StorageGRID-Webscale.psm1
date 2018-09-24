@@ -11794,25 +11794,42 @@ function Global:Get-SgwTopologyHealth {
 
 ## identity-source ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieve identity sources
     .DESCRIPTION
     Retrieve identity sources
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwIdentitySources {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $False,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -11843,81 +11860,132 @@ function Global:Get-SgwIdentitySources {
     }
 }
 
+Set-Alias -Name Update-SgwIdentitySource -Value Set-SgwIdentitySource
 <#
     .SYNOPSIS
-    Retrieve identity sources
+    Set or update identity source
     .DESCRIPTION
-    Retrieve identity sources
+    Set or update identity source
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    A unique identifier for the identity source (automatically assigned when the identity source is configured)
+    .PARAMETER Disable
+    Disable Identity Source ID
+    .PARAMETER Hostname
+    Server hostname or IP address of the identity source
+    .PARAMETER Port
+    Port to use to connect to the identity source
+    .PARAMETER Credential
+    Username and password to use to access the identity source
+    .PARAMETER BaseGroupDN
+    Fully qualified Distinguished Name (DN) of an LDAP subtree to be used to search for groups
+    .PARAMETER BaseUserDN
+    Fully qualified Distinguished Name (DN) of an LDAP subtree to be used to search for users
+    .PARAMETER LdapServiceType
+    Identity Source LDAP Service Type
+    .PARAMETER Type
+    Identity Source Type
+    .PARAMETER LDAPUserIDAttribute
+    LDAP attribute that identifies the LDAP user who attempts authentication with unique name/login (only required when ldapServiceType is 'Other')
+    .PARAMETER LDAPUserUUIDAttribute
+    LDAP attribute that identifies the LDAP user’s permanent unique identity (only required when ldapServiceType is 'Other')
+    .PARAMETER LDAPGroupIDAttribute
+    LDAP attribute that identifies the LDAP group of the user who attempts authentication (only required when ldapServiceType is 'Other')
+    .PARAMETER LDAPGroupUUIDAttribute
+    LDAP attribute that identifies the LDAP group’s permanent unique identity (only required when ldapServiceType is 'Other')
+    .PARAMETER DisableTLS
+    Disable Transport Layer Security (TLS) when connecting to the identity source server
+    .PARAMETER CACertificate
+    Custom CA certificate to use to connect to the identity source server (if no custom certificate is supplied and TLS is enabled, the Operating System CA certificate will be used)
 #>
-function Global:Update-SgwIdentitySources {
+function Global:Set-SgwIdentitySource {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "Identity Source ID",
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$Id,
-        [parameter(
-                Mandatory = $False,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Disable Identity Source ID")][Switch]$Disable,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Identity Source Hostname")][String]$Hostname,
+                HelpMessage = "A unique identifier for the identity source (automatically assigned when the identity source is configured)",
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Identity Source Port")][Int]$Port,
+                HelpMessage = "Disable Identity Source ID")][Switch]$Disable,
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "Identity Source Username and password")][PSCredential]$Credential,
+                HelpMessage = "Server hostname or IP address of the identity source")][String]$Hostname,
+        [parameter(
+                Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Port to use to connect to the identity source")][Int]$Port,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Identity Source Base Group DN")][String]$BaseGroupDN,
+                HelpMessage = "Username and password to use to access the identity source")][PSCredential]$Credential,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
-                HelpMessage = "Identity Source Base User DN")][String]$BaseUserDN,
+                HelpMessage = "Fully qualified Distinguished Name (DN) of an LDAP subtree to be used to search for groups")][String]$BaseGroupDN,
         [parameter(
                 Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Identity Source LDAP Service Type")][String]$LdapServiceType,
+                HelpMessage = "Fully qualified Distinguished Name (DN) of an LDAP subtree to be used to search for users")][String]$BaseUserDN,
         [parameter(
                 Mandatory = $False,
                 Position = 9,
-                HelpMessage = "Identity Source Type")][String]$Type,
+                HelpMessage = "Identity Source LDAP Service Type")][ValidateSet("OpenLDAP","Active Directory","Other")][String]$LdapServiceType,
         [parameter(
                 Mandatory = $False,
                 Position = 10,
-                HelpMessage = "Identity Source LDAP User ID Attribute")][String]$LDAPUserIDAttribute,
+                HelpMessage = "Identity Source Type")][ValidateSet("ldap")][String]$Type,
         [parameter(
                 Mandatory = $False,
                 Position = 11,
-                HelpMessage = "Identity Source LDAP User UUID Attribute")][String]$LDAPUserUUIDAttribute,
+                HelpMessage = "LDAP attribute that identifies the LDAP user who attempts authentication with unique name/login (only required when ldapServiceType is 'Other')")][String]$LDAPUserIDAttribute,
         [parameter(
                 Mandatory = $False,
                 Position = 12,
-                HelpMessage = "Identity Source LDAP Group ID Attribute")][String]$LDAPGroupIDAttribute,
+                HelpMessage = "LDAP attribute that identifies the LDAP user’s permanent unique identity (only required when ldapServiceType is 'Other')")][String]$LDAPUserUUIDAttribute,
         [parameter(
                 Mandatory = $False,
                 Position = 13,
-                HelpMessage = "Identity Source Disable TLS")][Switch]$DisableTLS,
+                HelpMessage = "LDAP attribute that identifies the LDAP group of the user who attempts authentication (only required when ldapServiceType is 'Other')")][String]$LDAPGroupIDAttribute,
         [parameter(
                 Mandatory = $False,
                 Position = 14,
-                HelpMessage = "Identity Source CA Certificate")][String]$CACertificate,
+                HelpMessage = "LDAP attribute that identifies the LDAP group’s permanent unique identity (only required when ldapServiceType is 'Other')")][String]$LDAPGroupUUIDAttribute,
         [parameter(
                 Mandatory = $False,
                 Position = 15,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "Disable Transport Layer Security (TLS) when connecting to the identity source server")][Switch]$DisableTLS,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "Custom CA certificate to use to connect to the identity source server (if no custom certificate is supplied and TLS is enabled, the Operating System CA certificate will be used)")][String]$CACertificate
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -11974,21 +12042,34 @@ function Global:Update-SgwIdentitySources {
 
 <#
     .SYNOPSIS
-    Retrieve identity sources
+    Request that users and groups from the identity source be synchronized as soon as possible
     .DESCRIPTION
-    Retrieve identity sources
+    Request that users and groups from the identity source be synchronized as soon as possible
 #>
 function Global:Sync-SgwIdentitySources {
     [CmdletBinding()]
 
     PARAM (
-        [parameter(
-                Mandatory = $False,
+        [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
