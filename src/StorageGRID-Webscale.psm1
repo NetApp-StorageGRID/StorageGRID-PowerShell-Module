@@ -11654,13 +11654,17 @@ function Global:Get-SgwAccountGroups {
 
 ## health ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 <#
     .SYNOPSIS
     Retrieve StorageGRID Health Status
     .DESCRIPTION
     Retrieve StorageGRID Health Status
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwHealth {
     [CmdletBinding()]
@@ -11668,10 +11672,24 @@ function Global:Get-SgwHealth {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -11699,11 +11717,18 @@ function Global:Get-SgwHealth {
     }
 }
 
+Set-Alias -Name Get-SgwTopology -Value Get-SgwTopologyHealth
 <#
     .SYNOPSIS
     Retrieve StorageGRID Topology with Health Status
     .DESCRIPTION
     Retrieve StorageGRID Topology with Health Status
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Depth
+    Topology depth level to provide (default=node).
 #>
 function Global:Get-SgwTopologyHealth {
     [CmdletBinding()]
@@ -11713,11 +11738,25 @@ function Global:Get-SgwTopologyHealth {
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "Topology depth level to provide (default=node).")][String][ValidateSet("grid", "site", "node", "component", "subcomponent")]$Depth = "node"
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -11741,7 +11780,15 @@ function Global:Get-SgwTopologyHealth {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Topology = $Response.Json.data
+        if ($Depth -match "site|node|component") {
+            $Topology | Add-Member -MemberType ScriptProperty -Name Sites -Value { $this.children }
+        }
+        if ($Depth -match "node","component") {
+            $Topology | Add-Member -MemberType ScriptProperty -Name Nodes -Value { $this.children.children }
+        }
+
+        Write-Output $Topology
     }
 }
 
