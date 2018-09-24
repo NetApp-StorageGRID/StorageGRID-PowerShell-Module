@@ -13220,6 +13220,10 @@ function Global:Start-SgwRecovery {
     StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
     StorageGRID Profile to use for connection.
+    .PARAMETER Passphrase
+    StorageGRID Webscale Provisioning Passphrase.
+    .PARAMETER Path
+    Path to store recovery package
 #>
 function Global:Get-SgwRecoveryPackage {
     [CmdletBinding()]
@@ -13233,10 +13237,10 @@ function Global:Get-SgwRecoveryPackage {
                 HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+                HelpMessage = "StorageGRID Webscale Provisioning Passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $True,
                 Position = 3,
-                HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
+                HelpMessage = "Path to store recovery package")][System.IO.DirectoryInfo]$Path
     )
 
     Begin {
@@ -13287,11 +13291,17 @@ function Global:Get-SgwRecoveryPackage {
 
 ## regions ##
 
+# complete as of API 2.2
+
 <#
     .SYNOPSIS
     Lists configured regions
     .DESCRIPTION
     Lists configured regions
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwRegions {
     [CmdletBinding()]
@@ -13299,23 +13309,39 @@ function Global:Get-SgwRegions {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/regions"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/regions"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/regions"
+        }
         $Method = "GET"
 
         try {
@@ -13335,6 +13361,12 @@ function Global:Get-SgwRegions {
     Change the regions used by the grid
     .DESCRIPTION
     Change the regions used by the grid
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Regions
+    List of regions. A region can only include letters, numbers, and hyphens.
 #>
 function Global:Update-SgwRegions {
     [CmdletBinding()]
@@ -13345,10 +13377,24 @@ function Global:Update-SgwRegions {
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Regions.")][String[]]$Regions
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "List of regions. A region can only include letters, numbers, and hyphens.")][String[]]$Regions
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
