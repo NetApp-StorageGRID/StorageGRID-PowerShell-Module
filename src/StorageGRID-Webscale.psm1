@@ -243,7 +243,7 @@ function ConvertTo-SgwConfigFile {
                     [System.Security.AccessControl.PropagationFlags]::None,
                     [System.Security.AccessControl.AccessControlType]::Allow)
                 $Acl.AddAccessRule($AcessRule)
-                Set-Acl -Path $SgwConfigDirectory -AclRule
+                Set-Acl -Path $SgwConfigDirectory -AclRule -ErrorAction Stop
             }
             else {
                 Invoke-Expression "chmod 700 $SgwConfigDirectory"
@@ -251,7 +251,7 @@ function ConvertTo-SgwConfigFile {
             }
         }
         catch {
-            Write-Warning "Couldn't restrict access to directory $SgwConfigDirectory"
+            Write-Verbose "Couldn't restrict access to directory $SgwConfigDirectory"
         }
 
         Write-Verbose "Writing StorageGRID Configuration to $SgwConfigFile"
@@ -286,7 +286,13 @@ function ConvertTo-SgwConfigFile {
             }
         }
         Write-Debug "Output:`n$Output"
-        $Output | Out-File -FilePath $SgwConfigFile -NoNewline
+
+        if ([environment]::OSVersion.Platform -match "win") {
+            # replace LF with CRLF
+            $Output = $Output -replace "`n","`r`n"
+        }
+
+        $Output | Out-File -FilePath $SgwConfigFile
     }
 }
 
@@ -10389,11 +10395,27 @@ function Global:Update-SgwGridNetworks {
 
 ## groups ##
 
+# complete as of API 2.2
+
 <#
     .SYNOPSIS
     List Groups
     .DESCRIPTION
     List Groups
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Type
+    Filter by group type.
+    .PARAMETER Limit
+    Maximum number of results.
+    .PARAMETER Marker
+    Marker-style pagination offset (value is Group’s URN).
+    .PARAMETER IncludeMarker
+    If set, the marker element is also returned.
+    .PARAMETER Order
+    Pagination order (default asc, desc requires marker).
 #>
 function Global:Get-SgwGroups {
     [CmdletBinding()]
@@ -10402,10 +10424,39 @@ function Global:Get-SgwGroups {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Filter by group type.")][ValidateSet("local","federated")][String]$Type,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Maximum number of results.")][Int]$Limit,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Marker-style pagination offset (value is Group’s URN).")][String]$Marker,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "If set, the marker element is also returned.")][Switch]$IncludeMarker,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Pagination order (default asc, desc requires marker).")][ValidateSet("asc","desc")][String]$Order="asc"
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -10424,6 +10475,30 @@ function Global:Get-SgwGroups {
 
         $Method = "GET"
 
+        $Query = @()
+        if ($Type) {
+            $Query += "type=$Type"
+        }
+        if ($Limit) {
+            $Query += "limit=$Limit"
+        }
+        if ($Marker) {
+            $Query += "marker=$Marker"
+        }
+        if ($IncludeMarker.IsPresent) {
+            $Query += "includeMarker=true"
+        }
+        if ($Order -eq "desc") {
+            if (!$Marker) {
+                Throw "Marker required when using order desc"
+            }
+            $Query += "order=$Order"
+        }
+
+        if ($Query) {
+            $Uri += "?" + ($Query -join "&")
+        }
+
         try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
@@ -10436,12 +10511,55 @@ function Global:Get-SgwGroups {
     }
 }
 
-# TODO: Implement adding tenant groups and rename cmdlets
 <#
     .SYNOPSIS
-    Creates a new Grid Administrator Group
+    Creates a new Group
     .DESCRIPTION
-    Creates a new Grid Administrator Group
+    Creates a new Group
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER DisplayName
+    The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).
+    .PARAMETER Type
+    Type of group (default: local, use federated for AD or LDAP groups).
+    .PARAMETER UniqueName
+    The machine-readable name for the Group (unique within an Account).
+    .PARAMETER AlarmAcknowledgment
+    Ability to acknowledge alarms.
+    .PARAMETER OtherGridConfiguration
+    Ability to access configuration pages not covered by other permissions.
+    .PARAMETER GridTopologyPageConfiguration
+    Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.
+    .PARAMETER TenantAccounts
+    Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).
+    .PARAMETER ChangeTenantRootPassword
+    Ability to reset the root user password for tenant accounts.
+    .PARAMETER Maintenance
+    Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.
+    .PARAMETER MetricsQuery
+    Ability to perform custom Prometheus metrics queries.
+    .PARAMETER ActivateFeatures
+    Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).
+    .PARAMETER Ilm
+    Ability to look up object metadata for any object stored on the grid.
+    .PARAMETER RootAccess
+    Full access to all features.
+    .PARAMETER ManageAllContainers
+    Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)
+    .PARAMETER ManageEndpoints
+    Ability to manage all S3 endpoints for this tenant account
+    .PARAMETER ManageOwnS3Credentials
+    Ability to manage your personal S3 credentials
+    .PARAMETER S3Policy
+    S3 Group Policy.
+    .PARAMETER S3FullAccess
+    Use S3 Group Policy for Full S3 Access.
+    .PARAMETER S3ReadOnlyAccess
+    Use S3 Group Policy for Read Only S3 Access.
+    .PARAMETER SwiftRoles
+    Swift roles to grant.
 #>
 function Global:New-SgwGroup {
     [CmdletBinding()]
@@ -10451,130 +10569,193 @@ function Global:New-SgwGroup {
                 Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(
-                Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Display name of the group.")][String]$displayName,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Display name of the group.")][String]$uniqueName,
+                HelpMessage = "The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).")][String]$DisplayName,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
+                HelpMessage = "Type of group (default: local, use federated for AD or LDAP groups).")][ValidateSet("local","federated")][String]$Type="local",
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 4,
-                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
+                HelpMessage = "The machine-readable name for the Group (unique within an Account).")][String]$UniqueName,
         [parameter(
                 Mandatory = $False,
                 Position = 5,
-                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                HelpMessage = "Ability to acknowledge alarms.")][Switch]$AlarmAcknowledgment,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
+                HelpMessage = "Ability to access configuration pages not covered by other permissions.")][Switch]$OtherGridConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
-                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
+                HelpMessage = "Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.")][Switch]$GridTopologyPageConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
+                HelpMessage = "Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).")][Switch]$TenantAccounts,
         [parameter(
                 Mandatory = $False,
                 Position = 9,
-                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
+                HelpMessage = "Ability to reset the root user password for tenant accounts.")][Switch]$ChangeTenantRootPassword,
         [parameter(
                 Mandatory = $False,
                 Position = 10,
-                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
+                HelpMessage = "Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.")][Switch]$Maintenance,
         [parameter(
                 Mandatory = $False,
                 Position = 11,
-                HelpMessage = "IAM Policy.")][PSCustomObject]$IamPolicy,
-        [parameter(
-                Mandatory = $False,
-                Position = 11,
-                HelpMessage = "Use IAM Policy for Full S3 Access.")][Switch]$S3FullAccess,
-        [parameter(
-                Mandatory = $False,
-                Position = 11,
-                HelpMessage = "Use IAM Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+                HelpMessage = "Ability to perform custom Prometheus metrics queries.")][Switch]$MetricsQuery,
         [parameter(
                 Mandatory = $False,
                 Position = 12,
-                HelpMessage = "Swift Roles.")][String[]]$SwiftRoles
+                HelpMessage = "Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).")][Switch]$ActivateFeatures,
+        [parameter(
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Ability to look up object metadata for any object stored on the grid.")][Switch]$Ilm,
+        [parameter(
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Full access to all features.")][Switch]$RootAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)")][Switch]$ManageAllContainers,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "Ability to manage all S3 endpoints for this tenant account")][Switch]$ManageEndpoints,
+        [parameter(
+                Mandatory = $False,
+                Position = 17,
+                HelpMessage = "Ability to manage your personal S3 credentials")][Switch]$ManageOwnS3Credentials,
+        [parameter(
+                Mandatory = $False,
+                Position = 18,
+                HelpMessage = "S3 Group Policy.")][PSCustomObject]$S3Policy,
+        [parameter(
+                Mandatory = $False,
+                Position = 19,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 20,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 21,
+                HelpMessage = "Swift roles to grant.")][String[]]$SwiftRoles
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups"
+            if ($AlarmAcknowledgment.IsPresent -or $OtherGridConfiguration.IsPresent -or $GridTopologyPageConfiguration.IsPresent -or $TenantAccounts.IsPresent -or $ChangeTenantRootPassword.IsPresent -or $Maintenance.IsPresent -or $MetricsQuery.IsPresent -or $ActivateFeatures.IsPresent -or $Ilm.IsPresent) {
+                Throw "Permissions for a grid administration group specified, but connected as tenant user. Only the following parameters are allowed when connected as tenant: RootAccess, ManageAllContainers, ManageEndpoints, ManageOwnS3Credentials, S3Policy, S3FullAccess, S3ReadOnlyAccess, SwiftRoles"
+            }
+            $Account = Get-SgwConfig -Server $Server | Select-Object -ExpandProperty Account
+        }
+        else {
+            if ($ManageAllContainers.IsPresent -or $ManageEndpoints.IsPresent -or $ManageOwnS3Credentials.IsPresent -or $S3Policy -or $S3FullAccess.IsPresent -or $S3ReadOnlyAccess.IsPresent -or $SwiftRoles) {
+                Throw "Permissions for a tenant group specified, but connected as grid user. Only the following parameters are allowed for grid administration groups: RootAccess, OtherGridConfiguration, GridTopologyPageConfiguration, TenantAccounts, ChangeTenantRootPassword, Maintenance, MetricsQuery, ActivateFeatures, Ilm"
+            }
+            $Uri = $Server.BaseURI + "/grid/groups"
+        }
         $Method = "POST"
+
+        if ($Type -and $UniqueName -notmatch "group/") {
+            if ($Type -eq "federated") {
+                $UniqueName = "federated-group/" + $UniqueName
+            }
+            else {
+                $UniqueName = "group/" + $UniqueName
+            }
+        }
 
         $Body = @{ }
         $Body.displayName = $displayName
         $Body.uniqueName = $uniqueName
-        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess -or $IamPolicy -or $SwiftRoles) {
-            $Body.policies = @{ }
-            $Body.policies.management = @{ }
-            if ($alarmAcknowledgment) {
-                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+        $Body.policies = @{ }
+        $Body.policies.management = @{ }
+        if ($AlarmAcknowledgment.IsPresent) {
+            $Body.policies.management.alarmAcknowledgment = $AlarmAcknowledgment.IsPresent
+        }
+        if ($OtherGridConfiguration.IsPresent) {
+            $Body.policies.management.otherGridConfiguration = $OtherGridConfiguration.IsPresent
+        }
+        if ($GridTopologyPageConfiguration.IsPresent) {
+            $Body.policies.management.gridTopologyPageConfiguration = $GridTopologyPageConfiguration.IsPresent
+        }
+        if ($TenantAccounts.IsPresent) {
+            $Body.policies.management.tenantAccounts = $TenantAccounts.IsPresent
+        }
+        if ($ChangeTenantRootPassword.IsPresent) {
+            $Body.policies.management.changeTenantRootPassword = $ChangeTenantRootPassword.IsPresent
+        }
+        if ($Maintenance.IsPresent) {
+            $Body.policies.management.maintenance = $Maintenance.IsPresent
+        }
+        if ($MetricsQuery.IsPresent) {
+            $Body.policies.management.metricsQuery = $MetricsQuery.IsPresent
+        }
+        if ($ActivateFeatures.IsPresent) {
+            $Body.policies.management.activateFeatures = $ActivateFeatures.IsPresent
+        }
+        if ($Ilm.IsPresent) {
+            $Body.policies.management.ilm = $Ilm.IsPresent
+        }
+        if ($RootAccess.IsPresent) {
+            $Body.policies.management.rootAccess = $RootAccess.IsPresent
+        }
+        if ($Account.Capabilities -match "s3") {
+            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+                Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
-            if ($otherGridConfiguration) {
-                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            elseif ($S3FullAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
             }
-            if ($tenantAccounts) {
-                $Body.policies.management.tenantAccounts = $tenantAccounts
+            elseif ($S3ReadOnlyAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
             }
-            if ($changeTenantRootPassword) {
-                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            else {
+                $Body.policies.s3 = $IamPolicy
             }
-            if ($maintenance) {
-                $Body.policies.management.maintenance = $maintenance
-            }
-            if ($activateFeatures) {
-                $Body.policies.management.activateFeatures = $activateFeatures
-            }
-            if ($rootAccess) {
-                $Body.policies.management.rootAccess = $rootAccess
-            }
-            if ($Capabilities -match "s3") {
-                if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
-                    Write-Warning "S3 capability specified, but no IAM Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
-                }
-                elseif ($S3FullAccess.IsPresent) {
-                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
-                }
-                elseif ($S3ReadOnlyAccess.IsPresent) {
-                    $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
-                }
-                else {
-                    $Body.policies.s3 = $IamPolicy
-                }
-            }
+        }
 
-            if ($Capabilities -match "swift") {
-                if (!$SwiftRoles) {
-                    Write-Warning "Swift capability specified, but no Swift roles specified."
-                }
-                else {
-                    $Body.policies.swift = @{ }
-                    $Body.policies.swift.roles = $SwiftRoles
-                }
+        if ($Account.Capabilities -match "swift") {
+            if (!$SwiftRoles) {
+                Write-Warning "Swift capability specified, but no Swift roles specified."
+            }
+            else {
+                $Body.policies.swift = @{ }
+                $Body.policies.swift.roles = $SwiftRoles
             }
         }
 
@@ -10597,6 +10778,12 @@ function Global:New-SgwGroup {
     Retrieves a local Grid Administrator Group by unique name
     .DESCRIPTION
     Retrieves a local Grid Administrator Group by unique name
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER ShortName
+    Short name of the group to retrieve.
 #>
 function Global:Get-SgwGroupByShortName {
     [CmdletBinding()]
@@ -10605,14 +10792,28 @@ function Global:Get-SgwGroupByShortName {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "Short name of the user to retrieve.")][String]$ShortName,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Position = 2,
+                HelpMessage = "Short name of the group to retrieve.")][String]$ShortName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -10648,6 +10849,12 @@ function Global:Get-SgwGroupByShortName {
     Retrieves a federated Grid Administrator Group by unique name
     .DESCRIPTION
     Retrieves a federated Grid Administrator Group by unique name
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER ShortName
+    Short name of the federated group to retrieve.
 #>
 function Global:Get-SgwFederatedGroupByShortName {
     [CmdletBinding()]
@@ -10656,14 +10863,28 @@ function Global:Get-SgwFederatedGroupByShortName {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "Short name of the user to retrieve.")][String]$ShortName,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
-                Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                Position = 2,
+                HelpMessage = "Short name of the federated group to retrieve.")][String]$ShortName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -10699,24 +10920,44 @@ function Global:Get-SgwFederatedGroupByShortName {
     Deletes a single Group
     .DESCRIPTION
     Deletes a single Group
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Group to delete.
 #>
 function Global:Delete-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
                 HelpMessage = "ID of a StorageGRID Webscale Group to delete.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
-        [parameter(
-                Mandatory = $False,
-                Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -10752,24 +10993,44 @@ function Global:Delete-SgwGroup {
     Retrieves a single Group
     .DESCRIPTION
     Retrieves a single Group
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Group to retrieve.
 #>
 function Global:Get-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
                 HelpMessage = "ID of a StorageGRID Webscale Group to retrieve.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
-        [parameter(
-                Mandatory = $False,
-                Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][String]$id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -10800,106 +11061,234 @@ function Global:Get-SgwGroup {
     }
 }
 
-# TODO: Implement updating tenant group and rename cmdlet
 <#
     .SYNOPSIS
     Updates a single Grid Administrator Group
     .DESCRIPTION
     Updates a single Grid Administrator Group
+    .PARAMETER Id
+    ID of the group to be updated.
+    .PARAMETER DisplayName
+    The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).
+    .PARAMETER AlarmAcknowledgment
+    Ability to acknowledge alarms.
+    .PARAMETER OtherGridConfiguration
+    Ability to access configuration pages not covered by other permissions.
+    .PARAMETER GridTopologyPageConfiguration
+    Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.
+    .PARAMETER TenantAccounts
+    Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).
+    .PARAMETER ChangeTenantRootPassword
+    Ability to reset the root user password for tenant accounts.
+    .PARAMETER Maintenance
+    Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.
+    .PARAMETER MetricsQuery
+    Ability to perform custom Prometheus metrics queries.
+    .PARAMETER ActivateFeatures
+    Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).
+    .PARAMETER Ilm
+    Ability to look up object metadata for any object stored on the grid.
+    .PARAMETER RootAccess
+    Full access to all features.
+    .PARAMETER ManageAllContainers
+    Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)
+    .PARAMETER ManageEndpoints
+    Ability to manage all S3 endpoints for this tenant account
+    .PARAMETER ManageOwnS3Credentials
+    Ability to manage your personal S3 credentials
+    .PARAMETER S3Policy
+    S3 Group Policy.
+    .PARAMETER S3FullAccess
+    Use S3 Group Policy for Full S3 Access.
+    .PARAMETER S3ReadOnlyAccess
+    Use S3 Group Policy for Read Only S3 Access.
+    .PARAMETER SwiftRoles
+    Swift roles to grant.
 #>
 function Global:Update-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
-                Position = 0,
-                HelpMessage = "ID of the group to be updated.")][String]$ID,
-        [parameter(
-                Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Display name of the group.")][String]$displayName,
-        [parameter(
                 Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "ID of the group to be updated.")][String]$ID,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
+                HelpMessage = "The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).")][String]$DisplayName,
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                HelpMessage = "Ability to acknowledge alarms.")][Switch]$AlarmAcknowledgment,
         [parameter(
                 Mandatory = $False,
                 Position = 5,
-                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
+                HelpMessage = "Ability to access configuration pages not covered by other permissions.")][Switch]$OtherGridConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
+                HelpMessage = "Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.")][Switch]$GridTopologyPageConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
-                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
+                HelpMessage = "Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).")][Switch]$TenantAccounts,
         [parameter(
                 Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
+                HelpMessage = "Ability to reset the root user password for tenant accounts.")][Switch]$ChangeTenantRootPassword,
         [parameter(
                 Mandatory = $False,
                 Position = 9,
-                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
+                HelpMessage = "Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.")][Switch]$Maintenance,
         [parameter(
                 Mandatory = $False,
                 Position = 10,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "Ability to perform custom Prometheus metrics queries.")][Switch]$MetricsQuery,
+        [parameter(
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).")][Switch]$ActivateFeatures,
+        [parameter(
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Ability to look up object metadata for any object stored on the grid.")][Switch]$Ilm,
+        [parameter(
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Full access to all features.")][Switch]$RootAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)")][Switch]$ManageAllContainers,
+        [parameter(
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "Ability to manage all S3 endpoints for this tenant account")][Switch]$ManageEndpoints,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "Ability to manage your personal S3 credentials")][Switch]$ManageOwnS3Credentials,
+        [parameter(
+                Mandatory = $False,
+                Position = 17,
+                HelpMessage = "S3 Group Policy.")][PSCustomObject]$S3Policy,
+        [parameter(
+                Mandatory = $False,
+                Position = 18,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 19,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 20,
+                HelpMessage = "Swift roles to grant.")][String[]]$SwiftRoles
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups"
-        $Method = "POST"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/$Id"
+            if ($AlarmAcknowledgment.IsPresent -or $OtherGridConfiguration.IsPresent -or $GridTopologyPageConfiguration.IsPresent -or $TenantAccounts.IsPresent -or $ChangeTenantRootPassword.IsPresent -or $Maintenance.IsPresent -or $MetricsQuery.IsPresent -or $ActivateFeatures.IsPresent -or $Ilm.IsPresent) {
+                Throw "Permissions for a grid administration group specified, but connected as tenant user. Only the following parameters are allowed when connected as tenant: RootAccess, ManageAllContainers, ManageEndpoints, ManageOwnS3Credentials, S3Policy, S3FullAccess, S3ReadOnlyAccess, SwiftRoles"
+            }
+            $Account = Get-SgwConfig -Server $Server | Select-Object -ExpandProperty Account
+        }
+        else {
+            if ($ManageAllContainers.IsPresent -or $ManageEndpoints.IsPresent -or $ManageOwnS3Credentials.IsPresent -or $S3Policy -or $S3FullAccess.IsPresent -or $S3ReadOnlyAccess.IsPresent -or $SwiftRoles) {
+                Throw "Permissions for a tenant group specified, but connected as grid user. Only the following parameters are allowed for grid administration groups: RootAccess, OtherGridConfiguration, GridTopologyPageConfiguration, TenantAccounts, ChangeTenantRootPassword, Maintenance, MetricsQuery, ActivateFeatures, Ilm"
+            }
+            $Uri = $Server.BaseURI + "/grid/groups/$Id"
+        }
+        $Method = "PATCH"
 
         $Body = @{ }
-        if ($displayName) {
+        if ($DisplayName) {
             $Body.displayName = $displayName
         }
-        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-            $Body.policies = @{ }
-            $Body.policies.management = @{ }
-            if ($alarmAcknowledgment) {
-                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+        $Body.policies = @{ }
+        $Body.policies.management = @{ }
+        if ($AlarmAcknowledgment.IsPresent) {
+            $Body.policies.management.alarmAcknowledgment = $AlarmAcknowledgment.IsPresent
+        }
+        if ($OtherGridConfiguration.IsPresent) {
+            $Body.policies.management.otherGridConfiguration = $OtherGridConfiguration.IsPresent
+        }
+        if ($GridTopologyPageConfiguration.IsPresent) {
+            $Body.policies.management.gridTopologyPageConfiguration = $GridTopologyPageConfiguration.IsPresent
+        }
+        if ($TenantAccounts.IsPresent) {
+            $Body.policies.management.tenantAccounts = $TenantAccounts.IsPresent
+        }
+        if ($ChangeTenantRootPassword.IsPresent) {
+            $Body.policies.management.changeTenantRootPassword = $ChangeTenantRootPassword.IsPresent
+        }
+        if ($Maintenance.IsPresent) {
+            $Body.policies.management.maintenance = $Maintenance.IsPresent
+        }
+        if ($MetricsQuery.IsPresent) {
+            $Body.policies.management.metricsQuery = $MetricsQuery.IsPresent
+        }
+        if ($ActivateFeatures.IsPresent) {
+            $Body.policies.management.activateFeatures = $ActivateFeatures.IsPresent
+        }
+        if ($Ilm.IsPresent) {
+            $Body.policies.management.ilm = $Ilm.IsPresent
+        }
+        if ($RootAccess.IsPresent) {
+            $Body.policies.management.rootAccess = $RootAccess.IsPresent
+        }
+        if ($Account.Capabilities -match "s3") {
+            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+                Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
-            if ($otherGridConfiguration) {
-                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            elseif ($S3FullAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
             }
-            if ($tenantAccounts) {
-                $Body.policies.management.tenantAccounts = $tenantAccounts
+            elseif ($S3ReadOnlyAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
             }
-            if ($changeTenantRootPassword) {
-                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            else {
+                $Body.policies.s3 = $IamPolicy
             }
-            if ($maintenance) {
-                $Body.policies.management.maintenance = $maintenance
+        }
+
+        if ($Account.Capabilities -match "swift") {
+            if (!$SwiftRoles) {
+                Write-Warning "Swift capability specified, but no Swift roles specified."
             }
-            if ($activateFeatures) {
-                $Body.policies.management.activateFeatures = $activateFeatures
-            }
-            if ($rootAccess) {
-                $Body.policies.management.rootAccess = $rootAccess
+            else {
+                $Body.policies.swift = @{ }
+                $Body.policies.swift.roles = $SwiftRoles
             }
         }
 
@@ -10917,134 +11306,262 @@ function Global:Update-SgwGroup {
     }
 }
 
-# TODO: Implement replacing tenant group and rename this cmdlet
 <#
     .SYNOPSIS
-    Replaces a single Grid Administrator Group
+    Replace a single Grid Administrator Group
     .DESCRIPTION
-    Replaces a single Grid Administrator Group
+    Replace a single Grid Administrator Group
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of the group to be replaced.
+    .PARAMETER DisplayName
+    The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).
+    .PARAMETER Type
+    Type of group (default: local, use federated for AD or LDAP groups).
+    .PARAMETER UniqueName
+    The machine-readable name for the Group (unique within an Account).
+    .PARAMETER AlarmAcknowledgment
+    Ability to acknowledge alarms.
+    .PARAMETER OtherGridConfiguration
+    Ability to access configuration pages not covered by other permissions.
+    .PARAMETER GridTopologyPageConfiguration
+    Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.
+    .PARAMETER TenantAccounts
+    Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).
+    .PARAMETER ChangeTenantRootPassword
+    Ability to reset the root user password for tenant accounts.
+    .PARAMETER Maintenance
+    Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.
+    .PARAMETER MetricsQuery
+    Ability to perform custom Prometheus metrics queries.
+    .PARAMETER ActivateFeatures
+    Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).
+    .PARAMETER Ilm
+    Ability to look up object metadata for any object stored on the grid.
+    .PARAMETER RootAccess
+    Full access to all features.
+    .PARAMETER ManageAllContainers
+    Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)
+    .PARAMETER ManageEndpoints
+    Ability to manage all S3 endpoints for this tenant account
+    .PARAMETER ManageOwnS3Credentials
+    Ability to manage your personal S3 credentials
+    .PARAMETER S3Policy
+    S3 Group Policy.
+    .PARAMETER S3FullAccess
+    Use S3 Group Policy for Full S3 Access.
+    .PARAMETER S3ReadOnlyAccess
+    Use S3 Group Policy for Read Only S3 Access.
+    .PARAMETER SwiftRoles
+    Swift roles to grant.
 #>
 function Global:Replace-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $true,
                 HelpMessage = "ID of the group to be updated.")][String]$ID,
         [parameter(
-                Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Display name of the group.")][String]$displayName,
-        [parameter(
-                Mandatory = $True,
-                Position = 2,
-                HelpMessage = "Unique name.")][String]$uniqueName,
-        [parameter(
-                Mandatory = $True,
-                Position = 2,
-                HelpMessage = "Unique name.")][String]$accountId,
-        [parameter(
-                Mandatory = $True,
-                Position = 2,
-                HelpMessage = "Unique name.")][Boolean]$federated,
-        [parameter(
-                Mandatory = $True,
-                Position = 2,
-                HelpMessage = "Unique name.")][String]$groupURN,
-        [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Display name of the group.")][Boolean]$alarmAcknowledgment,
-        [parameter(
-                Mandatory = $False,
-                Position = 3,
-                HelpMessage = "Display name of the group.")][Boolean]$otherGridConfiguration,
+                HelpMessage = "The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).")][String]$DisplayName,
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "Display name of the group.")][Boolean]$gridTopologyPageConfiguration,
+                HelpMessage = "Type of group (default: local, use federated for AD or LDAP groups).")][ValidateSet("local","federated")][String]$Type="local",
         [parameter(
-                Mandatory = $False,
+                Mandatory = $True,
                 Position = 5,
-                HelpMessage = "Display name of the group.")][Boolean]$tenantAccounts,
+                HelpMessage = "The machine-readable name for the Group (unique within an Account).")][String]$UniqueName,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Display name of the group.")][Boolean]$changeTenantRootPassword,
+                HelpMessage = "Ability to acknowledge alarms.")][Switch]$AlarmAcknowledgment,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
-                HelpMessage = "Display name of the group.")][Boolean]$maintenance,
+                HelpMessage = "Ability to access configuration pages not covered by other permissions.")][Switch]$OtherGridConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Display name of the group.")][Boolean]$activateFeatures,
+                HelpMessage = "Ability to access Grid Topology configuration tabs and modify otherGridConfiguration pages.")][Switch]$GridTopologyPageConfiguration,
         [parameter(
                 Mandatory = $False,
                 Position = 9,
-                HelpMessage = "Display name of the group.")][Boolean]$rootAccess,
+                HelpMessage = "Ability to add, edit, or remove tenant accounts (The deprecated management API v1 also uses this permission to manage tenant group policies, reset Swift admin passwords, and manage root user S3 access keys.).")][Switch]$TenantAccounts,
         [parameter(
                 Mandatory = $False,
                 Position = 10,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "Ability to reset the root user password for tenant accounts.")][Switch]$ChangeTenantRootPassword,
+        [parameter(
+                Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Ability to perform maintenance procedures: software upgrade, expansion, decommission, and Recovery Package download; ability to configure DNS servers, NTP servers, grid license, domain names, server certificates, and audit; ability to collect logs.")][Switch]$Maintenance,
+        [parameter(
+                Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Ability to perform custom Prometheus metrics queries.")][Switch]$MetricsQuery,
+        [parameter(
+                Mandatory = $False,
+                Position = 13,
+                HelpMessage = "Ability to reactivate features that have been deactivated via the deactivated-features endpoints (This permission is provided for the option of deactivating it for security; the deactivated-features endpoints require rootAccess, so it is not useful to grant this permission to groups. Warning: this permission itself cannot be reactivated once deactivated, except by technical support.).")][Switch]$ActivateFeatures,
+        [parameter(
+                Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Ability to look up object metadata for any object stored on the grid.")][Switch]$Ilm,
+        [parameter(
+                Mandatory = $False,
+                Position = 15,
+                HelpMessage = "Full access to all features.")][Switch]$RootAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 16,
+                HelpMessage = "Ability to manage all S3 buckets or Swift containers for this tenant account (overrides permission settings in group or bucket policies)")][Switch]$ManageAllContainers,
+        [parameter(
+                Mandatory = $False,
+                Position = 17,
+                HelpMessage = "Ability to manage all S3 endpoints for this tenant account")][Switch]$ManageEndpoints,
+        [parameter(
+                Mandatory = $False,
+                Position = 18,
+                HelpMessage = "Ability to manage your personal S3 credentials")][Switch]$ManageOwnS3Credentials,
+        [parameter(
+                Mandatory = $False,
+                Position = 19,
+                HelpMessage = "S3 Group Policy.")][PSCustomObject]$S3Policy,
+        [parameter(
+                Mandatory = $False,
+                Position = 20,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 21,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+        [parameter(
+                Mandatory = $False,
+                Position = 22,
+                HelpMessage = "Swift roles to grant.")][String[]]$SwiftRoles
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
             Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
         }
-        if ($Server.AccountId) {
-            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
-        }
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/groups/$id"
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/groups/$Id"
+            if ($AlarmAcknowledgment.IsPresent -or $OtherGridConfiguration.IsPresent -or $GridTopologyPageConfiguration.IsPresent -or $TenantAccounts.IsPresent -or $ChangeTenantRootPassword.IsPresent -or $Maintenance.IsPresent -or $MetricsQuery.IsPresent -or $ActivateFeatures.IsPresent -or $Ilm.IsPresent) {
+                Throw "Permissions for a grid administration group specified, but connected as tenant user. Only the following parameters are allowed when connected as tenant: RootAccess, ManageAllContainers, ManageEndpoints, ManageOwnS3Credentials, S3Policy, S3FullAccess, S3ReadOnlyAccess, SwiftRoles"
+            }
+            $Account = Get-SgwConfig -Server $Server | Select-Object -ExpandProperty Account
+        }
+        else {
+            if ($ManageAllContainers.IsPresent -or $ManageEndpoints.IsPresent -or $ManageOwnS3Credentials.IsPresent -or $S3Policy -or $S3FullAccess.IsPresent -or $S3ReadOnlyAccess.IsPresent -or $SwiftRoles) {
+                Throw "Permissions for a tenant group specified, but connected as grid user. Only the following parameters are allowed for grid administration groups: RootAccess, OtherGridConfiguration, GridTopologyPageConfiguration, TenantAccounts, ChangeTenantRootPassword, Maintenance, MetricsQuery, ActivateFeatures, Ilm"
+            }
+            $Uri = $Server.BaseURI + "/grid/groups/$Id"
+        }
         $Method = "PUT"
 
+        if ($Type -and $UniqueName -notmatch "group/") {
+            if ($Type -eq "federated") {
+                $UniqueName = "federated-group/" + $UniqueName
+            }
+            else {
+                $UniqueName = "group/" + $UniqueName
+            }
+        }
+
         $Body = @{ }
-        if ($displayName) {
+        if ($DisplayName) {
             $Body.displayName = $displayName
         }
-        if ($uniqueName) {
+        if ($UniqueName) {
             $Body.uniqueName = $uniqueName
         }
-        if ($accountId) {
-            $Body.accountId = $accountId
+        $Body.policies = @{ }
+        $Body.policies.management = @{ }
+        if ($AlarmAcknowledgment.IsPresent) {
+            $Body.policies.management.alarmAcknowledgment = $AlarmAcknowledgment.IsPresent
         }
-        if ($federated) {
-            $Body.federated = $federated
+        if ($OtherGridConfiguration.IsPresent) {
+            $Body.policies.management.otherGridConfiguration = $OtherGridConfiguration.IsPresent
         }
-        if ($groupURN) {
-            $Body.groupURN = $groupURN
+        if ($GridTopologyPageConfiguration.IsPresent) {
+            $Body.policies.management.gridTopologyPageConfiguration = $GridTopologyPageConfiguration.IsPresent
         }
-        if ($alarmAcknowledgment -or $otherGridConfiguration -or $gridTopologyPageConfiguration -or $tenantAccounts -or $changeTenantRootPassword -or $maintenance -or $activateFeatures -or $rootAccess) {
-            $Body.policies = @{ }
-            $Body.policies.management = @{ }
-            if ($alarmAcknowledgment) {
-                $Body.policies.management.alarmAcknowledgment = $alarmAcknowledgment
+        if ($TenantAccounts.IsPresent) {
+            $Body.policies.management.tenantAccounts = $TenantAccounts.IsPresent
+        }
+        if ($ChangeTenantRootPassword.IsPresent) {
+            $Body.policies.management.changeTenantRootPassword = $ChangeTenantRootPassword.IsPresent
+        }
+        if ($Maintenance.IsPresent) {
+            $Body.policies.management.maintenance = $Maintenance.IsPresent
+        }
+        if ($MetricsQuery.IsPresent) {
+            $Body.policies.management.metricsQuery = $MetricsQuery.IsPresent
+        }
+        if ($ActivateFeatures.IsPresent) {
+            $Body.policies.management.activateFeatures = $ActivateFeatures.IsPresent
+        }
+        if ($Ilm.IsPresent) {
+            $Body.policies.management.ilm = $Ilm.IsPresent
+        }
+        if ($RootAccess.IsPresent) {
+            $Body.policies.management.rootAccess = $RootAccess.IsPresent
+        }
+        if ($Account.Capabilities -match "s3") {
+            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+                Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
-            if ($otherGridConfiguration) {
-                $Body.policies.management.otherGridConfiguration = $otherGridConfiguration
+            elseif ($S3FullAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
             }
-            if ($tenantAccounts) {
-                $Body.policies.management.tenantAccounts = $tenantAccounts
+            elseif ($S3ReadOnlyAccess.IsPresent) {
+                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
             }
-            if ($changeTenantRootPassword) {
-                $Body.policies.management.changeTenantRootPassword = $changeTenantRootPassword
+            else {
+                $Body.policies.s3 = $IamPolicy
             }
-            if ($maintenance) {
-                $Body.policies.management.maintenance = $maintenance
+        }
+
+        if ($Account.Capabilities -match "swift") {
+            if (!$SwiftRoles) {
+                Write-Warning "Swift capability specified, but no Swift roles specified."
             }
-            if ($activateFeatures) {
-                $Body.policies.management.activateFeatures = $activateFeatures
-            }
-            if ($rootAccess) {
-                $Body.policies.management.rootAccess = $rootAccess
+            else {
+                $Body.policies.swift = @{ }
+                $Body.policies.swift.roles = $SwiftRoles
             }
         }
 
@@ -11067,24 +11584,44 @@ function Global:Replace-SgwGroup {
     Retrieve groups of a StorageGRID Webscale Account
     .DESCRIPTION
     Retrieve groups of a StorageGRID Webscale Account
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ID of a StorageGRID Webscale Account to get group information for.
 #>
 function Global:Get-SgwAccountGroups {
     [CmdletBinding()]
 
     PARAM (
         [parameter(
-                Mandatory = $True,
+                Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $True,
+                Position = 2,
                 HelpMessage = "ID of a StorageGRID Webscale Account to get group information for.",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$id,
-        [parameter(
-                Mandatory = $False,
-                Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][String]$Id
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
