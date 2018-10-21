@@ -10643,11 +10643,11 @@ function Global:New-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 19,
-                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Alias("FullAccess","Full")][Switch]$S3FullAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 20,
-                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Alias("ReadOnlyAccess","ReadOnly")][Switch]$S3ReadOnlyAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 21,
@@ -10739,10 +10739,10 @@ function Global:New-SgwGroup {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
             }
             else {
                 $Body.policies.s3 = $IamPolicy
@@ -11184,11 +11184,11 @@ function Global:Update-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 18,
-                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Alias("FullAccess","Full")][Switch]$S3FullAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 19,
-                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Alias("ReadOnlyAccess","ReadOnly")][Switch]$S3ReadOnlyAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 20,
@@ -11272,10 +11272,10 @@ function Global:Update-SgwGroup {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
             }
             else {
                 $Body.policies.s3 = $IamPolicy
@@ -11445,11 +11445,11 @@ function Global:Replace-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 20,
-                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Switch]$S3FullAccess,
+                HelpMessage = "Use S3 Group Policy for Full S3 Access.")][Alias("FullAccess","Full")][Switch]$S3FullAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 21,
-                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Switch]$S3ReadOnlyAccess,
+                HelpMessage = "Use S3 Group Policy for Read Only S3 Access.")][Alias("ReadOnlyAccess","ReadOnly")][Switch]$S3ReadOnlyAccess,
         [parameter(
                 Mandatory = $False,
                 Position = 22,
@@ -11545,10 +11545,10 @@ function Global:Replace-SgwGroup {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:*"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = New-IamPolicy -Effect "Allow" -Resource "urn:sgws:s3:::*" -Action "s3:ListBucket", "s3:ListBucketVersions", "s3:ListAllMyBuckets", "s3:ListBucketMultipartUploads", "s3:ListMultipartUploadParts", "s3:GetAccelerateConfiguration", "s3:GetAnalyticsConfiguration", "s3:GetBucketAcl", "s3:GetBucketCORS", "s3:GetBucketLocation", "s3:GetBucketLogging", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetBucketRequestPayment", "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite", "s3:GetInventoryConfiguration", "s3:GetIpConfiguration", "s3:GetLifecycleConfiguration", "s3:GetMetricsConfiguration", "s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectTagging", "s3:GetObjectTorrent", "s3:GetObjectVersion", "s3:GetObjectVersionAcl", "s3:GetObjectVersionForReplication", "s3:GetObjectVersionTagging", "s3:GetObjectVersionTorrent", "s3:GetReplicationConfiguration"
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
             }
             else {
                 $Body.policies.s3 = $IamPolicy
