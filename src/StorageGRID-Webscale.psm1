@@ -344,6 +344,8 @@ function Invoke-SgwRequest {
             $OutFile = (New-TemporaryFile).ToString()
         }
 
+        Write-Verbose "Request Headers:`n$(ConverTo-Json -InputObject $Headers)"
+
         try {
             if ($PSVersionTable.PSVersion.Major -lt 6) {
                 Write-Verbose "Using Invoke-WebRequest for PowerShell 5 and earlier"
@@ -352,9 +354,10 @@ function Invoke-SgwRequest {
                     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
                 }
                 if ($Body) {
-                    Write-Verbose "Body:`n$Body"
+                    Write-Verbose "Request Body:`n$Body"
                     if ($SessionVariable) {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
                         }
                         else {
@@ -364,6 +367,7 @@ function Invoke-SgwRequest {
                     }
                     else {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile -PassThru
                         }
                         else {
@@ -374,6 +378,7 @@ function Invoke-SgwRequest {
                 else {
                     if ($SessionVariable) {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
                         }
                         else {
@@ -383,6 +388,7 @@ function Invoke-SgwRequest {
                     }
                     else {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile -PassThru
                         }
                         else {
@@ -397,9 +403,10 @@ function Invoke-SgwRequest {
             else {
                 Write-Verbose "Using Invoke-WebRequest for PowerShell 6 and later"
                 if ($Body) {
-                    Write-Verbose "Body:`n$Body"
+                    Write-Verbose "Request Body:`n$Body"
                     if ($SessionVariable) {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
                         }
                         else {
@@ -409,6 +416,7 @@ function Invoke-SgwRequest {
                     }
                     else {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -ContentType $ContentType -WebSession $WebSession -OutFile $OutFile -PassThru
                         }
                         else {
@@ -419,6 +427,7 @@ function Invoke-SgwRequest {
                 else {
                     if ($SessionVariable) {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -SessionVariable $SessionVariable -OutFile $OutFile -PassThru
                         }
                         else {
@@ -428,6 +437,7 @@ function Invoke-SgwRequest {
                     }
                     else {
                         if ($OutFile) {
+                            Write-Verbose "Saving output in file:`n$OutFile"
                             $Response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -SkipCertificateCheck:$SkipCertificateCheck -SkipHeaderValidation -TimeoutSec $TimeoutSec -WebSession $WebSession -OutFile $OutFile -PassThru
                         }
                         else {
@@ -435,6 +445,12 @@ function Invoke-SgwRequest {
                         }
                     }
                 }
+            }
+
+            Write-Verbose "Response Headers:`n$(ConvertTo-Json -InputObject $Response.Headers)"
+
+            if ($Response.Headers.'Content-Type' -match "text|application/xml|application/json") {
+                Write-Verbose "Response Body:`n$($Response.Content)"
             }
 
             switch ($Response.Headers.'Content-Type') {
