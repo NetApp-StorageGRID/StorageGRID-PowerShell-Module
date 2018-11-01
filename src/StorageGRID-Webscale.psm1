@@ -344,7 +344,7 @@ function Invoke-SgwRequest {
             $OutFile = (New-TemporaryFile).ToString()
         }
 
-        Write-Verbose "Request Headers:`n$(ConverTo-Json -InputObject $Headers)"
+        Write-Verbose "Request Headers:`n$(ConvertTo-Json -InputObject $Headers)"
 
         try {
             if ($PSVersionTable.PSVersion.Major -lt 6) {
@@ -3376,7 +3376,7 @@ function Global:Get-SgwAccount {
             Write-Output $Account
         }
         else {
-            $Uri = $Server.BaseURI + "/grid/accounts/$AccountId"
+            $Uri = $Server.BaseURI + "/grid/accounts/$Id"
             $Method = "GET"
 
             try {
@@ -12061,6 +12061,10 @@ function Global:Set-SgwIdentitySource {
     Request that users and groups from the identity source be synchronized as soon as possible
     .DESCRIPTION
     Request that users and groups from the identity source be synchronized as soon as possible
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Sync-SgwIdentitySources {
     [CmdletBinding()]
