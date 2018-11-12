@@ -12137,19 +12137,33 @@ function Global:Invoke-SgwIlmEvaluate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
-        [parameter(Mandatory = $True,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Protocol-specific object identifier (e.g. bucket/key/1).")][String]$ObjectID,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Switch indicating that ILM evaluation should occur immediately.")][Switch]$Now,
-        [parameter(Mandatory = $False,
+                HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
+        [parameter(Mandatory = $True,
                 Position = 3,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "Protocol-specific object identifier (e.g. bucket/key/1).")][String]$ObjectID,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Switch indicating that ILM evaluation should occur immediately.")][Switch]$Now
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12188,9 +12202,13 @@ function Global:Invoke-SgwIlmEvaluate {
 
 <#
     .SYNOPSIS
-    Lists metadata available for creating an ILM rule
+    Lists criteria available for creating an ILM rule
     .DESCRIPTION
-    Lists metadata available for creating an ILM rule
+    Lists criteria available for creating an ILM rule
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwIlmMetadata {
     [CmdletBinding()]
@@ -12198,13 +12216,24 @@ function Global:Get-SgwIlmMetadata {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12217,7 +12246,7 @@ function Global:Get-SgwIlmMetadata {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/ilm-metadata?api=$api"
+        $Uri = $Server.BaseURI + "/grid/ilm-criteria"
         $Method = "GET"
 
         try {
@@ -12237,6 +12266,10 @@ function Global:Get-SgwIlmMetadata {
     Lists ILM rules
     .DESCRIPTION
     Lists ILM rules
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwIlmRules {
     [CmdletBinding()]
@@ -12244,10 +12277,24 @@ function Global:Get-SgwIlmRules {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12262,6 +12309,301 @@ function Global:Get-SgwIlmRules {
     Process {
         $Uri = $Server.BaseURI + "/grid/ilm-rules"
         $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Creates a new ILM rule
+    .DESCRIPTION
+    Creates a new ILM rule
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:New-SgwIlmRules {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "S3 or Swift tenant account to which the ILM rule applies. If omitted, applies to all objects.")][Alias("AccountId")][String]$TenantAccountId,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Operator used to match bucket(s) with the value.")][ValidateSet("contains","endsWith","equals","startsWith")][String]$BucketFilterOperator="equals",
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "S3 or Swift bucket(s) to which the ILM rule applies. If omitted, matches all objects in any specified tenant accounts.")][ValidateSet("contains","endsWith","equals","startsWith")][Alias("BucketName")][String]$BucketFilterValue,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Indicates the time from which the ILM rule is applied.")][ValidateSet("ingestTime","lastAccessTime","noncurrentTime","userDefinedCreationTime")][String]$ReferenceTime,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Logical operator connecting filtering criteria when more than one criterion provided.")][ValidateSet("or")][String]$FilterLogicalOperator,
+        [parameter(Mandatory = $False,
+                Position = 7,
+                HelpMessage = "Indicates the type of filtered metadata. You can specify a list to create multiple filters combined with the filter logical operator.")][ValidateSet("user","system","tag")][String[]]$FilterMetadataType,
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "System metadata identifier, user metadata name, or tag name. You can specify a list to create multiple filters combined with the filter logical operator.")][String[]]$FilterMetadataName,
+        [parameter(Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Used to compare the 'metadataName' with the 'value' string. You can specify a list to create multiple filters combined with the filter logical operator.")][ValidateSet("contains","notContains","equals","notEquals","startsWith","notStartsWith","endsWith","notEndsWith","exists","notExists","lessThan","lessThanOrEquals","greaterThan","greaterThanOrEquals")][String[]]$FilterOperator,
+        [parameter(Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Entry against which the metadata values specified by metadataName should be compared. You can specify a list to create multiple filters combined with the filter logical operator.")][ValidateSet("contains","notContains","equals","notEquals","startsWith","notStartsWith","endsWith","notEndsWith","exists","notExists","lessThan","lessThanOrEquals","greaterThan","greaterThanOrEquals")][String[]]$FilterValue,
+        [parameter(Mandatory = $False,
+                Position = 11,
+                HelpMessage = "Day when retention starts. You can specify a list to create multiple retention durations.")][Integer[]]$RetentionAfter,
+        [parameter(Mandatory = $False,
+                Position = 12,
+                HelpMessage = "Number of days object data to be stored at the specified locations. Objects stored forever if null. You can specify a list to create multiple placements.")][Integer[]]$RetentionDuration,
+        [parameter(Mandatory = $False,
+                Position = 13,
+                HelpMessage = "One or more storage pools where object data is saved, specified as comma-separated values. You can specify a list to create multiple placements.")][String[]]$ReplicatedPoolId,
+        [parameter(Mandatory = $False,
+                Position = 14,
+                HelpMessage = "Storage pool where object data is temporarily stored if the preferred storage pool is unavailable. Applies only to replicated copies that use a single storage pool. You can specify a list to create multiple placements.")][String[]]$ReplicatedTemporaryPoolId,
+        [parameter(Mandatory = $False,
+                Position = 15,
+                HelpMessage = "Number of replicated copies. You can specify a list to create multiple placements.")][String[]]$ReplicatedCopies,
+        [parameter(Mandatory = $False,
+                Position = 16,
+                HelpMessage = "One or more storage pools where object data is saved erasure coded, specified as comma-separated values. You can specify a list to create multiple placements.")][String[]]$ErasureCodedPoolId,
+        [parameter(Mandatory = $False,
+                Position = 17,
+                HelpMessage = "Erasure coding profile used. Erasure coded object data only. You can specify a list to create multiple placements.")][String[]]$ErasureCodedProfileId,
+        [parameter(Mandatory = $False,
+                Position = 18,
+                HelpMessage = "A representative and unique name for the ILM rule, immutable once the ILM rule is created.")][String]$DisplayName,
+        [parameter(Mandatory = $False,
+                Position = 19,
+                HelpMessage = "A short description of the ILM rule to indicate its purpose.")][String]$Description
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ilm-rules"
+        $Method = "POST"
+
+        $Body = @{}
+
+        if ($TenantAccountId) {
+            $Body.tenantAccountId = $TenantAccountId
+        }
+        if ($BucketFilterValue) {
+            $Body.bucketFilter = @{}
+            $Body.bucketFilter.operator = $BucketFilterOperator
+            $Body.bucketFilter.value = $BucketFilterValue
+        }
+        $Bucket.referenceTime = $ReferenceTime
+        if ($FilterLogicalOperator) {
+            $Bucket.logicalOperator = $FilterLogicalOperator
+        }
+
+        $Body.filters = @()
+        $Body.filters += @{Criteria=@()}
+        if ($FilterLogicalOperator) {
+            $Body.filters[0].logicalOperator = $FilterLogicalOperator
+        }
+        for ($i=0;$i -lt @($FilterMetadataName).Length) {
+            $Criteria = @{}
+            if ($FilterMetadataType[$i]) {
+                $Criteria.metadataType = $FilterMetadataType[$i]
+            }
+            $Criteria.metadataName = $FilterMetadataName[$i]
+            if ($FilterOperator[$i]) {
+                $Criteria.operator = $FilterOperator[$i]
+            }
+            if ($FilterValue[$i]) {
+                $Criteria.value = $FilterValue[$i]
+            }
+            $Body.filters[0].Criteria += $Criteria
+        }
+
+        # TODO: Figure out placement
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        Write-Verbose "Body:`n$Body"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Delete an ILM rule
+    .DESCRIPTION
+    Delete an ILM rule
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ILM rule ID
+#>
+function Global:Get-SgwIlmRules {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "ILM rule ID.")][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ilm-rules/$Id"
+        $Method = "DELETE"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieves a single ILM rule
+    .DESCRIPTION
+    Retrieves a single ILM rule
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Id
+    ILM rule ID
+#>
+function Global:Get-SgwIlmRules {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "ILM rule ID.")][String]$Id,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Include optional information.")][ValidateString("compliance")][String]$Include
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/ilm-rules/$Id"
+        $Method = "GET"
+
+        if ($Include) {
+            $Uri += "?include=$Include"
+        }
 
         try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
