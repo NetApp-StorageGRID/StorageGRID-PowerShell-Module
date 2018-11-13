@@ -13036,6 +13036,17 @@ function Global:Get-SgwLogCollection {
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -13083,11 +13094,83 @@ function Global:Get-SgwLogCollection {
 
 ## metrics ##
 
+# complete as of API 2.2
+
+<#
+    .SYNOPSIS
+    Lists the values for a metric label
+    .DESCRIPTION
+    Lists the values for a metric label
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Label
+    Label name
+#>
+function Global:Get-SgwMetricLabelValue {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Label name (default: job).")][String]$Label="job"
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/metric-labels/$Label/values"
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
 <#
     .SYNOPSIS
     Retrieves the metric names
     .DESCRIPTION
     Retrieves the metric names
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Get-SgwMetricNames {
     [CmdletBinding()]
@@ -13095,10 +13178,24 @@ function Global:Get-SgwMetricNames {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -13131,6 +13228,16 @@ function Global:Get-SgwMetricNames {
     Performs an instant metric query at a single point in time
     .DESCRIPTION
     Performs an instant metric query at a single point in time
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Query
+    Prometheus query string.
+    .PARAMETER Time
+    Query start, default current time (date-time).
+    .PARAMETER Timeout
+    Timeout in seconds.
 #>
 function Global:Get-SgwMetricQuery {
     [CmdletBinding()]
@@ -13139,18 +13246,32 @@ function Global:Get-SgwMetricQuery {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Prometheus query string.")][String]$Query,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 3,
                 HelpMessage = "Query start, default current time (date-time).")][DateTime]$Time,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 4,
                 HelpMessage = "Timeout in seconds.")][Int]$Timeout = 120
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -13191,7 +13312,102 @@ function Global:Get-SgwMetricQuery {
     }
 }
 
-# TODO: Implement metrics cmdlets
+<#
+    .SYNOPSIS
+    Performs a metric query over a range of time
+    .DESCRIPTION
+    Performs a metric query over a range of time. The format of metric queries is controlled by Prometheus. See https://prometheus.io/docs/querying/basics
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Query
+    Prometheus query string.
+    .PARAMETER Time
+    Query start, default current time (date-time).
+    .PARAMETER Timeout
+    Timeout in seconds.
+#>
+function Global:Get-SgwMetricQueryRange {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "Prometheus query string.")][String]$Query,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "Query start, default current time minus one hour.")][DateTime]$Start=(Get-Date).AddHours(-1),
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "Query end, default current time.")][DateTime]$End=(Get-Date),
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "Query end, default current time (default 2m).")][String]$Step="2m",
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "Timeout in seconds.")][Int]$Timeout = 120
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/metric-query-range"
+        $Method = "GET"
+
+        $Uri += "?query=$Query"
+        $Uri += "&start=$( Get-Date -Format o $Start.ToUniversalTime() )"
+        $Uri += "&end=$( Get-Date -Format o $End.ToUniversalTime() )"
+        $Uri += "&step=$Step"
+
+        if ($Timeout) {
+            $Uri += "&timeout=$( $Timeout )s"
+        }
+
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        foreach ($Result in $Response.Json.data.result) {
+            foreach ($Value in $Result.values) {
+                $Metric = [PSCustomObject]@{ Metric = $Result.metric.__name__; Instance = $Result.metric.instance; Job = $Result.metric.Job; Service = $Result.metric.Service; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $Value[0]); Value = $Value[1] }
+                Write-Output $Metric
+            }
+        }
+    }
+}
 
 ## ntp-servers ##
 
