@@ -12763,7 +12763,7 @@ function Global:Update-SgwLicense {
 
 ## logs ##
 
-# complete as of API 2.1
+# complete as of API 2.2
 
 Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
 <#
@@ -12771,17 +12771,35 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
     Retrieves the log collection procedure status
     .DESCRIPTION
     Retrieves the log collection procedure status
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
-function Global:Get-SgwLogs {
+    function Global:Get-SgwLogs {
     [CmdletBinding()]
 
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12814,6 +12832,20 @@ function Global:Get-SgwLogs {
     Retrieves the log collection procedure status
     .DESCRIPTION
     Retrieves the log collection procedure status
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Passphrase
+    StorageGRID Webscale Passphrase.
+    .PARAMETER Nodes
+    List of StorageGRID Nodes to collect logs for (Default: all nodes).
+    .PARAMETER Notes
+    A message to send to technical support.
+    .PARAMETER RangeStart
+    First log timestamp at start of log collection (Default: last hour).
+    .PARAMETER RangeEnd
+    Last log timestamp at end of log collection (Default: now).
 #>
 function Global:Start-SgwLogCollection {
     [CmdletBinding()]
@@ -12822,21 +12854,38 @@ function Global:Start-SgwLogCollection {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $False,
-                Position = 2,
+                Position = 3,
                 HelpMessage = "List of StorageGRID Nodes to collect logs for (Default: all nodes).")][String[]]$Nodes,
         [parameter(Mandatory = $False,
-                Position = 3,
+                Position = 4,
+                HelpMessage = "A message to send to technical support.")][String]$Notes,
+        [parameter(Mandatory = $False,
+                Position = 5,
                 HelpMessage = "First log timestamp at start of log collection (Default: last hour).")][DateTime]$RangeStart=(Get-Date).AddHours(-1),
         [parameter(Mandatory = $False,
-                Position = 4,
+                Position = 6,
                 HelpMessage = "Last log timestamp at end of log collection (Default: now).")][DateTime]$RangeEnd=(Get-Date)
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12878,6 +12927,9 @@ function Global:Start-SgwLogCollection {
         $Body = @{}
         $Body.passphrase = $Passphrase
         $Body.nodes = $NodeIds
+        if ($Notes) {
+            $Body.notes = $Notes
+        }
         $Body.rangeStart = Get-Date -Format o $RangeStart.ToUniversalTime()
         $Body.rangeEnd = Get-Date -Format o $RangeEnd.ToUniversalTime()
 
@@ -12900,6 +12952,10 @@ function Global:Start-SgwLogCollection {
     Deletes the previous log collection archive
     .DESCRIPTION
     Deletes the previous log collection archive
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
 #>
 function Global:Remove-SgwLogCollection {
     [CmdletBinding()]
@@ -12907,10 +12963,24 @@ function Global:Remove-SgwLogCollection {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -12943,6 +13013,12 @@ function Global:Remove-SgwLogCollection {
     Download log collection archive after procedure completes
     .DESCRIPTION
     Download log collection archive after procedure completes
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Path
+    Path to store log collection in
 #>
 function Global:Get-SgwLogCollection {
     [CmdletBinding()]
@@ -12951,8 +13027,11 @@ function Global:Get-SgwLogCollection {
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
                 HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
     )
 
