@@ -12571,7 +12571,7 @@ function Global:Get-SgwIlmRules {
                 HelpMessage = "ILM rule ID.")][String]$Id,
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Include optional information.")][ValidateString("compliance")][String]$Include
+                HelpMessage = "Include optional information.")][ValidateSet("compliance")][String]$Include
     )
 
     Begin {
