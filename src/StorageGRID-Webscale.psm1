@@ -2712,7 +2712,7 @@ function Global:Get-SgwProfiles {
                 $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value $False
             }
 
-            if ($Config.temporary_access_key_expiration_time) {
+            if ($Config.temporary_access_key_expiration_time -gt 0) {
                 $Output | Add-Member -MemberType NoteProperty -Name TemporaryAccessKeyExpirationTime -Value $Config.temporary_access_key_expiration_time
             }
             else {
@@ -4328,7 +4328,7 @@ function global:Connect-SgwServer {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found and no name specified."
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient:$Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.DisableAutomaticAccessKeyGeneration -TemporaryAccessKeyExpirationTime $Profile.TemporaryAccessKeyExpirationTime -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient:$Transient
             return $Server
         }
 
@@ -14936,41 +14936,67 @@ function Global:Copy-SgwAccount {
     Copy an S3 Bucket including all properties and data
 #>
 function Global:Copy-SgwBucket {
-    [CmdletBinding(DefaultParameterSetName = "none")]
+    [CmdletBinding(DefaultParameterSetName = "Server")]
 
     PARAM (
         [parameter(
                 Mandatory = $True,
                 Position = 0,
-                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
+                HelpMessage = "Source StorageGRID Webscale Management profile")][Alias("SourceProfile")][PSCustomObject]$SourceProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 1,
-                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
+                HelpMessage = "Destination StorageGRID Webscale Management profile")][Alias("DestinationProfile")][PSCustomObject]$DestinationProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Bucket Name")][PSCustomObject]$Bucket,
+                HelpMessage = "Source Bucket Name")][PSCustomObject]$SourceBucket,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
+                HelpMessage = "Destination Bucket Name")][PSCustomObject]$DestinationBucket,
+        [parameter(
+                Mandatory = $False,
+                Position = 4,
                 HelpMessage = "Do not execute request, just return request URI and Headers")][Switch]$DryRun
     )
 
-    Begin {
-        if (!$SourceServer.AccountId) {
-            Throw "Source server is not connected to account"
-        }
-        if (!$DestinationServer.AccountId) {
-            Throw "Destination server is not connected to account"
-        }
-    }
-
     Process {
+        if (!$SourceBucket.Name) {
+            $SourceBucket = Get-S3Buckets -ProfileName $SourceProfileName -BucketName $SourceBucket
+        }
+        if (!$DestinationBucket) {
+            $DestinationBucket = $SourceBucket
+        }
+        if (!$DestinationBucket.Name) {
+            $DestinationBucket = [PSCustomObject]@{BucketName=$DestinationBucket;Region=$SourceBucket.Region}
+        }
         Write-Information "Creating bucket $( $Bucket.Name ) on destination"
         if (!$DryRun) {
-            New-S3Bucket -Server $DestinationServer -Name $Bucket.Name -Region $Bucket.Region
+            # TODO: Check if source bucket exists
+            $BucketExistsInDestination = Test-S3Bucket -ProfileName $DestinationProfileName -BucketName $DestinationBucket.BucketName -Region $DestinationBucket.Region
+            if ($BucketExistsInDestination) {
+                $UseExistingBucket = $Host.UI.PromptForChoice("Use existing bucket",
+                    "Bucket $($SourceBucket.Name) exists in destination endpoint $($DestinationProfileName.EndpointUrl). Continue using this bucket?",
+                    @("&Yes", "&No"),
+                    1)
+                if ($UseExistingBucket -eq 1) {
+                    break
+                }
+            }
+            Write-Verbose "Creating destination bucket $($DestinationBucket.BucketName)"
+            New-S3Bucket -ProfileName $DestinationProfileName -BucketName $DestinationBucket.BucketName -Region $DestinationBucket.Region
             # TODO: Copy other bucket properties such as ACLs from source bucket to destination bucket!
+            # copy bucket policy
+            Get-S3BucketPolicy -ProfileName $SourceProfileName -BucketName $SourceBucket.BucketName | Write-S3BucketPolicy -ProfileName $DestinationProfileName -BucketName $DestinationBucket.BucketName
+            # copy versioning
+            # consistency
+            # last access time
+            # metadata notification
+            # notification
+            # replication
+            # compliance
+            # CORS
         }
 
         Write-Information "Adding endpoint configuration for bucket $( $Bucket.Name ) on source"
