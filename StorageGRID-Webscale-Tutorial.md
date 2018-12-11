@@ -42,7 +42,7 @@ Get-Help Connect-SgwServer -Detailed
 
 ## Profile Management
 
-It is recommended to use profiles to manage the connections to StorageGRID. The profile contains the login information which will be saved under 
+It is recommended to use profiles to manage the connections to StorageGRID. The profile contains the login information which will be saved under
 
 ```powershell
 Add-SgwProfile -ProfileName MyProfile -Name adminnode.example.com -Credential (Get-Credential)
@@ -180,8 +180,8 @@ foreach ($Account in $Accounts) {
         foreach ($Object in $Objects) {
             $ObjectMetadata = $Object | Get-SgwObjectMetadata
             $ReplicaCount = ($ObjectMetadata.locations | ? { $_.type -eq "replicated" }).Count
-            $ErasureCodeDataCount = ($ObjectMetadata.locations | ? { $_.type -eq "data" }).Count
-            $ErasureCodeParityCount = ($ObjectMetadata.locations | ? { $_.type -eq "parity" }).Count
+            $ErasureCodeDataCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "data" }).Count
+            $ErasureCodeParityCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "parity" }).Count
             if ($ReplicaCount) {
                 $SizeFactor = $ReplicaCount
             }
@@ -189,7 +189,7 @@ foreach ($Account in $Accounts) {
                 $SizeFactor = ($ErasureCodeDataCount + $ErasureCodeParityCount) / $ErasureCodeDataCount
             }
             else {
-                Write-Warning "No replicas and EC parts found for object $($Object.Key)"$
+                Write-Warning "No replicas and EC parts found for object ${Bucket.BucketName}/$($Object.Key)"
             }
             $SizeFactor = $ReplicaCount
             if ($ObjectMetadata.diskSizeBytes) {
