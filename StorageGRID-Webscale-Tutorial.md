@@ -168,16 +168,19 @@ $BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTyp
 ## Experimental Accounting of disk usage per tenant and bucket
 
 ```powershell
-$Accounts = Get-SgwAccounts
+$Accounts = Get-SgwAccounts -Capabilities s3
 $TenantAccounting = @()
 $BucketAccounting = @()
 foreach ($Account in $Accounts) {
     $AccountUsage = 0
+    $AccountObjectCount = 0
     $Buckets = $Account | Get-S3Buckets
     foreach ($Bucket in $Buckets) {
         $BucketUsage = 0
+        $BucketObjectCount = 0
         $Objects = $Bucket | Get-S3Objects
         foreach ($Object in $Objects) {
+            $BucketObjectCount += 1
             $ObjectMetadata = $Object | Get-SgwObjectMetadata
             $ReplicaCount = ($ObjectMetadata.locations | ? { $_.type -eq "replicated" }).Count
             $ErasureCodeDataCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "data" }).Count
@@ -199,10 +202,11 @@ foreach ($Account in $Accounts) {
                 $BucketUsage += $SizeFactor * $ObjectMetadata.objectSizeBytes
             }
         }
-        $BucketAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;BucketName=$Bucket.BucketName;BucketUsage=$BucketUsage}
+        $BucketAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;BucketName=$Bucket.BucketName;BucketUsage=$BucketUsage;BucketObjectCount=$BucketObjectCount}
         $AccountUsage += $BucketUsage
+        $AccountObjectCount += $BucketObjectCount
     }
-    $TenantAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;AccountUsage=$AccountUsage}
+    $TenantAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;AccountUsage=$AccountUsage;AccountObjectCount=$AccountObjectCount}
 }
 $BucketAccounting | Export-Csv -Path $HOME\Downloads\BucketAccounting.csv -NoTypeInformation
 $TenantAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
