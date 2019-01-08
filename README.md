@@ -18,16 +18,16 @@ By default PowerShell 5 and later have the official [Microsoft PowerShell Galler
 Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 ```
 
-The StorageGRID Webscale Cmdlets are code signed. PowerShell (**currently only on Windows!**) can verify the code signature and only run signed code. To run the Cmdlets you need to ensure that your execution policy is set to either `AllSigned`, `RemoteSigned`, `Unrestricted`, `Bypass`. It is recommended to use `AllSigned`.
+The StorageGRID Webscale Cmdlets are code signed. PowerShell (**currently only on Windows!**) can verify the code signature and only run signed code. To run the Cmdlets you need to ensure that your execution policy is set to either `AllSigned`, `RemoteSigned`, `Unrestricted`, `Bypass`. It is recommended to use `RemoteSigned`.
 
 ```powershell
 Get-ExecutionPolicy
 ```
 
-You can change the execution policy using the following command. It is recommended to change it only for the current user and use `AllSigned`:
+You can change the execution policy using the following command. It is recommended to change it only for the current user and use `RemoteSigned`:
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy AllSigned -Scope CurrentUser
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 To install the Cmdlets only for the current user run
