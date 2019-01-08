@@ -8,7 +8,27 @@ See the sections below for [Installation](#Installation) and [Update](#Update) I
 Installation
 ------------
 
+The StorageGRID Webscale PowerShell Cmdlets require at least PowerShell 4.0 and .NET 4.5.
+
 The recommended way to install the PowerShell Module is through the new Install-Module Cmdlet available since PowerShell 5. Consider installing [PowerShell 5](https://www.microsoft.com/en-us/download/details.aspx?id=50395) or [PowerShell 6](https://github.com/PowerShell/PowerShell#get-powershell). PowerShell 6 now supports Linux, Mac OS X and Windows.
+
+By default PowerShell 5 and later have the official [Microsoft PowerShell Gallery](https://www.powershellgallery.com/) defined as installation source, but it is marked as `Untrusted`. To install the Cmdlets you need to trust this installation source using
+
+```powershell
+Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+```
+
+The StorageGRID Webscale Cmdlets are code signed. PowerShell (**currently only on Windows!**) can verify the code signature and only run signed code. To run the Cmdlets you need to ensure that your execution policy is set to either `AllSigned`, `RemoteSigned`, `Unrestricted`, `Bypass`. It is recommended to use `AllSigned`.
+
+```powershell
+Get-ExecutionPolicy
+```
+
+You can change the execution policy using the following command. It is recommended to change it only for the current user and use `AllSigned`:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy AllSigned -Scope CurrentUser
+```
 
 To install the Cmdlets only for the current user run
 
@@ -21,8 +41,6 @@ To install the Cmdlets for all users, you need to run PowerShell as Administrato
 ```powershell
 Install-Module -Name StorageGRID-Webscale
 ```
-
-The StorageGRID Webscale PowerShell Cmdlets require at least PowerShell 4.0 and .NET 4.5.
 
 If you can't install via `Install-Module` you can download the latest version of StorageGRID-Webscale.zip from the [GitHub Release page](https://github.com/ffeldhaus/StorageGRID-Webscale/releases/latest). Then extract StorageGRID-Webscale.zip to your preferred PowerShell Module location. For the current user to
 
