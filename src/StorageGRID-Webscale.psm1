@@ -10523,7 +10523,10 @@ function Global:Get-SgwGroups {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Groups = $Response.Json.data
+        $Groups | Foreach-Object { $_.policies = $_.policies | ConvertTo-Json -Depth 10 }
+
+        Write-Output $Groups
     }
 }
 
@@ -10751,17 +10754,19 @@ function Global:New-SgwGroup {
             $Body.policies.management.rootAccess = $RootAccess.IsPresent
         }
         if ($Account.Capabilities -match "s3") {
-            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+            # make sure that S3 Policy does not include a Principal
+            $S3Policy = $S3Policy -replace '\s*"Principal":\s*"[^"]*"\s*,?','' -replace ',}','}'
+            if (!$S3Policy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
                 $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":["s3:ListBucket","s3:ListBucketVersions","s3:ListAllMyBuckets","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts","s3:GetBucketCORS","s3:GetBucketLocation","s3:GetBucketNotification","s3:GetBucketPolicy","s3:GetBucketVersioning","s3:GetObject","s3:GetObjectTagging","s3:GetObjectVersion","s3:GetObjectVersionTagging","s3:GetReplicationConfiguration"]}]}'
             }
             else {
-                $Body.policies.s3 = $IamPolicy
+                $Body.policies.s3 = $S3Policy
             }
         }
 
@@ -10785,7 +10790,10 @@ function Global:New-SgwGroup {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
@@ -10856,7 +10864,10 @@ function Global:Get-SgwGroupByShortName {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
@@ -10927,10 +10938,14 @@ function Global:Get-SgwFederatedGroupByShortName {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
+New-Alias -Name Delete-SgwGroup -Value Remove-SgwGroup
 <#
     .SYNOPSIS
     Deletes a single Group
@@ -10943,7 +10958,7 @@ function Global:Get-SgwFederatedGroupByShortName {
     .PARAMETER Id
     ID of a StorageGRID Webscale Group to delete.
 #>
-function Global:Delete-SgwGroup {
+function Global:Remove-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
@@ -11073,7 +11088,10 @@ function Global:Get-SgwGroup {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
@@ -11140,6 +11158,7 @@ function Global:Update-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 3,
+                ValueFromPipelineByPropertyName = $true,
                 HelpMessage = "The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).")][String]$DisplayName,
         [parameter(
                 Mandatory = $False,
@@ -11196,6 +11215,7 @@ function Global:Update-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 17,
+                ValueFromPipelineByPropertyName = $true,
                 HelpMessage = "S3 Group Policy.")][PSCustomObject]$S3Policy,
         [parameter(
                 Mandatory = $False,
@@ -11284,17 +11304,19 @@ function Global:Update-SgwGroup {
             $Body.policies.management.rootAccess = $RootAccess.IsPresent
         }
         if ($Account.Capabilities -match "s3") {
-            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+            # make sure that S3 Policy does not include a Principal
+            $S3Policy = $S3Policy -replace '\s*"Principal":\s*"[^"]*"\s*,?','' -replace ',}','}'
+            if (!$S3Policy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
                 $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":["s3:ListBucket","s3:ListBucketVersions","s3:ListAllMyBuckets","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts","s3:GetBucketCORS","s3:GetBucketLocation","s3:GetBucketNotification","s3:GetBucketPolicy","s3:GetBucketVersioning","s3:GetObject","s3:GetObjectTagging","s3:GetObjectVersion","s3:GetObjectVersionTagging","s3:GetReplicationConfiguration"]}]}'
             }
             else {
-                $Body.policies.s3 = $IamPolicy
+                $Body.policies.s3 = $S3Policy
             }
         }
 
@@ -11318,7 +11340,10 @@ function Global:Update-SgwGroup {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
@@ -11393,6 +11418,7 @@ function Global:Replace-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 3,
+                ValueFromPipelineByPropertyName = $true,
                 HelpMessage = "The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).")][String]$DisplayName,
         [parameter(
                 Mandatory = $False,
@@ -11457,6 +11483,7 @@ function Global:Replace-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 19,
+                ValueFromPipelineByPropertyName = $true,
                 HelpMessage = "S3 Group Policy.")][PSCustomObject]$S3Policy,
         [parameter(
                 Mandatory = $False,
@@ -11557,17 +11584,19 @@ function Global:Replace-SgwGroup {
             $Body.policies.management.rootAccess = $RootAccess.IsPresent
         }
         if ($Account.Capabilities -match "s3") {
-            if (!$IamPolicy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
+            # make sure that S3 Policy does not include a Principal
+            $S3Policy = $S3Policy -replace '\s*"Principal":\s*"[^"]*"\s*,?','' -replace ',}','}'
+            if (!$S3Policy -and !($S3FullAccess.IsPresent -or $S3ReadOnlyAccess)) {
                 Write-Warning "S3 capability specified, but no S3 Group Policy provided. Users of this group will not be able to execute any S3 commands on buckets or objects."
             }
             elseif ($S3FullAccess.IsPresent) {
                 $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:*"}]}'
             }
             elseif ($S3ReadOnlyAccess.IsPresent) {
-                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":"s3:ListBucket s3:ListBucketVersions s3:ListAllMyBuckets s3:ListBucketMultipartUploads s3:ListMultipartUploadParts s3:GetAccelerateConfiguration s3:GetAnalyticsConfiguration s3:GetBucketAcl s3:GetBucketCORS s3:GetBucketLocation s3:GetBucketLogging s3:GetBucketNotification s3:GetBucketPolicy s3:GetBucketRequestPayment s3:GetBucketTagging s3:GetBucketVersioning s3:GetBucketWebsite s3:GetInventoryConfiguration s3:GetIpConfiguration s3:GetLifecycleConfiguration s3:GetMetricsConfiguration s3:GetObject s3:GetObjectAcl s3:GetObjectTagging s3:GetObjectTorrent s3:GetObjectVersion s3:GetObjectVersionAcl s3:GetObjectVersionForReplication s3:GetObjectVersionTagging s3:GetObjectVersionTorrent s3:GetReplicationConfiguration"}]}'
+                $Body.policies.s3 = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"urn:sgws:s3:::*","Action":["s3:ListBucket","s3:ListBucketVersions","s3:ListAllMyBuckets","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts","s3:GetBucketCORS","s3:GetBucketLocation","s3:GetBucketNotification","s3:GetBucketPolicy","s3:GetBucketVersioning","s3:GetObject","s3:GetObjectTagging","s3:GetObjectVersion","s3:GetObjectVersionTagging","s3:GetReplicationConfiguration"]}]}'
             }
             else {
-                $Body.policies.s3 = $IamPolicy
+                $Body.policies.s3 = $S3Policy
             }
         }
 
@@ -11591,7 +11620,10 @@ function Global:Replace-SgwGroup {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        Write-Output $Response.Json.data
+        $Group = $Response.Json.data
+        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+
+        Write-Output $Group
     }
 }
 
