@@ -12,13 +12,13 @@ The StorageGRID Webscale PowerShell Cmdlets require at least PowerShell 4.0 and 
 
 The recommended way to install the PowerShell Module is through the new Install-Module Cmdlet available since PowerShell 5. Consider installing [PowerShell 5](https://www.microsoft.com/en-us/download/details.aspx?id=50395) or [PowerShell 6](https://github.com/PowerShell/PowerShell#get-powershell). PowerShell 6 now supports Linux, Mac OS X and Windows.
 
-By default PowerShell 5 and later have the official [Microsoft PowerShell Gallery](https://www.powershellgallery.com/) defined as installation source, but it is marked as `Untrusted`. To install the Cmdlets you need to trust this installation source using
+By default PowerShell 5 and later have the official [Microsoft PowerShell Gallery](https://www.powershellgallery.com/) defined as installation source, but it is marked as `Untrusted` by default. To install the Cmdlets you need to trust this installation source using
 
 ```powershell
 Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 ```
 
-The StorageGRID Webscale Cmdlets are code signed. PowerShell (**currently only on Windows!**) can verify the code signature and only run signed code. To run the Cmdlets you need to ensure that your execution policy is set to either `AllSigned`, `RemoteSigned`, `Unrestricted`, `Bypass`. It is recommended to use `RemoteSigned`.
+The StorageGRID Webscale Cmdlets are code signed. PowerShell (**currently only on Windows!**) can verify the code signature and only run code signed with a trusted certificate. To run the Cmdlets you need to ensure that your execution policy is set to either `AllSigned`, `RemoteSigned`, `Unrestricted`, `Bypass`. It is recommended to use `RemoteSigned`.
 
 ```powershell
 Get-ExecutionPolicy
