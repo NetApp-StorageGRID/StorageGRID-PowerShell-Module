@@ -162,7 +162,7 @@ $BucketAccounting = foreach ($Account in (Get-SgwAccounts | Where-Object { $_.ca
 	}
 }
 
-$BucketAccounting | Export-Csv -Path $HOME\Downloads\TenantAccounting.csv -NoTypeInformation
+$BucketAccounting | Export-Csv -Path $HOME\Downloads\BucketAccounting.csv -NoTypeInformation
 ```
 
 ## Experimental Accounting of disk usage per tenant and bucket
