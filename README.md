@@ -1,7 +1,7 @@
 StorageGRID Webscale PowerShell Module
 ======================================
 
-The StorageGRID Webscale Module contains Cmdlets for managing a NetApp StorageGRID Webscale solution as well as basic S3 Cmdlets. While the S3 Cmdlets are working for any S3 object storage, they provide several enhancements to make S3 management easier for StorageGRID Webscale Administrators. For a [feature rich, performance optimized S3 Client in PowerShell use the official AWS Cmdlets](https://aws.amazon.com/de/powershell/).
+The StorageGRID Webscale Module contains Cmdlets for managing a NetApp StorageGRID Webscale solution.
 
 See the sections below for [Installation](#Installation) and [Update](#Update) Instructions see the sections below. For more information check out the [StorageGRID Webscale PowerShell Cmdlet Tutorial](StorageGRID-Webscale-Tutorial.md).
 
@@ -67,13 +67,13 @@ Usage
 Check if StorageGRID-Webscale Module can be found by PowerShell
 
 ```powershell
-    Get-Module -ListAvailable StorageGRID-Webscale
+    Get-Module -ListAvailable -Name StorageGRID-Webscale
 ```
 
 Import PowerShell Module
 
 ```powershell
-    Import-Module StorageGRID-Webscale
+    Import-Module -Name StorageGRID-Webscale
 ```
 
 List all Cmdlets included in the StorageGRID-Webscale Module
