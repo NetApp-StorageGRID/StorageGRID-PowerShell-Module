@@ -232,6 +232,7 @@ function ConvertTo-SgwConfigFile {
         $SgwConfigDirectory = ([System.IO.DirectoryInfo]$SgwConfigFile).Parent.FullName
 
         # make sure that parent folder is only accessible by current user
+        Write-Host "Profile information will be stored in $SgwConfigDirectory . Ensuring that access is only possible for current user."
         try {
             if ([environment]::OSVersion.Platform -match "win") {
                 $Acl = Get-Acl -Path $SgwConfigDirectory
@@ -243,7 +244,7 @@ function ConvertTo-SgwConfigFile {
                     [System.Security.AccessControl.PropagationFlags]::None,
                     [System.Security.AccessControl.AccessControlType]::Allow)
                 $Acl.AddAccessRule($AcessRule)
-                Set-Acl -Path $SgwConfigDirectory -AclRule -ErrorAction Stop
+                $null = Set-Acl -Path $SgwConfigDirectory -AclRule -ErrorAction Stop
             }
             else {
                 Invoke-Expression "chmod 700 $SgwConfigDirectory"
@@ -258,10 +259,19 @@ function ConvertTo-SgwConfigFile {
 
         if ($SgwConfigFile -match "credentials$") {
             foreach ($Config in $Configs) {
+                if ([environment]::OSVersion.Platform -match "win") {
+                    $secure_password = ConvertTo-SecureString -String $Config.password -AsPlainText -Force | ConvertFrom-SecureString
                 $Output += "[$( $Config.ProfileName )]`n"
                 $Output += "username = $($Config.username)`n"
+                    $Output += "secure_password = $($secure_password)`n"
+                }
+                else {
+                    # ConvertTo-SecureString is only implemented on Windows, so we need to rely on the security of the .sgw folder
+                    $Output += "[$( $Config.ProfileName )]`n"
+                    $Output += "username = $($Config.username)`n"
                 $Output += "password = $($Config.password)`n"
             }
+        }
         }
         else {
             foreach ($Config in $Configs) {
@@ -2689,6 +2699,9 @@ function Global:Get-SgwProfiles {
             if ($Credential.username -and $Credential.password) {
                 $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.password | ConvertTo-SecureString -AsPlainText -Force))) -Force
             }
+            elseif ($Credential.username -and $Credential.secure_password) {
+                $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.secure_password | ConvertTo-SecureString))) -Force
+        }
         }
 
         foreach ($Config in $Configs) {
