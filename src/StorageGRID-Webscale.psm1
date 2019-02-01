@@ -261,17 +261,17 @@ function ConvertTo-SgwConfigFile {
             foreach ($Config in $Configs) {
                 if ([environment]::OSVersion.Platform -match "win") {
                     $secure_password = ConvertTo-SecureString -String $Config.password -AsPlainText -Force | ConvertFrom-SecureString
-                $Output += "[$( $Config.ProfileName )]`n"
-                $Output += "username = $($Config.username)`n"
+                    $Output += "[$( $Config.ProfileName )]`n"
+                    $Output += "username = $($Config.username)`n"
                     $Output += "secure_password = $($secure_password)`n"
                 }
                 else {
                     # ConvertTo-SecureString is only implemented on Windows, so we need to rely on the security of the .sgw folder
                     $Output += "[$( $Config.ProfileName )]`n"
                     $Output += "username = $($Config.username)`n"
-                $Output += "password = $($Config.password)`n"
+                    $Output += "password = $($Config.password)`n"
+                }
             }
-        }
         }
         else {
             foreach ($Config in $Configs) {
@@ -2701,7 +2701,7 @@ function Global:Get-SgwProfiles {
             }
             elseif ($Credential.username -and $Credential.secure_password) {
                 $Config | Add-Member -MemberType NoteProperty -Name Credential -Value ([PSCredential]::new($Credential.username,($Credential.secure_password | ConvertTo-SecureString))) -Force
-        }
+            }
         }
 
         foreach ($Config in $Configs) {
@@ -10882,7 +10882,7 @@ function Global:Get-SgwGroupByShortName {
 
         $Group = $Response.Json.data
         foreach ($Group in $Groups) {
-        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+            $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
             $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
         }
 
@@ -14229,11 +14229,13 @@ function Global:Update-SgwRegions {
 
 ## users ##
 
+# complete as of API 2.2
+
 <#
     .SYNOPSIS
-    Retrieve all StorageGRID Users
+    Retrieve all Users
     .DESCRIPTION
-    Retrieve all StorageGRID Users
+    Retrieve all Users
     .PARAMETER Server
     StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
@@ -14346,7 +14348,555 @@ function Global:Get-SgwUsers {
     }
 }
 
-# TODO: Implement users Cmdlets
+New-Alias -Name Add-SgwUser -Value New-SgwUser
+<#
+    .SYNOPSIS
+    Create a new user
+    .DESCRIPTION
+    Create a new user
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER FullName
+    The human-readable name for the User (required for local Users and imported automatically for federated Users).
+    .PARAMETER MemberOf
+    Group memberships for this User (required for local Users and imported automatically for federated Users).
+    .PARAMETER Disable
+    If true, the local User cannot sign in (does not apply to federated Users).
+    .PARAMETER UniqueName
+    The machine-readable name for the User (unique within an Account; must begin with user/ or federated-user/ if not specified user/ will be added for local user). The portion after the slash is the 'username' that is used to sign in.
+    .PARAMETER Password
+    Password for the user.
+
+#>
+function Global:New-SgwUser {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "The human-readable name for the User (required for local Users and imported automatically for federated Users).")][String]$FullName,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Group memberships for this User (required for local Users and imported automatically for federated Users).")][Alias("GroupId")][String[]]$MemberOf,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "If true, the local User cannot sign in (does not apply to federated Users).")][Boolean]$Disable,
+        [parameter(Mandatory = $True,
+                Position = 5,
+                HelpMessage = "The machine-readable name for the User (unique within an Account; must begin with user/ or federated-user/ if not specified user/ will be added for local user). The portion after the slash is the 'username' that is used to sign in.")][Alias("Name")][String]$UniqueName,
+        [parameter(Mandatory = $True,
+                Position = 6,
+                HelpMessage = "Password for the user.")][String]$Password
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + '/org/users'
+        }
+        else {
+            $Uri = $Server.BaseURI + '/grid/users'
+        }
+
+        $Method = "POST"
+
+        if ($UniqueName -notmatch "user/") {
+            $UniqueName = "user/" + $UniqueName
+        }
+
+        $User = @{}
+        if ($FullName) {
+            $User.fullName = $FullName
+        }
+        else {
+            $User.fullName = $UniqueName -replace '.*/',''
+        }
+        if ($MemberOf) {
+            $User.memberOf = @($MemberOf)
+        }
+        if ($Disable) {
+            $User.disable = $Disable
+        }
+        $User.uniqueName = $UniqueName
+
+        $Body = ConvertTo-Json -InputObject $User
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        $User = $Response.Json.data
+
+        $User | Add-Member -MemberType AliasProperty -Name userId -Value id
+
+        Write-Output $User
+
+        if ($Password -and $User) {
+            $User | Set-SgwUserPassword -Password $Password
+        }
+    }
+}
+
+New-Alias -Name Set-SgwUserPassword -Value Update-SgwUserPassword
+<#
+    .SYNOPSIS
+    Updates or sets a user's password
+    .DESCRIPTION
+    Updates or sets a user's password
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Password
+    New password for the user.
+    .PARAMETER CurrentPassword
+    New password for the user.
+    .PARAMETER Name
+    User name (unique name or short name).
+    .PARAMETER Id
+    User ID.
+#>
+function Global:Update-SgwUserPassword {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $True,
+                Position = 2,
+                HelpMessage = "New password for the user.")][Alias("NewPassword")][String]$Password,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "Current password of the user.")][String]$CurrentPassword,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User name (unique name or short name).")][Alias("ShortName","UniqueName")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User ID.")][Alias("UserId")][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        if ($Server.AccountId) {
+            if ($Id) {
+                $Uri = $Server.BaseURI + "/org/users/$Id/change-password"
+            }
+            elseif ($Name -match "user/") {
+                $Uri = $Server.BaseURI + "/org/users/$Name/change-password"
+            }
+            elseif ($Name -eq "root") {
+                $Uri = $Server.BaseURI + "/org/users/root/change-password"
+            }
+            elseif ($Name) {
+                $Uri = $Server.BaseURI + "/org/users/user/$Name/change-password"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/org/users/current-user/change-password"
+                $CurrentPassword = $Server.Credential.GetNetworkCredential().Password
+            }
+        }
+        else {
+            if ($Id) {
+                $Uri = $Server.BaseURI + "/grid/users/$Id/change-password"
+            }
+            elseif ($Name -match "user/") {
+                $Uri = $Server.BaseURI + "/grid/users/$Name/change-password"
+            }
+            elseif ($Name -eq "root") {
+                $Uri = $Server.BaseURI + "/grid/users/root/change-password"
+            }
+            elseif ($Name) {
+                $Uri = $Server.BaseURI + "/grid/users/user/$Name/change-password"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/grid/users/current-user/change-password"
+                $CurrentPassword = $Server.Credential.GetNetworkCredential().Password
+            }
+        }
+
+        $Method = "POST"
+
+        $Body = @{password=$Password}
+
+        if ($CurrentPassword) {
+            $Body.currentPassword = $CurrentPassword
+        }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Verbose "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+
+            if ($_.Exception.Message -match "422") {
+                if ($CurrentPassword) {
+                    throw "Current password was wrong"
+                }
+                else {
+                    throw "Current password required"
+                }
+            }
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve a user
+    .DESCRIPTION
+    Retrieve a user
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    User name (unique name or short name).
+    .PARAMETER Id
+    User ID.
+#>
+function Global:Get-SgwUser {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User name (unique name or short name).")][Alias("ShortName","UniqueName")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User ID.")][Alias("UserId")][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        if ($Server.AccountId) {
+            if ($Id) {
+                $Uri = $Server.BaseURI + "/org/users/$Id"
+            }
+            elseif ($Name -match "user/") {
+                $Uri = $Server.BaseURI + "/org/users/$Name"
+            }
+            elseif ($Name -eq "root") {
+                $Uri = $Server.BaseURI + "/org/users/root"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/org/users/user/$Name"
+            }
+
+        }
+        else {
+            if ($Id) {
+                $Uri = $Server.BaseURI + "/grid/users/$Id"
+            }
+            elseif ($Name -match "user/") {
+                $Uri = $Server.BaseURI + "/grid/users/$Name"
+            }
+            elseif ($Name -eq "root") {
+                $Uri = $Server.BaseURI + "/grid/users/root"
+            }
+            else {
+                $Uri = $Server.BaseURI + "/grid/users/user/$Name"
+            }
+        }
+
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        $Response.Json.data | Add-Member -MemberType AliasProperty -Name userId -Value id
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Remove a user
+    .DESCRIPTION
+    Remove a user
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Name
+    User name (unique name or short name).
+    .PARAMETER Id
+    User ID.
+#>
+function Global:Remove-SgwUser {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User name (unique name or short name).")][Alias("ShortName","UniqueName")][String]$Name,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User ID.")][Alias("UserId")][String]$Id
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        if ($Name -and !$Id) {
+            $User = Get-SgwUser -Name $Name
+            if ($User) {
+                $Id = $User.Id
+            }
+            else {
+                throw "User with name $Name not found"
+            }
+        }
+
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/users/$Id"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/users/$Id"
+        }
+
+        $Method = "DELETE"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Update a user
+    .DESCRIPTION
+    Update a user
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER FullName
+    The human-readable name for the User (required for local Users and imported automatically for federated Users).
+    .PARAMETER MemberOf
+    Group memberships for this User (required for local Users and imported automatically for federated Users).
+    .PARAMETER Disable
+    If true, the local User cannot sign in (does not apply to federated Users).
+
+#>
+function Global:Update-SgwUser {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "User ID.")][Alias("UserId")][String]$Id,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "The human-readable name for the User (required for local Users and imported automatically for federated Users).")][String]$FullName,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "Group memberships for this User (required for local Users and imported automatically for federated Users).")][Alias("GroupId")][String[]]$MemberOf,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                ValueFromPipelineByPropertyName = $true,
+                HelpMessage = "If true, the local User cannot sign in (does not apply to federated Users).")][Boolean]$Disable
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        if ($Server.AccountId) {
+            $Uri = $Server.BaseURI + "/org/users/$Id"
+        }
+        else {
+            $Uri = $Server.BaseURI + "/grid/users/$Id"
+        }
+
+        $Method = "PATCH"
+
+        $User = @{}
+        if ($FullName) {
+            $User.fullName = $FullName
+        }
+        if ($MemberOf) {
+            $User.memberOf = @($MemberOf)
+        }
+        if ($Disable) {
+            $User.disable = $Disable
+        }
+
+        $Body = ConvertTo-Json -InputObject $User
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        $User = $Response.Json.data
+
+        $User | Add-Member -MemberType AliasProperty -Name userId -Value id
+
+        Write-Output $User
+    }
+}
 
 ## s3 ##
 
