@@ -14225,7 +14225,407 @@ function Global:Update-SgwRegions {
 
 ## server-certificate ##
 
-# TODO: Implement server-certificate Cmdlets
+# complete as of API 2.2
+
+<#
+    .SYNOPSIS
+    Retrieve the management interface server certificate
+    .DESCRIPTION
+    Retrieve the management interface server certificate
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwManagementCertificate {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/management-certificate"
+
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Update the management interface server certificate
+    .DESCRIPTION
+    Update the management interface server certificate
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER ServerCertificate
+    X.509 server certificate in PEM-encoding; omit or null if using default certificates.
+    .PARAMETER ServerCertificatePath
+    Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.
+    .PARAMETER CaBundle
+    Intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.
+    .PARAMETER CaBundlePath
+    Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.
+    .PARAMETER PrivateKey
+    Certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
+    .PARAMETER PrivateKeyPath
+    Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
+#>
+function Global:Get-SgwManagementCertificate {
+    [CmdletBinding(DefaultParameterSetName="String")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][String]$ServerCertificate,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][System.IO.FileInfo]$ServerCertificatePath,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "Intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][String]$CaBundle,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][System.IO.FileInfo]$CaBundlePath,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "Certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][String]$PrivateKey,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][System.IO.FileInfo]$PrivateKeyPath
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/management-certificate"
+
+        $Method = "POST"
+
+        if ($ServerCertificatePath) {
+            if ($ServerCertificatePath.Exists) {
+                $ServerCertificate = Get-Content -Path $ServerCertificatePath
+            }
+            else {
+                throw "Server certificate not found in $ServerCertificatePath"
+            }
+        }
+
+        if ($CaBundlePath) {
+            if ($CaBundlePath.Exists) {
+                $CaBundle = Get-Content -Path $CaBundlePath
+            }
+            else {
+                throw "CA Bundle not found in $CaBundlePath"
+            }
+        }
+
+        if ($PrivateKeyPath) {
+            if ($PrivateKeyPath.Exists) {
+                $PrivateKey = Get-Content -Path $PrivateKeyPath
+            }
+            else {
+                throw "Private key not found in $PrivateKeyPath"
+            }
+        }
+
+        $Body = @{}
+        $Body.serverCertificateEncoded = $ServerCertificate
+        $Body.caBundleEncoded = $CaBundle
+        $Body.privateKeyEncoded = $PrivateKey
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Retrieve the object storage API service endpoints server certificate
+    .DESCRIPTION
+    Retrieve the object storage API service endpoints server certificate
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+#>
+function Global:Get-SgwObjectCertificate {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/storage-api-certificate"
+
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Update the object storage API service endpoints server certificate
+    .DESCRIPTION
+    Update the object storage API service endpoints server certificate
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER ServerCertificate
+    X.509 server certificate in PEM-encoding; omit or null if using default certificates.
+    .PARAMETER ServerCertificatePath
+    Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.
+    .PARAMETER CaBundle
+    Intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.
+    .PARAMETER CaBundlePath
+    Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.
+    .PARAMETER PrivateKey
+    Certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
+    .PARAMETER PrivateKeyPath
+    Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
+#>
+function Global:Get-SgwObjectCertificate {
+    [CmdletBinding(DefaultParameterSetName="String")]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "X.509 server certificate in PEM-encoding; omit or null if using default certificates")][String]$ServerCertificate,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][System.IO.FileInfo]$ServerCertificatePath,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "Intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][String]$CaBundle,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][System.IO.FileInfo]$CaBundlePath,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "String",
+                HelpMessage = "Certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][String]$PrivateKey,
+        [parameter(Mandatory = $False,
+                Position = 6,
+                ValueFromPipelineByPropertyName = $True,
+                ParameterSetName = "Path",
+                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][System.IO.FileInfo]$PrivateKeyPath
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.AccountId) {
+            Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/object-certificate"
+
+        $Method = "POST"
+
+        if ($ServerCertificatePath) {
+            if ($ServerCertificatePath.Exists) {
+                $ServerCertificate = Get-Content -Path $ServerCertificatePath
+            }
+            else {
+                throw "Server certificate not found in $ServerCertificatePath"
+            }
+        }
+
+        if ($CaBundlePath) {
+            if ($CaBundlePath.Exists) {
+                $CaBundle = Get-Content -Path $CaBundlePath
+            }
+            else {
+                throw "CA Bundle not found in $CaBundlePath"
+            }
+        }
+
+        if ($PrivateKeyPath) {
+            if ($PrivateKeyPath.Exists) {
+                $PrivateKey = Get-Content -Path $PrivateKeyPath
+            }
+            else {
+                throw "Private key not found in $PrivateKeyPath"
+            }
+        }
+
+        $Body = @{}
+        $Body.serverCertificateEncoded = $ServerCertificate
+        $Body.caBundleEncoded = $CaBundle
+        $Body.privateKeyEncoded = $PrivateKey
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
+            return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
 
 ## users ##
 
