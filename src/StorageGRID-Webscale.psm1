@@ -10537,7 +10537,10 @@ function Global:Get-SgwGroups {
         }
 
         $Groups = $Response.Json.data
-        $Groups | Foreach-Object { $_.policies = $_.policies | ConvertTo-Json -Depth 10 }
+        foreach ($Group in $Groups) {
+            $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+            $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
+        }
 
         Write-Output $Groups
     }
@@ -10804,7 +10807,7 @@ function Global:New-SgwGroup {
         }
 
         $Group = $Response.Json.data
-        $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+        $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
 
         Write-Output $Group
     }
@@ -10878,7 +10881,10 @@ function Global:Get-SgwGroupByShortName {
         }
 
         $Group = $Response.Json.data
+        foreach ($Group in $Groups) {
         $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+            $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
+        }
 
         Write-Output $Group
     }
@@ -10953,6 +10959,7 @@ function Global:Get-SgwFederatedGroupByShortName {
 
         $Group = $Response.Json.data
         $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+        $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
 
         Write-Output $Group
     }
@@ -11103,6 +11110,7 @@ function Global:Get-SgwGroup {
 
         $Group = $Response.Json.data
         $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+        $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
 
         Write-Output $Group
     }
@@ -11355,6 +11363,7 @@ function Global:Update-SgwGroup {
 
         $Group = $Response.Json.data
         $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+        $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
 
         Write-Output $Group
     }
@@ -11635,6 +11644,7 @@ function Global:Replace-SgwGroup {
 
         $Group = $Response.Json.data
         $Group.policies = $Group.policies | ConvertTo-Json -Depth 10
+        $Group | Add-Member -MemberType AliasProperty -Name groupId -Value id
 
         Write-Output $Group
     }
