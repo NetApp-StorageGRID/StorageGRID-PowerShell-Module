@@ -14584,7 +14584,7 @@ function Global:Update-SgwObjectCertificate {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/object-certificate/update"
+        $Uri = $Server.BaseURI + "/grid/storage-api-certificate/update"
 
         $Method = "POST"
 
