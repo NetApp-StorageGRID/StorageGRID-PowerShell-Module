@@ -14412,9 +14412,24 @@ function Global:Update-SgwManagementCertificate {
         }
 
         $Body = @{}
-        $Body.serverCertificateEncoded = $ServerCertificate
-        $Body.caBundleEncoded = $CaBundle
-        $Body.privateKeyEncoded = $PrivateKey
+        if ($ServerCertificate) {
+            $Body.serverCertificateEncoded = $ServerCertificate
+        }
+        else {
+            $Body.serverCertificateEncoded = $null
+        }
+        if ($CaBundle) {
+            $Body.caBundleEncoded = $CaBundle
+        }
+        else {
+            $Body.caBundleEncoded = $null
+        }
+        if ($PrivateKey) {
+            $Body.privateKeyEncoded = $PrivateKey
+        }
+        else {
+            $Body.privateKeyEncoded = $null
+        }
 
         $Body = ConvertTo-Json -InputObject $Body
 
@@ -14618,9 +14633,24 @@ function Global:Update-SgwObjectCertificate {
         }
 
         $Body = @{}
-        $Body.serverCertificateEncoded = $ServerCertificate
-        $Body.caBundleEncoded = $CaBundle
-        $Body.privateKeyEncoded = $PrivateKey
+        if ($ServerCertificate) {
+            $Body.serverCertificateEncoded = $ServerCertificate
+        }
+        else {
+            $Body.serverCertificateEncoded = $null
+        }
+        if ($CaBundle) {
+            $Body.caBundleEncoded = $CaBundle
+        }
+        else {
+            $Body.caBundleEncoded = $null
+        }
+        if ($PrivateKey) {
+            $Body.privateKeyEncoded = $PrivateKey
+        }
+        else {
+            $Body.privateKeyEncoded = $null
+        }
 
         $Body = ConvertTo-Json -InputObject $Body
 
