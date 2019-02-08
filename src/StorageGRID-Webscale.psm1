@@ -14380,7 +14380,7 @@ function Global:Update-SgwManagementCertificate {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/management-certificate"
+        $Uri = $Server.BaseURI + "/grid/management-certificate/update"
 
         $Method = "POST"
 
@@ -14584,7 +14584,7 @@ function Global:Update-SgwObjectCertificate {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/grid/object-certificate"
+        $Uri = $Server.BaseURI + "/grid/object-certificate/update"
 
         $Method = "POST"
 
