@@ -14343,7 +14343,7 @@ function Global:Update-SgwManagementCertificate {
                 Position = 4,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("FullChainFile")][String]$CaBundlePath,
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("ChainFile")][String]$CaBundlePath,
         [parameter(Mandatory = $False,
                 Position = 5,
                 ValueFromPipelineByPropertyName = $True,
@@ -14386,7 +14386,7 @@ function Global:Update-SgwManagementCertificate {
 
         if ($ServerCertificatePath) {
             if ([System.IO.FileInfo]::new($ServerCertificatePath).Exists) {
-                $ServerCertificate = Get-Content -Path $ServerCertificatePath
+                $ServerCertificate = Get-Content -Path $ServerCertificatePath -Raw
             }
             else {
                 throw "Server certificate not found in $ServerCertificatePath"
@@ -14395,7 +14395,7 @@ function Global:Update-SgwManagementCertificate {
 
         if ($CaBundlePath) {
             if ([System.IO.FileInfo]::new($CaBundlePath).Exists) {
-                $CaBundle = Get-Content -Path $CaBundlePath
+                $CaBundle = Get-Content -Path $CaBundlePath -Raw
             }
             else {
                 throw "CA Bundle not found in $CaBundlePath"
@@ -14404,7 +14404,7 @@ function Global:Update-SgwManagementCertificate {
 
         if ($PrivateKeyPath) {
             if ([System.IO.FileInfo]::new($PrivateKeyPath).Exists) {
-                $PrivateKey = Get-Content -Path $PrivateKeyPath
+                $PrivateKey = Get-Content -Path $PrivateKeyPath -Raw
             }
             else {
                 throw "Private key not found in $PrivateKeyPath"
@@ -14549,7 +14549,7 @@ function Global:Update-SgwObjectCertificate {
                 Position = 4,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("FullChainFile")][String]$CaBundlePath,
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("ChainFile")][String]$CaBundlePath,
         [parameter(Mandatory = $False,
                 Position = 5,
                 ValueFromPipelineByPropertyName = $True,
@@ -14592,7 +14592,7 @@ function Global:Update-SgwObjectCertificate {
 
         if ($ServerCertificatePath) {
             if ([System.IO.FileInfo]::new($ServerCertificatePath).Exists) {
-                $ServerCertificate = Get-Content -Path $ServerCertificatePath
+                $ServerCertificate = Get-Content -Path $ServerCertificatePath -Raw
             }
             else {
                 throw "Server certificate not found in $ServerCertificatePath"
@@ -14601,7 +14601,7 @@ function Global:Update-SgwObjectCertificate {
 
         if ($CaBundlePath) {
             if ([System.IO.FileInfo]::new($CaBundlePath).Exists) {
-                $CaBundle = Get-Content -Path $CaBundlePath
+                $CaBundle = Get-Content -Path $CaBundlePath -Raw
             }
             else {
                 throw "CA Bundle not found in $CaBundlePath"
@@ -14610,7 +14610,7 @@ function Global:Update-SgwObjectCertificate {
 
         if ($PrivateKeyPath) {
             if ([System.IO.FileInfo]::new($PrivateKeyPath).Exists) {
-                $PrivateKey = Get-Content -Path $PrivateKeyPath
+                $PrivateKey = Get-Content -Path $PrivateKeyPath -Raw
             }
             else {
                 throw "Private key not found in $PrivateKeyPath"
