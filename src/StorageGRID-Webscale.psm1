@@ -14333,7 +14333,7 @@ function Global:Update-SgwManagementCertificate {
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][Alias("CertFile")][SString]$ServerCertificatePath,
+                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][Alias("CertFile")][String]$ServerCertificatePath,
         [parameter(Mandatory = $False,
                 Position = 3,
                 ValueFromPipelineByPropertyName = $True,
