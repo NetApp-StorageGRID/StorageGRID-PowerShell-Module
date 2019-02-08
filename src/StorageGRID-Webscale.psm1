@@ -14290,6 +14290,8 @@ function Global:Get-SgwManagementCertificate {
     }
 }
 
+New-Alias -Name Set-SgwManagementCertificate -Value Update-SgwManagementCertificate
+New-Alias -Name Replace-SgwManagementCertificate -Value Update-SgwManagementCertificate
 <#
     .SYNOPSIS
     Update the management interface server certificate
@@ -14312,7 +14314,7 @@ function Global:Get-SgwManagementCertificate {
     .PARAMETER PrivateKeyPath
     Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
 #>
-function Global:Get-SgwManagementCertificate {
+function Global:Update-SgwManagementCertificate {
     [CmdletBinding(DefaultParameterSetName="String")]
 
     PARAM (
@@ -14490,6 +14492,8 @@ function Global:Get-SgwObjectCertificate {
     }
 }
 
+New-Alias -Name Set-SgwObjectCertificate -Value Update-SgwObjectCertificate
+New-Alias -Name Replace-SgwObjectCertificate -Value Update-SgwObjectCertificate
 <#
     .SYNOPSIS
     Update the object storage API service endpoints server certificate
@@ -14512,7 +14516,7 @@ function Global:Get-SgwObjectCertificate {
     .PARAMETER PrivateKeyPath
     Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
 #>
-function Global:Get-SgwObjectCertificate {
+function Global:Update-SgwObjectCertificate {
     [CmdletBinding(DefaultParameterSetName="String")]
 
     PARAM (
