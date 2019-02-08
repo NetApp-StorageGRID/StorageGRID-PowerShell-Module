@@ -14416,6 +14416,8 @@ function Global:Update-SgwManagementCertificate {
         $Body.caBundleEncoded = $CaBundle
         $Body.privateKeyEncoded = $PrivateKey
 
+        $Body = ConvertTo-Json -InputObject $Body
+
         Write-Verbose "Body: $Body"
 
         try {
@@ -14619,6 +14621,8 @@ function Global:Update-SgwObjectCertificate {
         $Body.serverCertificateEncoded = $ServerCertificate
         $Body.caBundleEncoded = $CaBundle
         $Body.privateKeyEncoded = $PrivateKey
+
+        $Body = ConvertTo-Json -InputObject $Body
 
         Write-Verbose "Body: $Body"
 
