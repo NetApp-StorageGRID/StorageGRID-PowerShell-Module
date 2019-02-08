@@ -14416,6 +14416,8 @@ function Global:Update-SgwManagementCertificate {
         $Body.caBundleEncoded = $CaBundle
         $Body.privateKeyEncoded = $PrivateKey
 
+        Write-Verbose "Body: $Body"
+
         try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
@@ -14617,6 +14619,8 @@ function Global:Update-SgwObjectCertificate {
         $Body.serverCertificateEncoded = $ServerCertificate
         $Body.caBundleEncoded = $CaBundle
         $Body.privateKeyEncoded = $PrivateKey
+
+        Write-Verbose "Body: $Body"
 
         try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
