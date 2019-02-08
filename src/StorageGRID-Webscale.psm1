@@ -14315,7 +14315,7 @@ New-Alias -Name Replace-SgwManagementCertificate -Value Update-SgwManagementCert
     Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
 #>
 function Global:Update-SgwManagementCertificate {
-    [CmdletBinding(DefaultParameterSetName="String")]
+    [CmdletBinding(DefaultParameterSetName="Path")]
 
     PARAM (
         [parameter(Mandatory = $False,
@@ -14333,7 +14333,7 @@ function Global:Update-SgwManagementCertificate {
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][System.IO.FileInfo]$ServerCertificatePath,
+                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][Alias("CertFile")][SString]$ServerCertificatePath,
         [parameter(Mandatory = $False,
                 Position = 3,
                 ValueFromPipelineByPropertyName = $True,
@@ -14343,7 +14343,7 @@ function Global:Update-SgwManagementCertificate {
                 Position = 4,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][System.IO.FileInfo]$CaBundlePath,
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("FullChainFile")][String]$CaBundlePath,
         [parameter(Mandatory = $False,
                 Position = 5,
                 ValueFromPipelineByPropertyName = $True,
@@ -14353,7 +14353,7 @@ function Global:Update-SgwManagementCertificate {
                 Position = 6,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][System.IO.FileInfo]$PrivateKeyPath
+                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][Alias("KeyFile")][String]$PrivateKeyPath
     )
 
     Begin {
@@ -14385,7 +14385,7 @@ function Global:Update-SgwManagementCertificate {
         $Method = "POST"
 
         if ($ServerCertificatePath) {
-            if ($ServerCertificatePath.Exists) {
+            if ([System.IO.FileInfo]::new($ServerCertificatePath).Exists) {
                 $ServerCertificate = Get-Content -Path $ServerCertificatePath
             }
             else {
@@ -14394,7 +14394,7 @@ function Global:Update-SgwManagementCertificate {
         }
 
         if ($CaBundlePath) {
-            if ($CaBundlePath.Exists) {
+            if ([System.IO.FileInfo]::new($CaBundlePath).Exists) {
                 $CaBundle = Get-Content -Path $CaBundlePath
             }
             else {
@@ -14403,7 +14403,7 @@ function Global:Update-SgwManagementCertificate {
         }
 
         if ($PrivateKeyPath) {
-            if ($PrivateKeyPath.Exists) {
+            if ([System.IO.FileInfo]::new($PrivateKeyPath).Exists) {
                 $PrivateKey = Get-Content -Path $PrivateKeyPath
             }
             else {
@@ -14517,7 +14517,7 @@ New-Alias -Name Replace-SgwObjectCertificate -Value Update-SgwObjectCertificate
     Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.
 #>
 function Global:Update-SgwObjectCertificate {
-    [CmdletBinding(DefaultParameterSetName="String")]
+    [CmdletBinding(DefaultParameterSetName="Path")]
 
     PARAM (
         [parameter(Mandatory = $False,
@@ -14535,7 +14535,7 @@ function Global:Update-SgwObjectCertificate {
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][System.IO.FileInfo]$ServerCertificatePath,
+                HelpMessage = "Path to X.509 server certificate in PEM-encoding; omit or null if using default certificates.")][Alias("CertFile")][String]$ServerCertificatePath,
         [parameter(Mandatory = $False,
                 Position = 3,
                 ValueFromPipelineByPropertyName = $True,
@@ -14545,7 +14545,7 @@ function Global:Update-SgwObjectCertificate {
                 Position = 4,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][System.IO.FileInfo]$CaBundlePath,
+                HelpMessage = "Path to intermediate CA certificate bundle in concatenated PEM-encoding; omit or null when there is no intermediate CA.")][Alias("FullChainFile")][String]$CaBundlePath,
         [parameter(Mandatory = $False,
                 Position = 5,
                 ValueFromPipelineByPropertyName = $True,
@@ -14555,7 +14555,7 @@ function Global:Update-SgwObjectCertificate {
                 Position = 6,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName = "Path",
-                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][System.IO.FileInfo]$PrivateKeyPath
+                HelpMessage = "Path to certficate private key in PEM-encoding; required if serverCertificateEncoded is not empty.")][Alias("KeyFile")][String]$PrivateKeyPath
     )
 
     Begin {
@@ -14587,7 +14587,7 @@ function Global:Update-SgwObjectCertificate {
         $Method = "POST"
 
         if ($ServerCertificatePath) {
-            if ($ServerCertificatePath.Exists) {
+            if ([System.IO.FileInfo]::new($ServerCertificatePath).Exists) {
                 $ServerCertificate = Get-Content -Path $ServerCertificatePath
             }
             else {
@@ -14596,7 +14596,7 @@ function Global:Update-SgwObjectCertificate {
         }
 
         if ($CaBundlePath) {
-            if ($CaBundlePath.Exists) {
+            if ([System.IO.FileInfo]::new($CaBundlePath).Exists) {
                 $CaBundle = Get-Content -Path $CaBundlePath
             }
             else {
@@ -14605,7 +14605,7 @@ function Global:Update-SgwObjectCertificate {
         }
 
         if ($PrivateKeyPath) {
-            if ($PrivateKeyPath.Exists) {
+            if ([System.IO.FileInfo]::new($PrivateKeyPath).Exists) {
                 $PrivateKey = Get-Content -Path $PrivateKeyPath
             }
             else {
