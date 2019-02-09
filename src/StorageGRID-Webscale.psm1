@@ -7012,7 +7012,7 @@ function Global:Add-SgwContainerReplicationRule {
         }
 
         if ($DestinationBucket) {
-            $DestinationUrn = Get-SgwEndpoints | Where-Object { $_.endpointURN -match ":$DestinationBucket$" } | Select-Object -ExpandProperty endpointURN -First 1
+            $DestinationUrn = Get-SgwEndpoints -Server $Server | Where-Object { $_.endpointURN -match ":$DestinationBucket$" } | Select-Object -ExpandProperty endpointURN -First 1
         }
 
         if (($ReplicationRules | Where-Object { $_.Id -eq $Id })) {
