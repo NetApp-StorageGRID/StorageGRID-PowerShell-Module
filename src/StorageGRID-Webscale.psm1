@@ -260,7 +260,15 @@ function ConvertTo-SgwConfigFile {
         if ($SgwConfigFile -match "credentials$") {
             foreach ($Config in $Configs) {
                 if ([environment]::OSVersion.Platform -match "win") {
-                    $secure_password = ConvertTo-SecureString -String $Config.password -AsPlainText -Force | ConvertFrom-SecureString
+                    if ($Config.secure_password) {
+                        $secure_password = $Config.secure_password | ConvertFrom-SecureString
+                    }
+                    elseif ($Config.password) {
+                        $secure_password = ConvertTo-SecureString -String $Config.password -AsPlainText -Force | ConvertFrom-SecureString
+                    }
+                    else {
+                        throw "Neither password nor secure_password provided"
+                    }
                     $Output += "[$( $Config.ProfileName )]`n"
                     $Output += "username = $($Config.username)`n"
                     $Output += "secure_password = $($secure_password)`n"
