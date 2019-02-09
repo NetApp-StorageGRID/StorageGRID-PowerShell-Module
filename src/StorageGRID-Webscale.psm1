@@ -261,7 +261,7 @@ function ConvertTo-SgwConfigFile {
             foreach ($Config in $Configs) {
                 if ([environment]::OSVersion.Platform -match "win") {
                     if ($Config.secure_password) {
-                        $secure_password = $Config.secure_password | ConvertFrom-SecureString
+                        $secure_password = $Config.secure_password
                     }
                     elseif ($Config.password) {
                         $secure_password = ConvertTo-SecureString -String $Config.password -AsPlainText -Force | ConvertFrom-SecureString
