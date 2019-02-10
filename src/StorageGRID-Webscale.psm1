@@ -8028,9 +8028,14 @@ function Global:Add-SgwEndpoint {
         $Body.endpointURN = $EndpointUrn.Uri
         $Body.caCert = $CaCert
         $Body.insecureTLS = $SkipCertificateCheck.isPresent
-        $Body.credentials = @{ }
-        $Body.credentials.accessKeyId = $AccessKey
-        $Body.credentials.secretAccessKey = $SecretAccessKey
+        if ($AccessKey -and $SecretAccessKey) {
+            $Body.credentials = @{ }
+            $Body.credentials.accessKeyId = $AccessKey
+            $Body.credentials.secretAccessKey = $SecretAccessKey
+        }
+        else {
+            $Body.credentials = $null
+        }
 
         $Body = ConvertTo-Json -InputObject $Body
 
