@@ -15361,6 +15361,14 @@ Set-Alias -Name Get-SgwAccountS3AccessKeys -Value Get-SgwS3AccessKeys
     Retrieve StorageGRID Webscale Account S3 Access Keys
     .DESCRIPTION
     Retrieve StorageGRID Webscale Account S3 Access Keys
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER AccountId
+    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    .PARAMETER UserId
+    ID of a StorageGRID Webscale User.
 #>
 function Global:Get-SgwS3AccessKeys {
     [CmdletBinding(DefaultParameterSetName = "none")]
@@ -15369,22 +15377,36 @@ function Global:Get-SgwS3AccessKeys {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $False,
+                Position = 2,
                 ParameterSetName = "account",
                 HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 3,
                 ParameterSetName = "user",
                 HelpMessage = "ID of a StorageGRID Webscale User.",
-                ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
-        [parameter(
-                Mandatory = $False,
-                Position = 2,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -15433,6 +15455,16 @@ Set-Alias -Name Get-SgwAccountS3AccessKey -Value Get-SgwS3AccessKey
     Retrieve a StorageGRID Webscale Account S3 Access Key
     .DESCRIPTION
     Retrieve a StorageGRID Webscale Account S3 Access Key
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER AccountId
+    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    .PARAMETER UserId
+    ID of a StorageGRID Webscale User.
+    .PARAMETER AccessKey
+    Access Key to retrieve.
 #>
 function Global:Get-SgwS3AccessKey {
     [CmdletBinding(DefaultParameterSetName = "none")]
@@ -15441,27 +15473,41 @@ function Global:Get-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $False,
+                Position = 2,
                 HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for",
                 ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 3,
                 HelpMessage = "ID of a StorageGRID Webscale User.",
                 ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $True,
-                Position = 2,
+                Position = 4,
                 HelpMessage = "Access Key to retrieve.",
-                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey,
-        [parameter(
-                Mandatory = $False,
-                Position = 3,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -15511,6 +15557,16 @@ Set-Alias -Name New-SgwAccountS3AccessKey -Value New-SgwS3AccessKey
     Create a new StorageGRID Webscale Account S3 Access Key
     .DESCRIPTION
     Create a new StorageGRID Webscale Account S3 Access Key
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER AccountId
+    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    .PARAMETER UserId
+    ID of a StorageGRID Webscale User.
+    .PARAMETER Expires
+    Expiration date of the S3 Access Key.
 #>
 function Global:New-SgwS3AccessKey {
     [CmdletBinding(DefaultParameterSetName = "none")]
@@ -15520,27 +15576,41 @@ function Global:New-SgwS3AccessKey {
                 Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 2,
                 ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
                 Mandatory = $False,
-                Position = 2,
+                Position = 3,
                 ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $False,
-                Position = 3,
+                Position = 4,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Expiration date of the S3 Access Key.")][DateTime]$Expires
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -15616,6 +15686,16 @@ Set-Alias -Name Remove-SgwAccountS3AccessKey -Value Remove-SgwS3AccessKey
     Delete a StorageGRID Webscale Account S3 Access Key
     .DESCRIPTION
     Delete a StorageGRID Webscale Account S3 Access Key
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER AccountId
+    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    .PARAMETER UserId
+    ID of a StorageGRID Webscale User.
+    .PARAMETER AccessKey
+    Access Key to delete.
 #>
 function Global:Remove-SgwS3AccessKey {
     [CmdletBinding()]
@@ -15624,28 +15704,42 @@ function Global:Remove-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
+                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(
+                Mandatory = $False,
+                Position = 2,
                 HelpMessage = "Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 3,
                 HelpMessage = "ID of a StorageGRID Webscale User.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $True,
-                Position = 2,
+                Position = 4,
                 HelpMessage = "S3 Access Key ID to be deleted,",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey,
-        [parameter(
-                Mandatory = $False,
-                Position = 3,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                ValueFromPipelineByPropertyName = $True)][Alias("id")][String]$AccessKey
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
