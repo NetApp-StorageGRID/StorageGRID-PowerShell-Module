@@ -26,6 +26,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 
     # Functions necessary to parse JSON output from .NET serializer to PowerShell Objects
     function ParseItem($jsonItem) {
+        #private
         if ($jsonItem.PSObject.TypeNames -match "Array") {
             return ParseJsonArray($jsonItem)
         }
@@ -38,6 +39,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
     }
 
     function ParseJsonObject($jsonObj) {
+        #private
         $Response = New-Object -TypeName PSCustomObject
         foreach ($key in $jsonObj.Keys) {
             $item = $jsonObj[$key]
@@ -53,17 +55,19 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
     }
 
     function ParseJsonArray($jsonArray) {
+        #private
         $Response = @()
         $jsonArray | ForEach-Object {
             $Response += ,(ParseItem $_)
         }
         return $Response
     }
-        }
+}
 
 ### Helper Functions ###
 
 function ParseErrorForResponseBody($Error) {
+    #private
     if ($PSVersionTable.PSVersion.Major -lt 6) {
         if ($Error.Exception.Response) {
             $Reader = New-Object System.IO.StreamReader($Error.Exception.Response.GetResponseStream())
@@ -83,6 +87,7 @@ function ParseErrorForResponseBody($Error) {
 
 # helper function to convert unix timestamp to datetime
 function ConvertFrom-UnixTimestamp {
+    #private
     [CmdletBinding()]
 
     PARAM (
