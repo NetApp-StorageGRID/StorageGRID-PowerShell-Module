@@ -15792,6 +15792,22 @@ function Global:Remove-SgwS3AccessKey {
     Get StorageGRID Report
     .DESCRIPTION
     Get StorageGRID Report
+    .PARAMETER Server
+    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID Profile to use for connection.
+    .PARAMETER Attribute
+    Attribute to report
+    .PARAMETER OID
+    Topology OID to create report for
+    .PARAMETER Site
+    Site to create report for
+    .PARAMETER Node
+    Node to create report for
+    .PARAMETER StartTime
+    Start Time (default: last hour)
+    .PARAMETER EndTime
+    End Time (default: current time)
 #>
 function Global:Get-SgwReport {
     [CmdletBinding(DefaultParameterSetName = "none")]
@@ -15801,36 +15817,50 @@ function Global:Get-SgwReport {
                 Mandatory = $False,
                 Position = 0,
                 HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
-                Position = 1,
-                HelpMessage = "Attribut to report")][String][ValidateSet("Archive Nodes Installed (XANI)", "Archive Nodes Readable (XANR)", "Archive Nodes Writable (XANW)", "Awaiting - All (XQUZ)", "Awaiting - Client (XCQZ)", "Awaiting - Evaluation Rate (XEVT)", "CDMI - Ingested Bytes (XCRX) [Bytes]", "CDMI - Retrieved Bytes (XCTX) [Bytes]", "CDMI Ingest - Rate (XCIR) [MB/s]", "CDMI Operations - Failed (XCFA)", "CDMI Operations - Rate (XCRA) [Objects/s]", "CDMI Operations - Successful (XCSU)", "CDMI Retrieval - Rate (XCRR) [MB/s]", "Current ILM Activity (IQSZ)", "Installed Storage Capacity (XISC) [Bytes]", "Percentage Storage Capacity Used (PSCU)", "Percentage Usable Storage Capacity (PSCA)", "S3 - Ingested Bytes (XSRX) [Bytes]", "S3 - Retrieved Bytes (XSTX) [Bytes]", "S3 Ingest - Rate (XSIR) [MB/s]", "S3 Operations - Failed (XSFA)", "S3 Operations - Rate (XSRA) [Objects/s]", "S3 Operations - Successful (XSSU)", "S3 Operations - Unauthorized (XSUA)", "S3 Retrieval - Rate (XSRR) [MB/s]", "Scan Period - Estimated (XSCM) [us]", "Scan Rate (XSCT) [Objects/s]", "Storage Nodes Installed (XSNI)", "Storage Nodes Readable (XSNR)", "Storage Nodes Writable (XSNW)", "Swift - Ingested Bytes (XWRX) [Bytes]", "Swift - Retrieved Bytes (XWTX) [Bytes]", "Swift Ingest - Rate (XWIR) [MB/s]", "Swift Operations - Failed (XWFA)", "Swift Operations - Rate (XWRA) [Objects/s]", "Swift Operations - Successful (XWSU)", "Swift Operations - Unauthorized (XWUA)", "Swift Retrieval - Rate (XWRR) [MB/s]", "Total EC Objects (XECT)", "Total EC Reads - Failed (XERF)", "Total EC Reads - Successful (XERC)", "Total EC Writes - Failed (XEWF)", "Total EC Writes - Successful (XEWC)", "Total Objects Archived (XANO)", "Total Objects Deleted (XANP)", "Total Size of Archived Objects (XSAO)", "Total Size of Deleted Objects (XSAP)", "Usable Storage Capacity (XASC) [Bytes]", "Used Storage Capacity (XUSC) [Bytes]", "Used Storage Capacity for Data (XUSD) [Bytes]", "Used Storage Capacity for Metadata (XUDC) [Bytes]")]$Attribute,
+                Position = 2,
+                HelpMessage = "Attribute to report")][String][ValidateSet("Archive Nodes Installed (XANI)", "Archive Nodes Readable (XANR)", "Archive Nodes Writable (XANW)", "Awaiting - All (XQUZ)", "Awaiting - Client (XCQZ)", "Awaiting - Evaluation Rate (XEVT)", "CDMI - Ingested Bytes (XCRX) [Bytes]", "CDMI - Retrieved Bytes (XCTX) [Bytes]", "CDMI Ingest - Rate (XCIR) [MB/s]", "CDMI Operations - Failed (XCFA)", "CDMI Operations - Rate (XCRA) [Objects/s]", "CDMI Operations - Successful (XCSU)", "CDMI Retrieval - Rate (XCRR) [MB/s]", "Current ILM Activity (IQSZ)", "Installed Storage Capacity (XISC) [Bytes]", "Percentage Storage Capacity Used (PSCU)", "Percentage Usable Storage Capacity (PSCA)", "S3 - Ingested Bytes (XSRX) [Bytes]", "S3 - Retrieved Bytes (XSTX) [Bytes]", "S3 Ingest - Rate (XSIR) [MB/s]", "S3 Operations - Failed (XSFA)", "S3 Operations - Rate (XSRA) [Objects/s]", "S3 Operations - Successful (XSSU)", "S3 Operations - Unauthorized (XSUA)", "S3 Retrieval - Rate (XSRR) [MB/s]", "Scan Period - Estimated (XSCM) [us]", "Scan Rate (XSCT) [Objects/s]", "Storage Nodes Installed (XSNI)", "Storage Nodes Readable (XSNR)", "Storage Nodes Writable (XSNW)", "Swift - Ingested Bytes (XWRX) [Bytes]", "Swift - Retrieved Bytes (XWTX) [Bytes]", "Swift Ingest - Rate (XWIR) [MB/s]", "Swift Operations - Failed (XWFA)", "Swift Operations - Rate (XWRA) [Objects/s]", "Swift Operations - Successful (XWSU)", "Swift Operations - Unauthorized (XWUA)", "Swift Retrieval - Rate (XWRR) [MB/s]", "Total EC Objects (XECT)", "Total EC Reads - Failed (XERF)", "Total EC Reads - Successful (XERC)", "Total EC Writes - Failed (XEWF)", "Total EC Writes - Successful (XEWC)", "Total Objects Archived (XANO)", "Total Objects Deleted (XANP)", "Total Size of Archived Objects (XSAO)", "Total Size of Deleted Objects (XSAP)", "Usable Storage Capacity (XASC) [Bytes]", "Used Storage Capacity (XUSC) [Bytes]", "Used Storage Capacity for Data (XUSD) [Bytes]", "Used Storage Capacity for Metadata (XUDC) [Bytes]")]$Attribute,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 3,
                 ParameterSetName = "oid",
                 HelpMessage = "Topology OID to create report for")][String]$OID,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 4,
                 ParameterSetName = "site",
                 HelpMessage = "Site to create report for")][String]$Site,
         [parameter(
                 Mandatory = $False,
-                Position = 1,
+                Position = 5,
                 ParameterSetName = "node",
                 HelpMessage = "Node to create report for")][String]$Node,
         [parameter(
                 Mandatory = $False,
-                Position = 2,
+                Position = 6,
                 HelpMessage = "Start Time (default: last hour)")][DateTime]$StartTime = (Get-Date).AddHours(-1),
         [parameter(
                 Mandatory = $False,
-                Position = 3,
+                Position = 7,
                 HelpMessage = "End Time (default: current time)")][DateTime]$EndTime = (Get-Date)
     )
 
     Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+        }
+
         if (!$Server) {
             $Server = $Global:CurrentSgwServer
         }
@@ -15886,6 +15916,7 @@ function Global:Get-SgwReport {
                 $Average = $Average -replace ",", "" -replace " ", ""
                 $Minimum = $Minimum -replace ",", "" -replace " ", ""
                 $Maximum = $Maximum -replace ",", "" -replace " ", ""
+                $Time = $Time + "Z"
                 [PSCustomObject]@{ "Time Received" = [DateTime]$time; "Average $Attribute" = $Average; "Minimum $Attribute" = $Minimum; "Maximum $Attribute" = $Maximum }
             }
         }
@@ -15894,6 +15925,7 @@ function Global:Get-SgwReport {
             foreach ($Line in $Report) {
                 $Time, $Value = $Line -split ';'
                 $Value = $Value -replace ",", "" -replace " ", ""
+                $Time = $Time + "Z"
                 [PSCustomObject]@{ "Time Received" = [DateTime]$time; $Attribute = $value }
             }
         }
