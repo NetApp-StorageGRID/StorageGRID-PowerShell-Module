@@ -278,8 +278,32 @@ function ConvertTo-SgwConfigFile {
     }
 }
 
-## function to trigger request to StorageGRID Webscale Server ##
-
+<#
+    .SYNOPSIS
+    Invoke request to StorageGRID Webscale Server
+    .DESCRIPTION
+    Invoke request to StorageGRID Webscale Server
+    .PARAMETER Uri
+    Uri
+    .PARAMETER WebSession
+    WebSession
+    .PARAMETER Method
+    HTTP Method
+    .PARAMETER Headers
+    HTTP Headers
+    .PARAMETER Body
+    Body
+    .PARAMETER ContentType
+    Content Type
+    .PARAMETER SessionVariable
+    Variable to store session details in
+    .PARAMETER TimeoutSec
+    Timeout in seconds
+    .PARAMETER SkipCertificateCheck
+    Skip certificate check
+    .PARAMETER OutFile
+    File to output result to
+#>
 function Invoke-SgwRequest {
     [CmdletBinding()]
 
@@ -295,7 +319,7 @@ function Invoke-SgwRequest {
                 HelpMessage = "HTTP Method")][ValidateSet("Default", "Get", "Head", "Post", "Put", "Delete", "Trace", "Options", "Merge", "Patch")][String]$Method = "Get",
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "Headers")][Hashtable]$Headers,
+                HelpMessage = "HTTP Headers")][Hashtable]$Headers,
         [parameter(Mandatory = $False,
                 Position = 4,
                 HelpMessage = "Body")][Object]$Body,
@@ -310,7 +334,7 @@ function Invoke-SgwRequest {
                 HelpMessage = "Timeout in seconds")][Int]$TimeoutSec = 60,
         [parameter(Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Skip certificate checks")][Switch]$SkipCertificateCheck,
+                HelpMessage = "Skip certificate check")][Switch]$SkipCertificateCheck,
         [parameter(
                 Mandatory=$False,
                 Position=9,
