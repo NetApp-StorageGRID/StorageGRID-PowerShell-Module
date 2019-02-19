@@ -59,17 +59,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
         }
         return $Response
     }
-
-    function ParseJsonString($json) {
-        $config = $javaScriptSerializer.DeserializeObject($json)
-        if ($config -is [Array]) {
-            return ParseJsonArray($config)
         }
-        else {
-            return ParseJsonObject($config)
-        }
-    }
-}
 
 ### Helper Functions ###
 
