@@ -91,37 +91,6 @@ function ParseErrorForResponseBody($Error) {
     }
 }
 
-# helper function to convert datetime to unix timestamp
-function ConvertTo-UnixTimestamp {
-    [CmdletBinding()]
-
-    PARAM (
-        [parameter(Mandatory = $True,
-                Position = 0,
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Date to be converted.")][DateTime[]]$Date,
-        [parameter(Mandatory = $True,
-                Position = 1,
-                ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Unit of timestamp.")][ValidateSet("Seconds", "Milliseconds")][String]$Unit = "Milliseconds"
-    )
-
-    BEGIN {
-        $epoch = Get-Date -Year 1970 -Month 1 -Day 1 -Hour 0 -Minute 0 -Second 0
-    }
-
-    PROCESS {
-        if ($Unit = "Seconds") {
-            Write-Output ([math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalSeconds))
-        }
-        else {
-            Write-Output ([math]::truncate($Date.ToUniversalTime().Subtract($epoch).TotalMilliSeconds))
-        }
-    }
-}
-
 # helper function to convert unix timestamp to datetime
 function ConvertFrom-UnixTimestamp {
     [CmdletBinding()]
