@@ -2387,6 +2387,8 @@ Set-Alias -Name Update-SgwCredential -Value Add-SgwProfile
     S3 Endpoint URL to be used.
     .PARAMETER SwiftEndpointUrl
     Swift Endpoint URL to be used.
+    .PARAMETER UseSso
+    Use Single Sign-On.
 #>
 function Global:Add-SgwProfile {
     [CmdletBinding()]
@@ -2433,7 +2435,11 @@ function Global:Add-SgwProfile {
         [parameter(Position = 9,
                 Mandatory = $False,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl,
+        [parameter(
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Use Single Sign-On.")][Switch]$UseSso
     )
 
     Process {
@@ -2505,7 +2511,11 @@ function Global:Add-SgwProfile {
         }
 
         if ($SkipCertificateCheck -ne $null) {
-            $Config | Add-Member -MemberType NoteProperty -Name skip_certificate_check -Value $SkipCertificateCheck -Force
+            $Config | Add-Member -MemberType NoteProperty -Name skip_certificate_check -Value $SkipCertificateCheck.IsPresent -Force
+        }
+
+        if ($UseSso -ne $null) {
+            $Config | Add-Member -MemberType NoteProperty -Name use_sso -Value $UseSso.IsPresent -Force
         }
 
         $Configs = (@($Configs | Where-Object { $_.ProfileName -ne $ProfileName}) + $Config) | Where-Object { $_.ProfileName }
@@ -2615,6 +2625,11 @@ function Global:Get-SgwProfiles {
             else {
                 $Output | Add-Member -MemberType NoteProperty -Name SkipCertificateCheck -Value $False
             }
+
+            if ($Config.use_sso -eq "true") {
+                $Output | Add-Member -MemberType NoteProperty -Name UseSso -Value $True
+            }
+
             Write-Output $Output
         }
     }
@@ -2646,6 +2661,8 @@ Set-Alias -Name Get-SgwCredential -Value Get-SgwProfile
     S3 Endpoint URL to be used.
     .PARAMETER SwiftEndpointUrl
     Swift Endpoint URL to be used.
+    .PARAMETER UseSso
+    Use Single Sign-On.
 #>
 function Global:Get-SgwProfile {
     [CmdletBinding()]
@@ -2700,7 +2717,11 @@ function Global:Get-SgwProfile {
                 Mandatory = $False,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl,
+        [parameter(
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Use Single Sign-On.")][Switch]$UseSso
     )
 
     Begin {
@@ -2769,6 +2790,13 @@ function Global:Get-SgwProfile {
 
         if ($SwiftEndpointUrl) {
             $Config.SwiftEndpointUrl = $SwiftEndpointUrl
+        }
+
+        if ($UseSso.IsPresent) {
+            $Config.UseSso = $UseSso.IsPresent
+        }
+        elseif (!$Config.UseSso) {
+            $Config.UseSso = $False
         }
 
         Write-Output $Config
@@ -2874,7 +2902,7 @@ function Global:Get-SgwAccounts {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3032,7 +3060,11 @@ function Global:New-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 8,
-                HelpMessage = "Tenant root password (must be at least 8 characters).")][ValidateLength(8, 256)][String]$Password
+                HelpMessage = "Tenant root password (must be at least 8 characters).")][ValidateLength(8, 256)][String]$Password,
+        [parameter(
+                Mandatory = $False,
+                Position = 9,
+                HelpMessage = "Specify the uniqueName of an existing federated Grid Admin group. This group will be assigned the Root Access permission for the new tenant. If a group-related failure occurs, users cannot sign in to the new tenant account. The response includes a metadata alert with additional details.")][String]$GrantRootAccessToGroup
     )
 
     Begin {
@@ -3044,7 +3076,7 @@ function Global:New-SgwAccount {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3064,6 +3096,9 @@ function Global:New-SgwAccount {
         }
         if ($Server.APIVersion -lt 2.1 -and $AllowPlatformServices.isPresent) {
             Write-Warning "Use of Platform Services is only supported from StorageGRID 11.0"
+        }
+        if ($Server.ApiVersion -lt 3 -and $GrantRootAccessToGroup) {
+            Write-Warning "Granting root access to group is only supported from StorageGRID 11.2"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3092,6 +3127,11 @@ function Global:New-SgwAccount {
             }
             if ($Quota) {
                 $Body.policy.quotaObjectBytes = $Quota
+            }
+        }
+        if ($Server.ApiVersion -ge 3) {
+            if ($GrantRootAccessToGroup) {
+                $Body.grantRootAccessToGroup = $grantRootAccessToGroup
             }
         }
 
@@ -3158,7 +3198,7 @@ function Global:Remove-SgwAccount {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3184,6 +3224,8 @@ function Global:Remove-SgwAccount {
             $ResponseBody = ParseErrorForResponseBody $_
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
+
+        Write-Output $Response
     }
 }
 
@@ -3237,7 +3279,7 @@ function Global:Get-SgwAccount {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3352,7 +3394,7 @@ function Global:Update-SgwAccount {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3490,7 +3532,7 @@ function Global:Replace-SgwAccount {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3610,7 +3652,7 @@ function Global:Update-SgwSwiftAdminPassword {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3697,7 +3739,7 @@ function Global:Update-SgwPassword {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3772,7 +3814,7 @@ function Global:Get-SgwAccountUsage {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3858,7 +3900,7 @@ function Global:Get-SgwAlarms {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -3932,7 +3974,7 @@ function Global:Get-SgwAudit {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4036,7 +4078,7 @@ function Global:Replace-SgwAudit {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4113,6 +4155,8 @@ function Global:Replace-SgwAudit {
     S3 Endpoint URL to be used.
     .PARAMETER SwiftEndpointUrl
     Swift Endpoint URL to be used.
+    .PARAMETER UseSso
+    Use Single Sign-On.
     .EXAMPLE
     Minimum required information to connect with a StorageGRID Admin Node
 
@@ -4201,7 +4245,11 @@ function global:Connect-SgwServer {
                 Position = 9,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl
+                HelpMessage = "Swift Endpoint URL to be used.")][System.UriBuilder]$SwiftEndpointUrl,
+        [parameter(
+                Mandatory = $False,
+                Position = 10,
+                HelpMessage = "Use Single Sign-On.")][Switch]$UseSso
     )
 
     Process {
@@ -4210,7 +4258,7 @@ function global:Connect-SgwServer {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found and no name specified."
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.DisableAutomaticAccessKeyGeneration -TemporaryAccessKeyExpirationTime $Profile.TemporaryAccessKeyExpirationTime -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient:$Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.DisableAutomaticAccessKeyGeneration -TemporaryAccessKeyExpirationTime $Profile.TemporaryAccessKeyExpirationTime -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient:$Transient -UseSso:$Profile.UseSso
             return $Server
         }
 
@@ -4264,9 +4312,14 @@ function global:Connect-SgwServer {
         if (!$APIVersion) {
             Throw "API Version could not be retrieved via https://$Name/api/versions"
         }
+        else {
+            $Server.BaseUri = "https://$Name/api/v$ApiVersion"
+        }
 
-        $Server.BaseUri = "https://$Name/api/v2"
-
+        if ($UseSso.IsPresent) {
+            $Server = Invoke-SgwServerSsoAuthentication -Server $Server -SkipCertificateCheck:$SkipCertificateCheck
+        }
+        else {
         Try {
             if ($PSVersionTable.PSVersion.Major -lt 6) {
                 $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
@@ -4284,7 +4337,17 @@ function global:Connect-SgwServer {
             else {
                 $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
             }
+    
+                $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
+    
+                $Server.Session = $Session
+                if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" })) {
+                    $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" } | Select-Object -ExpandProperty Value
+                    $Server.Headers["X-Csrf-Token"] = $XCsrfToken
         }
+        
+                $Server.ApiVersion = $Response.apiVersion
+            }
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             if ($_.Exception.Message -match "Unauthorized") {
@@ -4295,25 +4358,16 @@ function global:Connect-SgwServer {
                 Write-Error $_.Exception.Message
                 Write-Information "Certificate of the server is not trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
             }
+                elseif ($ResponseBody -match "sso_enabled") {
+                    Write-Warning "Single sign-on is enabled, therefore retrying with SAML authentication."
+                    $Server = Invoke-SgwServerSsoAuthentication -Server $Server -SkipCertificateCheck:$SkipCertificateCheck
+                }
             else {
                 Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $( $_.Exception.Message )`n $ResponseBody"
                 return
             }
         }
-
-        if ($Response.status -ne "success") {
-            Throw "Authorization failed with status $( $Response.status )"
         }
-
-        $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
-
-        $Server.Session = $Session
-        if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" })) {
-            $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | ? { $_.Name -match "CsrfToken" } | select -ExpandProperty Value
-            $Server.Headers["X-Csrf-Token"] = $XCsrfToken
-        }
-
-        $Server.ApiVersion = $Response.apiVersion
 
         $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
         $Server.SupportedApiVersions = $SupportedApiVersions
@@ -4438,6 +4492,104 @@ function global:Disconnect-SgwServer {
     }
 }
 
+<#
+    .SYNOPSIS
+    Authenticate for StorageGRID admin node access using Single Sign-On
+    .DESCRIPTION
+    Authenticate for StorageGRID admin node access using Single Sign-On
+    .PARAMETER Server
+    StorageGRID admin node connection object.
+    .PARAMETER Name
+    The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
+    .PARAMETER Credential
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.
+    .PARAMETER SkipCertificateCheck
+    If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.
+    .PARAMETER AccountId
+    Account ID of the StorageGRID tenant to connect to.
+#>
+function global:Invoke-SgwServerSsoAuthentication {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $True,
+                Position = 0,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "StorageGRID admin node connection object.")][PSCustomObject]$Server,
+        [parameter(
+                Mandatory = $False,
+                Position = 1,
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck
+    )
+
+    Begin {
+        Write-Warning "Single Sign-On support is still preliminary. Some AD FS features (especially MFA) are not yet sufficiently tested!"
+    }
+
+    Process {
+        $Uri = $Server.BaseUri + "/authorize-saml"
+
+        if ([environment]::OSVersion.Platform -match "Win") {
+            # check if proxy is used
+            $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+            $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
+            if ($ProxySettings.ProxyEnable) {
+                Write-Warning "Proxy Server $( $ProxySettings.ProxyServer ) configured in Internet Explorer may be used to connect to the StorageGRID server!"
+            }
+            if ($ProxySettings.AutoConfigURL) {
+                Write-Warning "Proxy Server defined in automatic proxy configuration script $( $ProxySettings.AutoConfigURL ) configured in Internet Explorer may be used to connect to the StorageGRID server!"
+            }
+        }
+
+        Write-Verbose "Retrieving SAML identity provider URI from StorageGRID admin node"
+
+        $Body = '{"accountId":"$AccountId"}'
+
+        Write-Verbose "Body: $Body"
+
+        $Response = Invoke-WebRequest -Method "POST" -Uri $Uri -Body $Body
+
+        if ($Response.StatusCode -ne 200) {
+            Throw "Requesting URI for the SAML identity provider failed. Check if SSO is enabled and the admin node name is correct."
+        }
+
+        $Content = ConvertFrom-Json -InputObject $Response.Content
+
+        $SamlIdpUri = [System.UriBuilder]$Content.data
+
+        Write-Verbose "Retrieving SAML request URI for form authentication"
+
+        $FormResponse = Invoke-WebRequest -Uri $SamlIdpUri.Uri
+        $null = $FormResponse.Content -match '<form.+method="post".+action="(?<action>.+)"'
+        $FormAuthenticationUri = [System.UriBuilder]$($SamlIdpUri.Scheme + "://" + $SamlIdpUri.Host + ":" + $SamlIdpUri.Port + $Matches.action)
+
+        Write-Verbose "Authenticating with identity provider"
+
+        $Body = "UserName=" + [System.Net.WebUtility]::UrlEncode($Server.Credential.UserName) + "&Password=" + [System.Net.WebUtility]::UrlEncode($Server.Credential.GetNetworkCredential().Password) + "&AuthMethod=FormsAuthentication"
+        $AuthenticationResponse = Invoke-WebRequest -Method POST -Uri $FormAuthenticationUri.Uri -ContentType "application/x-www-form-urlencoded" -Body $Body
+
+        $SamlResponse = $AuthenticationResponse.InputFields | Where-Object { $_.name -eq "SAMLResponse" } | Select-Object -ExpandProperty value
+
+        Write-Verbose "Retrieve StorageGRID token using SAML Response"
+
+        try {
+            $Body = "SAMLResponse=" + [System.Net.WebUtility]::UrlEncode($SAMLResponse) + "&RelayState=0"
+            $TokenResponse = Invoke-WebRequest -Method POST -Uri "https://cbc-sg-beta.muccbc.hq.netapp.com/api/saml-response" -Session StorageGridSession -ContentType "application/x-www-form-urlencoded" -Body $Body
+            
+        }
+        catch {
+            Throw "SAML Authentication failed. Please check your username and password!"
+        }
+
+        $Content = ConvertFrom-Json -InputObject $TokenResponse.Content
+        $Server.Headers["Authorization"] = "Bearer $( $Content.data )"
+        $Server.Session = $StorageGridSession
+
+        Write-Output $Server
+    }
+}
+
 ## compliance ##
 
 # complete as of API 3.0
@@ -4473,7 +4625,7 @@ function Global:Get-SgwCompliance {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4540,7 +4692,7 @@ function Global:Enable-SgwCompliance {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4618,7 +4770,7 @@ function Global:Get-SgwConfig {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4682,7 +4834,7 @@ function Global:Get-SgwConfigManagement {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4752,7 +4904,7 @@ function Global:Update-SgwConfigManagement {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4820,7 +4972,7 @@ function Global:Get-SgwProductVersion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4884,7 +5036,7 @@ function Global:Get-SgwVersion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -4950,7 +5102,7 @@ function Global:Get-SgwVersions {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5020,7 +5172,7 @@ function Global:Get-SgwContainerOwner {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5079,7 +5231,7 @@ function Global:Get-SgwContainers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5180,7 +5332,7 @@ function Global:New-SgwContainer {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5269,7 +5421,7 @@ function Global:Get-SgwContainerCompliance {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5364,7 +5516,7 @@ function Global:Update-SgwContainerCompliance {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5446,7 +5598,7 @@ function Global:Get-SgwContainerConsistency {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5525,7 +5677,7 @@ function Global:Update-SgwContainerConsistency {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5602,7 +5754,7 @@ function Global:Get-SgwContainerLastAccessTime {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5676,7 +5828,7 @@ function Global:Enable-SgwContainerLastAccessTime {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5753,7 +5905,7 @@ function Global:Disable-SgwContainerLastAccessTime {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5832,7 +5984,7 @@ function Global:Get-SgwContainerMetadataNotification {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -5910,7 +6062,7 @@ function Global:Remove-SgwContainerMetadataNotification {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6007,7 +6159,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6035,7 +6187,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
         }
 
         if (($MetadataNotificationRules | Where-Object { $_.Id -eq $Id })) {
-            $MetadataNotificationRule = $MetadataNotificationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
+            $MetadataNotificationRule = $MetadataNotificationRules | Where-Object { $_.Id -eq $Id } | Select-Object -first 1
             if ($Status) {
                 $MetadataNotificationRule.Status = $Status
             }
@@ -6124,7 +6276,7 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6223,7 +6375,7 @@ function Global:Get-SgwContainerNotification {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6302,7 +6454,7 @@ function Global:Remove-SgwContainerNotification {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6404,7 +6556,7 @@ function Global:Add-SgwContainerNotificationTopic {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6531,7 +6683,7 @@ function Global:Remove-SgwContainerNotificationTopic {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6653,7 +6805,7 @@ function Global:Get-SgwContainerReplication {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6731,7 +6883,7 @@ function Global:Remove-SgwContainerReplication {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6845,7 +6997,7 @@ function Global:Add-SgwContainerReplicationRule {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -6970,7 +7122,7 @@ function Global:Remove-SgwContainerReplicationRule {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7061,7 +7213,7 @@ function Global:Get-SgwDeactivatedFeatures {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7193,7 +7345,7 @@ function Global:Update-SgwDeactivatedFeatures {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7322,7 +7474,7 @@ function Global:Get-SgwDecommission {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7400,7 +7552,7 @@ function Global:Start-SgwDecommission {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7474,7 +7626,7 @@ function Global:Suspend-SgwDecommission {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7537,7 +7689,7 @@ function Global:Resume-SgwDecommission {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7604,7 +7756,7 @@ function Global:Get-SgwDnsServers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7670,7 +7822,7 @@ function Global:Replace-SgwDnsServers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7739,7 +7891,7 @@ function Global:Get-SgwEndpoints {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7849,7 +8001,7 @@ function Global:Add-SgwEndpoint {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -7953,7 +8105,7 @@ function Global:Remove-SgwEndpoint {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8027,7 +8179,7 @@ function Global:Get-SgwEndpoint {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8271,7 +8423,7 @@ function Global:Update-SgwEndpoint {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8698,7 +8850,7 @@ function Global:Get-SgwEndpointDomainNames {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8766,7 +8918,7 @@ function Global:Set-SgwEndpointDomainNames {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8834,7 +8986,7 @@ function Global:Add-SgwEndpointDomainName {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8892,7 +9044,7 @@ function Global:Remove-SgwEndpointDomainName {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -8949,7 +9101,7 @@ function Global:Get-SgwEcProfiles {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9012,7 +9164,7 @@ function Global:Get-SgwEcSchemes {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9077,7 +9229,7 @@ function Global:Stop-SgwExpansion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9138,7 +9290,7 @@ function Global:Get-SgwExpansion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9199,7 +9351,7 @@ function Global:Start-SgwExpansion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9265,7 +9417,7 @@ function Global:Invoke-SgwExpansion {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9332,7 +9484,7 @@ function Global:Get-SgwExpansionNodes {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9417,7 +9569,7 @@ function Global:Get-SgwExpansionNode {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9574,7 +9726,7 @@ function Global:New-SgwExpansionNode {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9690,7 +9842,7 @@ function Global:Remove-SgwExpansionNode {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9759,7 +9911,7 @@ function Global:Reset-SgwExpansionNode {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9824,7 +9976,7 @@ function Global:Get-SgwExpansionSites {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9893,7 +10045,7 @@ function Global:New-SgwExpansionSite {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -9964,7 +10116,7 @@ function Global:Remove-SgwExpansionSite {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10033,7 +10185,7 @@ function Global:Get-SgwExpansionSite {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10112,7 +10264,7 @@ function Global:Update-SgwExpansionSite {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10190,7 +10342,7 @@ function Global:Get-SgwGridNetworks {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10261,7 +10413,7 @@ function Global:Update-SgwGridNetworks {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10357,7 +10509,7 @@ function Global:Get-SgwGroups {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10572,7 +10724,7 @@ function Global:New-SgwGroup {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10725,7 +10877,7 @@ function Global:Get-SgwGroupByShortName {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10802,7 +10954,7 @@ function Global:Get-SgwFederatedGroupByShortName {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10880,7 +11032,7 @@ function Global:Remove-SgwGroup {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -10953,7 +11105,7 @@ function Global:Get-SgwGroup {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11135,7 +11287,7 @@ function Global:Update-SgwGroup {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11404,7 +11556,7 @@ function Global:Replace-SgwGroup {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11564,7 +11716,7 @@ function Global:Get-SgwAccountGroups {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11632,7 +11784,7 @@ function Global:Get-SgwHealth {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11699,7 +11851,7 @@ function Global:Get-SgwTopologyHealth {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11772,7 +11924,7 @@ function Global:Get-SgwIdentitySources {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -11928,7 +12080,7 @@ function Global:Set-SgwIdentitySource {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12016,7 +12168,7 @@ function Global:Sync-SgwIdentitySources {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12090,7 +12242,7 @@ function Global:Invoke-SgwIlmEvaluate {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12160,7 +12312,7 @@ function Global:Get-SgwIlmMetadata {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12221,7 +12373,7 @@ function Global:Get-SgwIlmRules {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12336,7 +12488,7 @@ function Global:New-SgwIlmRules {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12443,7 +12595,7 @@ function Global:Get-SgwIlmRules {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12512,7 +12664,7 @@ function Global:Get-SgwIlmRules {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12581,7 +12733,7 @@ function Global:Get-SgwLicense {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12654,7 +12806,7 @@ function Global:Update-SgwLicense {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12726,7 +12878,7 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12812,7 +12964,7 @@ function Global:Start-SgwLogCollection {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12907,7 +13059,7 @@ function Global:Remove-SgwLogCollection {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -12973,7 +13125,7 @@ function Global:Get-SgwLogCollection {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13061,7 +13213,7 @@ function Global:Get-SgwMetricLabelValue {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13122,7 +13274,7 @@ function Global:Get-SgwMetricNames {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13198,7 +13350,7 @@ function Global:Get-SgwMetricQuery {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13293,7 +13445,7 @@ function Global:Get-SgwMetricQueryRange {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13373,7 +13525,7 @@ function Global:Get-SgwNtpServers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13444,7 +13596,7 @@ function Global:Update-SgwNtpServers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13544,7 +13696,7 @@ function Global:Get-SgwObjectMetadata {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13620,7 +13772,7 @@ function Global:Get-SgwRecoveryAvailableNodes {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13681,7 +13833,7 @@ function Global:Reset-SgwRecovery {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13742,7 +13894,7 @@ function Global:Get-SgwRecovery {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13836,7 +13988,7 @@ function Global:Start-SgwRecovery {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13920,7 +14072,7 @@ function Global:Get-SgwRecoveryPackage {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -13992,7 +14144,7 @@ function Global:Get-SgwRegions {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14060,7 +14212,7 @@ function Global:Update-SgwRegions {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14132,7 +14284,7 @@ function Global:Get-SgwManagementCertificate {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14239,7 +14391,7 @@ function Global:Update-SgwManagementCertificate {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14353,7 +14505,7 @@ function Global:Get-SgwObjectCertificate {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14460,7 +14612,7 @@ function Global:Update-SgwObjectCertificate {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14603,7 +14755,7 @@ function Global:Get-SgwUsers {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14723,7 +14875,7 @@ function Global:New-SgwUser {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14840,7 +14992,7 @@ function Global:Update-SgwUserPassword {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -14965,7 +15117,7 @@ function Global:Get-SgwUser {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15067,7 +15219,7 @@ function Global:Remove-SgwUser {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15163,7 +15315,7 @@ function Global:Update-SgwUser {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15265,7 +15417,7 @@ function Global:Get-SgwS3AccessKeys {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15366,7 +15518,7 @@ function Global:Get-SgwS3AccessKey {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15469,7 +15621,7 @@ function Global:New-SgwS3AccessKey {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15598,7 +15750,7 @@ function Global:Remove-SgwS3AccessKey {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
@@ -15719,7 +15871,7 @@ function Global:Get-SgwReport {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
         }
 
         if (!$Server) {
