@@ -555,14 +555,9 @@ function Global:Reset-SgwInstall {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -619,14 +614,9 @@ function Global:Get-SgwInstallGridDetails {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -707,14 +697,9 @@ function Global:Update-SgwInstallGridDetails {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -771,14 +756,9 @@ function Global:Get-SgwInstallGridNetworks {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -843,14 +823,9 @@ function Global:Update-SgwInstallGridNetworks {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -907,14 +882,9 @@ function Global:Get-SgwInstallPasswords {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1000,14 +970,9 @@ function Global:Update-SgwInstallPasswords {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1064,14 +1029,9 @@ function Global:Get-SgwInstallNtpServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1136,14 +1096,9 @@ function Global:Update-SgwInstallNtpServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1200,14 +1155,9 @@ function Global:Get-SgwInstallDnsServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1272,14 +1222,9 @@ function Global:Update-SgwInstallDnsServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1338,14 +1283,9 @@ function Global:Get-SgwInstallNodes {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         $InstallNodes = $Response.Json.Data
 
@@ -1424,14 +1364,9 @@ function Global:Get-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         $InstallNode = $Response.Json.Data
 
@@ -1634,14 +1569,9 @@ function Global:Update-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1704,14 +1634,9 @@ function Global:Remove-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1774,14 +1699,9 @@ function Global:Reset-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1795,9 +1715,9 @@ function Global:Reset-SgwInstallNode {
     .DESCRIPTION
     Retrieve the status of the provisioning operation
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallStatus {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1805,11 +1725,11 @@ function Global:Get-SgwInstallStatus {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -1840,14 +1760,9 @@ function Global:Get-SgwInstallStatus {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1904,14 +1819,9 @@ function Global:Start-SgwInstall {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -1977,14 +1887,9 @@ function Global:Get-SgwInstallRecoveryPackage {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2041,14 +1946,9 @@ function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2105,14 +2005,9 @@ function Global:Confirm-SgwInstallRecoveryPackageDownload {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2171,14 +2066,9 @@ function Global:Get-SgwInstallSites {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2246,14 +2136,9 @@ function Global:New-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2316,14 +2201,9 @@ function Global:Get-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2400,14 +2280,9 @@ function Global:Update-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -2470,14 +2345,9 @@ function Global:Remove-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-            if ($ResponseBody -match "apiVersion") {
-                $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
-            }
-            else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
             }
-        }
 
         Write-Output $Response.Json.Data
     }
@@ -3069,10 +2939,10 @@ function Global:Get-SgwAccounts {
 
         if ($Limit -eq 0 -and $Response.Json.data.count -eq 25) {
             if ($Capabilities) {
-                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order -Capabilities $Capabilities
+                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | Select-Object -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order -Capabilities $Capabilities
             }
             else {
-                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+                Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | Select-Object -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
             }
         }
     }
@@ -4389,7 +4259,7 @@ function global:Connect-SgwServer {
 
         $Body = ConvertTo-Json -InputObject $Body
 
-        $APIVersion = (Get-SgwVersion -Server $Server -ErrorAction Stop | Sort-Object | select -Last 1) -replace "\..*", ""
+        $ApiVersion = (Get-SgwVersion -Server $Server -ErrorAction Stop | Sort-Object | Select-Object -Last 1) -replace "\..*", ""
 
         if (!$APIVersion) {
             Throw "API Version could not be retrieved via https://$Name/api/versions"
@@ -4459,7 +4329,7 @@ function global:Connect-SgwServer {
         if (!$AccountId -and !$Server.S3EndpointUrl) {
             Write-Verbose "Trying to identify S3 and Swift Endpoints"
             # check endpoint urls and try StorageGRID default ports 8082 and 18082 for S3 and 8083 and 18083 for Swift
-            $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | % { @("https://$_", "https://${_}:8082", "https://${_}:18082", "https://${_}:8083", "https://${_}:18083") }
+            $EndpointDomainNames = Get-SgwEndpointDomainNames -Server $Server | ForEach-Object { @("https://$_", "https://${_}:8082", "https://${_}:18082", "https://${_}:8083", "https://${_}:18083") }
             foreach ($EndpointDomainName in $EndpointDomainNames) {
                 Write-Verbose "Endpoint domain name: $EndpointDomainName"
                 if ($PSVersionTable.PSVersion.Major -lt 6) {
@@ -4558,7 +4428,7 @@ function global:Disconnect-SgwServer {
         $Method = "DELETE"
 
         try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -5166,7 +5036,7 @@ function Global:Get-SgwContainerOwner {
 
     Process {
         foreach ($Account in (Get-SgwAccounts -Server $Server)) {
-            if ($Account | Get-SgwAccountUsage  -Server $Server | select -ExpandProperty buckets | ? { $_.name -eq $Name } | Select -First 1) {
+            if ($Account | Get-SgwAccountUsage  -Server $Server | Select-Object -ExpandProperty buckets | Where-Object { $_.name -eq $Name } | Select-Object -First 1) {
                 Write-Output $Account
                 break
             }
@@ -6065,7 +5935,7 @@ function Global:Remove-SgwContainerMetadataNotification {
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -6083,9 +5953,9 @@ Set-Alias -Name Add-SgwBucketMetadataNotificationRule -Value Add-SgwContainerMet
     .DESCRIPTION
     Adds a new rule for metadata notification (search) configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -6103,10 +5973,10 @@ function Global:Add-SgwContainerMetadataNotificationRule {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -6386,7 +6256,7 @@ function Global:Get-SgwContainerNotification {
             Write-Verbose $Response.Json.data.notification
             $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "prefix" } | Select-Object -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "suffix" } | Select-Object -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -6457,7 +6327,7 @@ function Global:Remove-SgwContainerNotification {
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -6562,7 +6432,7 @@ function Global:Add-SgwContainerNotificationTopic {
         }
 
         if (($NotificationTopics | Where-Object { $_.Id -eq $Id })) {
-            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
+            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select-Object -first 1
             if ($Topic) {
                 $NotificationTopic.Topic = $Topic
             }
@@ -6606,7 +6476,7 @@ function Global:Add-SgwContainerNotificationTopic {
             Write-Verbose $Response.Json.data.notification
             $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "prefix" } | Select-Object -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "suffix" } | Select-Object -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -6622,9 +6492,9 @@ Set-Alias -Name Remove-SgwContainerNotificationRule -Value Remove-SgwContainerNo
     .DESCRIPTION
     Remove a topic from the notification configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -6636,10 +6506,10 @@ function Global:Remove-SgwContainerNotificationTopic {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -6659,7 +6529,7 @@ function Global:Remove-SgwContainerNotificationTopic {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6691,7 +6561,7 @@ function Global:Remove-SgwContainerNotificationTopic {
         }
 
         if (($NotificationTopics | Where-Object { $_.Id -eq $Id })) {
-            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select -first 1
+            $NotificationTopic = $NotificationTopics | Where-Object { $_.Id -eq $Id } | Select-Object -first 1
             if ($Topic) {
                 $NotificationTopic.Topic = $Topic
             }
@@ -6735,7 +6605,7 @@ function Global:Remove-SgwContainerNotificationTopic {
             Write-Verbose $Response.Json.data.notification
             $Xml = [xml]$Response.Json.data.notification
             foreach ($Topic in $Xml.NotificationConfiguration.TopicConfiguration) {
-                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "prefix" } | Select -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | ? { $_.Name -eq "suffix" } | Select -ExpandProperty Value -First 1) }
+                $Topic = [PSCustomObject]@{ Bucket = $Name; Id = $Topic.Id; Topic = $Topic.Topic; Event = $Topic.Event; Prefix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "prefix" } | Select-Object -ExpandProperty Value -First 1); Suffix = ($Topic.Filter.S3Key.FilterRule | Where-Object { $_.Name -eq "suffix" } | Select-Object -ExpandProperty Value -First 1) }
                 Write-Output $Topic
             }
         }
@@ -6886,7 +6756,7 @@ function Global:Remove-SgwContainerReplication {
         $Body = ConvertTo-Json -InputObject $Body
 
         Try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -ContentType "application/json" -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -7007,7 +6877,7 @@ function Global:Add-SgwContainerReplicationRule {
         }
 
         if (($ReplicationRules | Where-Object { $_.Id -eq $Id })) {
-            $ReplicationRule = $ReplicationRules | Where-Object { $_.Id -eq $Id } | Select -first 1
+            $ReplicationRule = $ReplicationRules | Where-Object { $_.Id -eq $Id } | Select-Object -first 1
             if ($Status) {
                 $ReplicationRule.Status = $Status
             }
@@ -7107,7 +6977,7 @@ function Global:Remove-SgwContainerReplicationRule {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -7166,9 +7036,9 @@ function Global:Remove-SgwContainerReplicationRule {
     .DESCRIPTION
     Retrieves the deactivated features configuration
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwDeactivatedFeatures {
     [CmdletBinding()]
@@ -7176,10 +7046,10 @@ function Global:Get-SgwDeactivatedFeatures {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7189,7 +7059,7 @@ function Global:Get-SgwDeactivatedFeatures {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7198,7 +7068,7 @@ function Global:Get-SgwDeactivatedFeatures {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
@@ -7427,9 +7297,9 @@ function Global:Update-SgwDeactivatedFeatures {
     .DESCRIPTION
     Get decomission status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwDecommission {
     [CmdletBinding()]
@@ -7437,10 +7307,10 @@ function Global:Get-SgwDecommission {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7450,7 +7320,7 @@ function Global:Get-SgwDecommission {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7459,7 +7329,7 @@ function Global:Get-SgwDecommission {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -7490,9 +7360,9 @@ function Global:Get-SgwDecommission {
     .DESCRIPTION
     Start decomission
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER NodeIds
     List of Node IDs to be decommissioned.
     .PARAMETER Passphrase
@@ -7506,10 +7376,10 @@ function Global:Start-SgwDecommission {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of Node IDs to be decommissioned.")][String[]]$NodeIds,
@@ -7528,7 +7398,7 @@ function Global:Start-SgwDecommission {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7537,7 +7407,7 @@ function Global:Start-SgwDecommission {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -7579,9 +7449,9 @@ function Global:Start-SgwDecommission {
     .DESCRIPTION
     Suspend decomission
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Suspend-SgwDecommission {
     [CmdletBinding()]
@@ -7589,10 +7459,10 @@ function Global:Suspend-SgwDecommission {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7602,7 +7472,7 @@ function Global:Suspend-SgwDecommission {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7611,7 +7481,7 @@ function Global:Suspend-SgwDecommission {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -7642,9 +7512,9 @@ function Global:Suspend-SgwDecommission {
     .DESCRIPTION
     Resume decomission
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Resume-SgwDecommission {
     [CmdletBinding()]
@@ -7652,10 +7522,10 @@ function Global:Resume-SgwDecommission {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7665,7 +7535,7 @@ function Global:Resume-SgwDecommission {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7674,7 +7544,7 @@ function Global:Resume-SgwDecommission {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -7709,9 +7579,9 @@ function Global:Resume-SgwDecommission {
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwDnsServers {
     [CmdletBinding()]
@@ -7719,10 +7589,10 @@ function Global:Get-SgwDnsServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7732,7 +7602,7 @@ function Global:Get-SgwDnsServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7741,7 +7611,7 @@ function Global:Get-SgwDnsServers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13110,7 +12980,7 @@ function Global:Get-SgwLogCollection {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13365,7 +13235,7 @@ function Global:Get-SgwMetricQuery {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Metrics = $Response.Json.data.result | % { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
+        $Metrics = $Response.Json.data.result | ForEach-Object { [PSCustomObject]@{ Metric = $_.metric.__name__; Instance = $_.metric.instance; Time = (ConvertFrom-UnixTimestamp -Unit Seconds -Timestamp $_.value[0]); Value = $_.value[1] } }
 
         Write-Output $Metrics
     }
@@ -14078,7 +13948,7 @@ function Global:Get-SgwRecoveryPackage {
         $Body = ConvertTo-Json -InputObject $Body
 
         try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -OutFile $Path -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Body $Body -Headers $Server.Headers -OutFile $Path -SkipCertificateCheck:$Server.SkipCertificateCheck
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
@@ -14789,7 +14659,7 @@ function Global:Get-SgwUsers {
         Write-Output $Response.Json.data
 
         if ($Limit -eq 0 -and $Response.Json.data.count -eq 25) {
-            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | select -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
+            Get-SgwAccounts -Server $Server -Limit $Limit -Marker ($Response.Json.data | Select-Object -last 1 -ExpandProperty id) -IncludeMarker:$IncludeMarker -Order $Order
         }
     }
 }
@@ -15897,11 +15767,11 @@ function Global:Get-SgwReport {
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
-        $Body = ($Response -split "`n" | ? { $_ -match "<body" })
+        $Body = ($Response -split "`n" | Where-Object { $_ -match "<body" })
         Write-Verbose "Body: $Body"
 
         if ($Response -match "Aggregate Time") {
-            $Report = $Body -replace "<body.*Aggregate Time.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+", '$1;$2;$4;$6' | ? { $_ }
+            $Report = $Body -replace "<body.*Aggregate Time.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,([^ ]+) ([^,]*),([^ ]+) ([^,]*),([^ ]+) ([^,]*),.+", '$1;$2;$4;$6' | Where-Object { $_ }
             foreach ($Line in $Report) {
                 $Time, $Average, $Minimum, $Maximum = $Line -split ';'
                 $Average = $Average -replace ",", "" -replace " ", ""
@@ -15912,7 +15782,7 @@ function Global:Get-SgwReport {
             }
         }
         elseif ($Response -match "Time Received") {
-            $Report = $Body -replace "<body.*Time Received.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+", '$1;$2' | ? { $_ }
+            $Report = $Body -replace "<body.*Time Received.*Type<br>", "" -split "<br>" -replace "([^,]+),[^,]+,[^,]+,[^,]+,([^ ]+) ([^,]*),.+", '$1;$2' | Where-Object { $_ }
             foreach ($Line in $Report) {
                 $Time, $Value = $Line -split ';'
                 $Value = $Value -replace ",", "" -replace " ", ""
@@ -15993,8 +15863,8 @@ function Global:Merge-SgwGrids {
             }
         }
 
-        $SourceBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select -ExpandProperty Buckets
-        $DestinationBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select -ExpandProperty Buckets
+        $SourceBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select-Object -ExpandProperty Buckets
+        $DestinationBuckets = $SourceAccounts | Get-SgwAccountUsage -Server $SourceServer | Select-Object -ExpandProperty Buckets
 
         $DuplicateBuckets = @()
         foreach ($SourceBucket in $SourceBuckets) {
@@ -16193,7 +16063,7 @@ function Global:Copy-SgwBucket {
         if (!$DryRun) {
             Get-S3Objects -Server $SourceServer -Bucket $Bucket.Name | ForEach-Object {
                 if ($_.LastModified -lt $ReplicationStartDate.ToUniversalTime()) {
-                    $Metadata = $_ | Get-S3ObjectMetadata | Select -ExpandProperty CustomMetadata
+                    $Metadata = $_ | Get-S3ObjectMetadata | Select-Object -ExpandProperty CustomMetadata
                     Copy-S3Object -Server $SourceServer -Region $_.Region -Bucket $_.Bucket $_.Key -SourceBucket $_.Bucket -SourceKey $_.SourceKey -MetadataDirective REPLACE -Metadata $Metadata
                 }
             }
