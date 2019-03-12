@@ -3462,6 +3462,7 @@ function Global:Update-SgwAccount {
     }
 }
 
+New-Alias -Name Replace-SgwAccount -Value Set-SgwAccount
 <#
     .SYNOPSIS
     Replace a StorageGRID Account
@@ -3484,7 +3485,7 @@ function Global:Update-SgwAccount {
     .PARAMETER Quota
     Quota for tenant in bytes.
 #>
-function Global:Replace-SgwAccount {
+function Global:Set-SgwAccount {
     [CmdletBinding()]
 
     PARAM (
@@ -4012,6 +4013,7 @@ function Global:Get-SgwAudit {
     }
 }
 
+New-Alias -Name Replace-SgwAudit -Value Set-SgwAudit
 <#
     .SYNOPSIS
     Replace the audit configuration
@@ -4032,7 +4034,7 @@ function Global:Get-SgwAudit {
     .PARAMETER LoggedHeaders
     Logged headers.
 #>
-function Global:Replace-SgwAudit {
+function Global:Set-SgwAudit {
     [CmdletBinding()]
 
     PARAM (
@@ -7786,6 +7788,7 @@ function Global:Get-SgwDnsServers {
     }
 }
 
+New-Alias -Name Replace-SgwDnsServers -Value Set-SgwDnsServers
 <#
     .SYNOPSIS
     Retrieve StorageGRID DNS Servers
@@ -7798,7 +7801,7 @@ function Global:Get-SgwDnsServers {
     .PARAMETER DnsServers
     List of IP addresses of the external DNS servers.
 #>
-function Global:Replace-SgwDnsServers {
+function Global:Set-SgwDnsServers {
     [CmdletBinding()]
 
     PARAM (
@@ -11395,6 +11398,7 @@ function Global:Update-SgwGroup {
     }
 }
 
+New-Alias -Name Replace-SgwGroup -Value Set-SgwGroup
 <#
     .SYNOPSIS
     Replace a single Grid Administrator Group
@@ -11447,7 +11451,7 @@ function Global:Update-SgwGroup {
     .PARAMETER SwiftRoles
     Swift roles to grant.
 #>
-function Global:Replace-SgwGroup {
+function Global:Set-SgwGroup {
     [CmdletBinding()]
 
     PARAM (
