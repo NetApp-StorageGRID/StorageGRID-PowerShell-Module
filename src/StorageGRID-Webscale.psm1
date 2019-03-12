@@ -555,9 +555,9 @@ function Global:Reset-SgwInstall {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -614,9 +614,9 @@ function Global:Get-SgwInstallGridDetails {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -697,9 +697,9 @@ function Global:Update-SgwInstallGridDetails {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -756,9 +756,9 @@ function Global:Get-SgwInstallGridNetworks {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -823,9 +823,9 @@ function Global:Update-SgwInstallGridNetworks {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -882,9 +882,9 @@ function Global:Get-SgwInstallPasswords {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -970,9 +970,9 @@ function Global:Update-SgwInstallPasswords {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1029,9 +1029,9 @@ function Global:Get-SgwInstallNtpServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1096,9 +1096,9 @@ function Global:Update-SgwInstallNtpServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1155,9 +1155,9 @@ function Global:Get-SgwInstallDnsServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1222,9 +1222,9 @@ function Global:Update-SgwInstallDnsServers {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1283,9 +1283,9 @@ function Global:Get-SgwInstallNodes {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         $InstallNodes = $Response.Json.Data
 
@@ -1364,9 +1364,9 @@ function Global:Get-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         $InstallNode = $Response.Json.Data
 
@@ -1569,9 +1569,9 @@ function Global:Update-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1634,9 +1634,9 @@ function Global:Remove-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1699,9 +1699,9 @@ function Global:Reset-SgwInstallNode {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1760,9 +1760,9 @@ function Global:Get-SgwInstallStatus {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1819,9 +1819,9 @@ function Global:Start-SgwInstall {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1887,9 +1887,9 @@ function Global:Get-SgwInstallRecoveryPackage {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -1946,9 +1946,9 @@ function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2005,9 +2005,9 @@ function Global:Confirm-SgwInstallRecoveryPackageDownload {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2066,9 +2066,9 @@ function Global:Get-SgwInstallSites {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2136,9 +2136,9 @@ function Global:New-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2201,9 +2201,9 @@ function Global:Get-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2280,9 +2280,9 @@ function Global:Update-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -2345,9 +2345,9 @@ function Global:Remove-SgwInstallSite {
         Catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Host "$ResponseBody"
-                Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
-            }
+            Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
 
         Write-Output $Response.Json.Data
     }
@@ -4322,23 +4322,23 @@ function global:Connect-SgwServer {
             $Server = Invoke-SgwServerSsoAuthentication -Server $Server -SkipCertificateCheck:$SkipCertificateCheck
         }
         else {
-        Try {
-            if ($PSVersionTable.PSVersion.Major -lt 6) {
-                $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
-                [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-                try {
-                    $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
+            Try {
+                if ($PSVersionTable.PSVersion.Major -lt 6) {
+                    $CurrentCertificatePolicy = [System.Net.ServicePointManager]::CertificatePolicy
+                    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+                    try {
+                        $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body
+                    }
+                    catch {
+                        Throw
+                    }
+                    finally {
+                        [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
+                    }
                 }
-                catch {
-                    Throw
+                else {
+                    $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
                 }
-                finally {
-                    [System.Net.ServicePointManager]::CertificatePolicy = $CurrentCertificatePolicy
-                }
-            }
-            else {
-                $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
-            }
     
                 $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
     
@@ -4346,29 +4346,29 @@ function global:Connect-SgwServer {
                 if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" })) {
                     $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" } | Select-Object -ExpandProperty Value
                     $Server.Headers["X-Csrf-Token"] = $XCsrfToken
-        }
+                }
         
                 $Server.ApiVersion = $Response.apiVersion
             }
-        Catch {
-            $ResponseBody = ParseErrorForResponseBody $_
-            if ($_.Exception.Message -match "Unauthorized") {
-                Write-Error "Authorization for $BaseURI/authorize with user $( $Credential.UserName ) failed"
-                return
-            }
-            elseif ($_.Exception.Message -match "trust relationship") {
-                Write-Error $_.Exception.Message
-                Write-Information "Certificate of the server is not trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
-            }
+            Catch {
+                $ResponseBody = ParseErrorForResponseBody $_
+                if ($_.Exception.Message -match "Unauthorized") {
+                    Write-Error "Authorization for $BaseURI/authorize with user $( $Credential.UserName ) failed"
+                    return
+                }
+                elseif ($_.Exception.Message -match "trust relationship") {
+                    Write-Error $_.Exception.Message
+                    Write-Information "Certificate of the server is not trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
+                }
                 elseif ($ResponseBody -match "sso_enabled") {
                     Write-Warning "Single sign-on is enabled, therefore retrying with SAML authentication."
                     $Server = Invoke-SgwServerSsoAuthentication -Server $Server -SkipCertificateCheck:$SkipCertificateCheck
                 }
-            else {
-                Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $( $_.Exception.Message )`n $ResponseBody"
-                return
+                else {
+                    Write-Error "Login to $BaseURI/authorize failed via HTTPS protocol. Exception message: $( $_.Exception.Message )`n $ResponseBody"
+                    return
+                }
             }
-        }
         }
 
         $SupportedApiVersions = @(Get-SgwVersions -Server $Server)
@@ -14693,6 +14693,189 @@ function Global:Update-SgwObjectCertificate {
             $ResponseBody = ParseErrorForResponseBody $_
             Write-Error "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $( $responseBody.message )"
             return
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+## snmp ##
+
+# complete as of API 3.0
+
+<#
+    .SYNOPSIS
+    Gets the SNMP configuration
+    .DESCRIPTION
+    Gets the SNMP configuration
+    .PARAMETER Server
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID profile to use for connection.
+#>
+function Global:Get-SgwSnmp {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/snmp"
+
+        $Method = "GET"
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
+        }
+
+        Write-Output $Response.Json.data
+    }
+}
+
+<#
+    .SYNOPSIS
+    Replaces the SNMP configuration
+    .DESCRIPTION
+    Replaces the SNMP configuration
+    .PARAMETER Server
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
+    .PARAMETER ProfileName
+    StorageGRID profile to use for connection.
+    .PARAMETER rocommunity
+    IPv4 SNMP community
+    .PARAMETER rocommunity6
+    IPv6 SNMP community
+    .PARAMETER sysLocation
+    SNMP system location
+    .PARAMETER sysContact
+    SNMP system contact
+    .PARAMETER trapcommunity
+    default trap community
+    .PARAMETER authtrapenable
+    1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)
+    .PARAMETER TrapDestinations
+    List of SNMP trap destinations for V1, V2C, and Inform notifications. Need to include type nad host, may include community and port.
+#>
+function Global:Set-SgwSnmp {
+    [CmdletBinding()]
+
+    PARAM (
+        [parameter(Mandatory = $False,
+                Position = 0,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+        [parameter(Mandatory = $False,
+                Position = 1,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+        [parameter(Mandatory = $False,
+                Position = 2,
+                HelpMessage = "IPv4 SNMP community")][String]$rocommunity,
+        [parameter(Mandatory = $False,
+                Position = 3,
+                HelpMessage = "IPv6 SNMP community")][String]$rocommunity6,
+        [parameter(Mandatory = $False,
+                Position = 4,
+                HelpMessage = "SNMP system location")][String]$sysLocation,
+        [parameter(Mandatory = $False,
+                Position = 5,
+                HelpMessage = "SNMP system location")][String]$sysContact,       
+        [parameter(Mandatory = $False,
+                Position = 6,
+                HelpMessage = "default trap community")][String]$trapcommunity,  
+        [parameter(Mandatory = $False,
+                Position = 7,
+                HelpMessage = "1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)")][ValidateRange(1,2)][String]$authtrapenable, 
+        [parameter(Mandatory = $False,
+                Position = 8,
+                HelpMessage = "List of SNMP trap destinations for V1, V2C, and Inform notifications. Object needs to include type nad host, may include community and port.")][Object[]]$TrapDestinations
+    )
+
+    Begin {
+        if (!$ProfileName -and !$Server -and !$CurrentSgwServer.Name) {
+            $ProfileName = "default"
+        }
+        if ($ProfileName) {
+            $Profile = Get-SgwProfile -ProfileName $ProfileName
+            if (!$Profile.Name) {
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
+            }
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient
+        }
+
+        if (!$Server) {
+            $Server = $Global:CurrentSgwServer
+        }
+        if (!$Server) {
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
+        }
+    }
+
+    Process {
+        $Uri = $Server.BaseURI + "/grid/snmp"
+
+        $Method = "PUT"
+
+        $Body = @{}
+
+        if ($rocommunity) {
+            $Body.rocommunity = $rocommunity
+        }
+        if ($rocommunity6) {
+            $Body.rocommunity6 = $rocommunity6
+        }
+        if ($sysLocation) {
+            $Body.sysLocation = $sysLocation
+        }
+        if ($sysContact) {
+            $Body.sysContact = $sysContact
+        }
+        if ($trapcommunity) {
+            $Body.trapcommunity = $trapcommunity
+        }
+        if ($authtrapenable) {
+            $Body.authtrapenable = $authtrapenable
+        }
+        if ($TrapDestinations) {
+            $Body.trap_destinations = $TrapDestinations
+        }
+
+        $Body = ConvertTo-Json -InputObject $Body
+
+        try {
+            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
+        }
+        catch {
+            $ResponseBody = ParseErrorForResponseBody $_
+            Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
 
         Write-Output $Response.Json.data
