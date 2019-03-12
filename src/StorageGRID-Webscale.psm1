@@ -96,14 +96,14 @@ function ConvertFrom-UnixTimestamp {
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Timestamp to be converted.")][String]$Timestamp,
-        [parameter(Mandatory = $True,
+        [parameter(Mandatory = $False,
                 Position = 0,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Unit of timestamp.")][ValidateSet("Seconds", "Milliseconds")][String]$Unit = "Milliseconds",
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "Optional Timezone to be used as basis for Timestamp. Default is system Timezone.")][System.TimeZoneInfo]$Timezone = [System.TimeZoneInfo]::Local
+                HelpMessage = "Optional timezone to be used as basis for timestamp. Default is system timezone.")][System.TimeZoneInfo]$Timezone = [System.TimeZoneInfo]::Local
     )
 
     PROCESS {
@@ -128,7 +128,7 @@ function ConvertFrom-SgwConfigFile {
         [parameter(
             Mandatory=$True,
             Position=0,
-            HelpMessage="StorageGRID Config File")][String]$SgwConfigFile
+            HelpMessage="StorageGRID config file")][String]$SgwConfigFile
     )
 
     Process {
@@ -139,7 +139,7 @@ function ConvertFrom-SgwConfigFile {
             throw "Config file $SgwConfigFile does not exist!"
         }
 
-        Write-Verbose "Reading StorageGRID Configuration from $SgwConfigFile"
+        Write-Verbose "Reading StorageGRID configuration from config file $SgwConfigFile"
 
         $Content = Get-Content -Path $SgwConfigFile -Raw
         # convert to JSON structure
@@ -183,7 +183,7 @@ function ConvertTo-SgwConfigFile {
         [parameter(
             Mandatory=$True,
             Position=1,
-            HelpMessage="StorageGRID Config File")][String]$SgwConfigFile
+            HelpMessage="StorageGRID config file")][String]$SgwConfigFile
     )
 
     Process {
@@ -196,7 +196,7 @@ function ConvertTo-SgwConfigFile {
         $SgwConfigDirectory = ([System.IO.DirectoryInfo]$SgwConfigFile).Parent.FullName
 
         # make sure that parent folder is only accessible by current user
-        Write-Host "Profile information will be stored in $SgwConfigDirectory . Ensuring that access is only possible for current user."
+        Write-Host "Profile information will be stored in directory $SgwConfigDirectory . Ensuring that access is only possible for current user."
         try {
             if ([environment]::OSVersion.Platform -match "win") {
                 $Acl = Get-Acl -Path $SgwConfigDirectory
@@ -219,7 +219,7 @@ function ConvertTo-SgwConfigFile {
             Write-Verbose "Couldn't restrict access to directory $SgwConfigDirectory"
         }
 
-        Write-Verbose "Writing StorageGRID Configuration to $SgwConfigFile"
+        Write-Verbose "Writing StorageGRID configuration to $SgwConfigFile"
 
         if ($SgwConfigFile -match "credentials$") {
             foreach ($Config in $Configs) {
@@ -280,9 +280,9 @@ function ConvertTo-SgwConfigFile {
 
 <#
     .SYNOPSIS
-    Invoke request to StorageGRID Webscale Server
+    Invoke request to StorageGRID server
     .DESCRIPTION
-    Invoke request to StorageGRID Webscale Server
+    Invoke request to StorageGRID server
     .PARAMETER Uri
     Uri
     .PARAMETER WebSession
@@ -507,9 +507,9 @@ function Invoke-SgwRequest {
     .DESCRIPTION
     Reset all user-provided information for installation and primary Admin Node recovery
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Reset-SgwInstall {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -517,11 +517,11 @@ function Global:Reset-SgwInstall {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -532,13 +532,13 @@ function Global:Reset-SgwInstall {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -571,9 +571,9 @@ function Global:Reset-SgwInstall {
     .DESCRIPTION
     Retrieve grid-wide details
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallGridDetails {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -581,11 +581,11 @@ function Global:Get-SgwInstallGridDetails {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -596,13 +596,13 @@ function Global:Get-SgwInstallGridDetails {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -636,9 +636,9 @@ Set-Alias -Name Set-SgwInstallGridDetails -Value Update-SgwInstallGridDetails
     .DESCRIPTION
     Update grid-wide details
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Name of the Grid.
     .PARAMETER License
@@ -650,11 +650,11 @@ function Global:Update-SgwInstallGridDetails {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -671,13 +671,13 @@ function Global:Update-SgwInstallGridDetails {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -723,9 +723,9 @@ function Global:Update-SgwInstallGridDetails {
     .DESCRIPTION
     Retrieve the list of Grid Network subnets
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallGridNetworks {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -733,11 +733,11 @@ function Global:Get-SgwInstallGridNetworks {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -748,13 +748,13 @@ function Global:Get-SgwInstallGridNetworks {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -788,9 +788,9 @@ Set-Alias -Name Set-SgwInstallGridNetworks -Value Update-SgwInstallGridNetworks
     .DESCRIPTION
     Update the list of Grid Network subnets
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER GridNetworks
     The list of Grid Network subnets (in CIDR notation)
 #>
@@ -800,11 +800,11 @@ function Global:Update-SgwInstallGridNetworks {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -818,13 +818,13 @@ function Global:Update-SgwInstallGridNetworks {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -859,9 +859,9 @@ function Global:Update-SgwInstallGridNetworks {
     .DESCRIPTION
     Retrieve grid passwords
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallPasswords {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -869,11 +869,11 @@ function Global:Get-SgwInstallPasswords {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -884,13 +884,13 @@ function Global:Get-SgwInstallPasswords {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -924,9 +924,9 @@ Set-Alias -Name Set-SgwInstallPasswords -Value Update-SgwInstallPasswords
     .DESCRIPTION
     Update grid passwords
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Provision
     The password used during maintenance procedures to make changes to the grid topology and to download the grid Recovery Package; optional once set
     .PARAMETER Management
@@ -940,11 +940,11 @@ function Global:Update-SgwInstallPasswords {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -964,13 +964,13 @@ function Global:Update-SgwInstallPasswords {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1016,9 +1016,9 @@ function Global:Update-SgwInstallPasswords {
     .DESCRIPTION
     Retrieve the list of NTP server IP addresses
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallNtpServers {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1026,11 +1026,11 @@ function Global:Get-SgwInstallNtpServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -1041,13 +1041,13 @@ function Global:Get-SgwInstallNtpServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1081,9 +1081,9 @@ Set-Alias -Name Set-SgwInstallNtpServers -Value Update-SgwInstallNtpServers
     .DESCRIPTION
     Update the list of NTP server IP addresses
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER NtpServers
     List of NTP Server IP addresses.
 #>
@@ -1093,11 +1093,11 @@ function Global:Update-SgwInstallNtpServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1111,13 +1111,13 @@ function Global:Update-SgwInstallNtpServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1152,9 +1152,9 @@ function Global:Update-SgwInstallNtpServers {
     .DESCRIPTION
     Retrieve the list of DNS server IP addresses
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallDnsServers {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1162,11 +1162,11 @@ function Global:Get-SgwInstallDnsServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -1177,13 +1177,13 @@ function Global:Get-SgwInstallDnsServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1217,9 +1217,9 @@ Set-Alias -Name Set-SgwInstallDnsServers -Value Update-SgwInstallDnsServers
     .DESCRIPTION
     Update the list of DNS server IP addresses
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER NtpServers
     List of DNS Server IP addresses.
 #>
@@ -1229,11 +1229,11 @@ function Global:Update-SgwInstallDnsServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1247,13 +1247,13 @@ function Global:Update-SgwInstallDnsServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1290,9 +1290,9 @@ function Global:Update-SgwInstallDnsServers {
     .DESCRIPTION
     Retrieve the list of grid nodes
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallNodes {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1300,11 +1300,11 @@ function Global:Get-SgwInstallNodes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -1315,13 +1315,13 @@ function Global:Get-SgwInstallNodes {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1370,9 +1370,9 @@ function Global:Get-SgwInstallNodes {
     .DESCRIPTION
     Retrieve a grid node
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Node ID
 #>
@@ -1382,11 +1382,11 @@ function Global:Get-SgwInstallNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1401,13 +1401,13 @@ function Global:Get-SgwInstallNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1456,9 +1456,9 @@ function Global:Get-SgwInstallNode {
     .DESCRIPTION
     Configure a grid node
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Node ID
 #>
@@ -1468,11 +1468,11 @@ function Global:Update-SgwInstallNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1562,13 +1562,13 @@ function Global:Update-SgwInstallNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1650,9 +1650,9 @@ function Global:Update-SgwInstallNode {
     .DESCRIPTION
     Remove a grid node from all procedures; the grid node may be added back in by rebooting it
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Node ID
 #>
@@ -1662,11 +1662,11 @@ function Global:Remove-SgwInstallNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1681,13 +1681,13 @@ function Global:Remove-SgwInstallNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1720,9 +1720,9 @@ function Global:Remove-SgwInstallNode {
     .DESCRIPTION
     Reset a grid node's configuration and returns it back to pending state
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Node ID
 #>
@@ -1732,11 +1732,11 @@ function Global:Reset-SgwInstallNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -1751,13 +1751,13 @@ function Global:Reset-SgwInstallNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1817,13 +1817,13 @@ function Global:Get-SgwInstallStatus {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1856,9 +1856,9 @@ function Global:Get-SgwInstallStatus {
     .DESCRIPTION
     Start the provisioning operation, which starts grid installation
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Start-SgwInstall {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1866,11 +1866,11 @@ function Global:Start-SgwInstall {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -1881,13 +1881,13 @@ function Global:Start-SgwInstall {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1922,9 +1922,9 @@ function Global:Start-SgwInstall {
     .DESCRIPTION
     Downloads the Recovery Package
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallRecoveryPackage {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -1932,11 +1932,11 @@ function Global:Get-SgwInstallRecoveryPackage {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
@@ -1950,13 +1950,13 @@ function Global:Get-SgwInstallRecoveryPackage {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -1993,9 +1993,9 @@ function Global:Get-SgwInstallRecoveryPackage {
     .DESCRIPTION
     Provides the Recovery Package download confirmation status
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -2003,11 +2003,11 @@ function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -2018,13 +2018,13 @@ function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2057,9 +2057,9 @@ function Global:Get-SgwInstallRecoveryPackageDownloadStatus {
     .DESCRIPTION
     Confirms download of the Recovery Package
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Confirm-SgwInstallRecoveryPackageDownload {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -2067,11 +2067,11 @@ function Global:Confirm-SgwInstallRecoveryPackageDownload {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -2082,13 +2082,13 @@ function Global:Confirm-SgwInstallRecoveryPackageDownload {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2123,9 +2123,9 @@ function Global:Confirm-SgwInstallRecoveryPackageDownload {
     .DESCRIPTION
     Retrieve the list of sites
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwInstallSites {
     [CmdletBinding(DefaultParameterSetName="AdminNode")]
@@ -2133,11 +2133,11 @@ function Global:Get-SgwInstallSites {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName
     )
 
@@ -2148,13 +2148,13 @@ function Global:Get-SgwInstallSites {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2187,9 +2187,9 @@ function Global:Get-SgwInstallSites {
     .DESCRIPTION
     Create a new site
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Site name
 #>
@@ -2199,11 +2199,11 @@ function Global:New-SgwInstallSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
@@ -2217,13 +2217,13 @@ function Global:New-SgwInstallSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2262,9 +2262,9 @@ function Global:New-SgwInstallSite {
     .DESCRIPTION
     Retrieve a site
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Site ID
 #>
@@ -2274,11 +2274,11 @@ function Global:Get-SgwInstallSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
@@ -2293,13 +2293,13 @@ function Global:Get-SgwInstallSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2332,9 +2332,9 @@ function Global:Get-SgwInstallSite {
     .DESCRIPTION
     Update the details of a site
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Site ID
     .PARAMETER Name
@@ -2346,11 +2346,11 @@ function Global:Update-SgwInstallSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
@@ -2369,13 +2369,13 @@ function Global:Update-SgwInstallSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2416,9 +2416,9 @@ function Global:Update-SgwInstallSite {
     .DESCRIPTION
     Deletes a site
     .PARAMETER AdminNode
-    StorageGRID Webscale Management Server (e.g. admin-node.example.com).
+    StorageGRID admin node (e.g. admin-node.example.com).
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Site ID
 #>
@@ -2428,11 +2428,11 @@ function Global:Remove-SgwInstallSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server (e.g. admin-node.example.com).",
+                HelpMessage = "StorageGRID admin node (e.g. admin-node.example.com).",
                 ParameterSetName="AdminNode")][String]$AdminNode,
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Profile to use for connection.",
+                HelpMessage = "StorageGRID profile to use for connection.",
                 ParameterSetName="ProfileName")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 1,
@@ -2447,13 +2447,13 @@ function Global:Remove-SgwInstallSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $AdminNode = $Profile.Name
         }
 
         if (!$AdminNode) {
-            Throw "No StorageGRID Webscale Management Server management server found."
+            Throw "No StorageGRID admin node management server found."
         }
     }
 
@@ -2491,21 +2491,21 @@ Set-Alias -Name Add-SgwCredential -Value Add-SgwProfile
 Set-Alias -Name Update-SgwCredential -Value Add-SgwProfile
 <#
     .SYNOPSIS
-    Add StorageGRID Profile
+    Add StorageGRID profile
     .DESCRIPTION
-    Add StorageGRID Profile
+    Add StorageGRID profile
     .PARAMETER ProfileName
-    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    StorageGRID profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
-    StorageGRID Profile location if different than .aws/credentials
+    StorageGRID profile location if different than .aws/credentials
     .PARAMETER Name
-    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
+    The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
-    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.
     .PARAMETER SkipCertificateCheck
-    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.
+    If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.
     .PARAMETER AccountId
-    Account ID of the StorageGRID Webscale tenant to connect to.
+    Account ID of the StorageGRID tenant to connect to.
     .PARAMETER DisableAutomaticAccessKeyGeneration
     By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
     .PARAMETER TemporaryAccessKeyExpirationTime
@@ -2523,28 +2523,28 @@ function Global:Add-SgwProfile {
                 Mandatory=$False,
                 Position=0,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage="StorageGRID profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
         [parameter(
                 Mandatory=$False,
                 Position=1,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
+                HelpMessage="StorageGRID profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+                HelpMessage = "The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
         [parameter(Mandatory = $True,
                 Position = 3,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory = $False,
                 Position = 4,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+                HelpMessage = "If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
         [parameter(Position = 5,
                 Mandatory = $False,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+                HelpMessage = "Account ID of the StorageGRID tenant to connect to.")][String]$AccountId,
         [parameter(Position = 6,
                 Mandatory = $False,
                 ValueFromPipelineByPropertyName = $True,
@@ -2647,7 +2647,7 @@ Set-Alias -Name Get-SgwCredentials -Value Get-SgwProfiles
     .DESCRIPTION
     Get the StorageGRID profiles
     .PARAMETER ProfileLocation
-    StorageGRID Profile location if different than .aws/credentials
+    StorageGRID profile location if different than .aws/credentials
 #>
 function Global:Get-SgwProfiles {
     [CmdletBinding()]
@@ -2657,7 +2657,7 @@ function Global:Get-SgwProfiles {
                 Mandatory=$False,
                 Position=0,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
+                HelpMessage="StorageGRID profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
     )
 
     Process {
@@ -2750,21 +2750,21 @@ function Global:Get-SgwProfiles {
 Set-Alias -Name Get-SgwCredential -Value Get-SgwProfile
 <#
     .SYNOPSIS
-    Get StorageGRID Profile
+    Get StorageGRID profile
     .DESCRIPTION
-    Get StorageGRID Profile
+    Get StorageGRID profile
     .PARAMETER ProfileName
-    StorageGRID Profile to use which contains StorageGRID sredentials and settings
+    StorageGRID profile to use which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
-    StorageGRID Profile location if different than .aws/credentials
+    StorageGRID profile location if different than .aws/credentials
     .PARAMETER Name
-    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
+    The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
-    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.
     .PARAMETER SkipCertificateCheck
-    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.
+    If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.
     .PARAMETER AccountId
-    Account ID of the StorageGRID Webscale tenant to connect to.
+    Account ID of the StorageGRID tenant to connect to.
     .PARAMETER DisableAutomaticAccessKeyGeneration
     By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
     .PARAMETER TemporaryAccessKeyExpirationTime
@@ -2782,32 +2782,32 @@ function Global:Get-SgwProfile {
                 Mandatory=$False,
                 Position=0,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage="StorageGRID profile to use which contains StorageGRID sredentials and settings")][Alias("Profile")][String]$ProfileName="default",
         [parameter(
                 Mandatory=$False,
                 Position=1,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
+                HelpMessage="StorageGRID profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+                HelpMessage = "The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
         [parameter(Mandatory = $False,
                 Position = 3,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(Mandatory = $False,
                 Position = 4,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+                HelpMessage = "If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
         [parameter(Position = 5,
                 Mandatory = $False,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+                HelpMessage = "Account ID of the StorageGRID tenant to connect to.")][String]$AccountId,
         [parameter(Position = 6,
                 Mandatory = $False,
                 ValueFromPipeline = $True,
@@ -2905,13 +2905,13 @@ function Global:Get-SgwProfile {
 Set-Alias -Name Remove-SgwCredential -Value Remove-SgwProfile
 <#
     .SYNOPSIS
-    Remove StorageGRID Profile
+    Remove StorageGRID profile
     .DESCRIPTION
-    Remove StorageGRID Profile
+    Remove StorageGRID profile
     .PARAMETER ProfileName
-    StorageGRID Profile to remove which contains StorageGRID sredentials and settings
+    StorageGRID profile to remove which contains StorageGRID sredentials and settings
     .PARAMETER ProfileLocation
-    StorageGRID Profile location if different than .aws/credentials
+    StorageGRID profile location if different than .aws/credentials
 #>
 function Global:Remove-SgwProfile {
     [CmdletBinding()]
@@ -2920,12 +2920,12 @@ function Global:Remove-SgwProfile {
         [parameter(
                 Mandatory=$True,
                 Position=0,
-                HelpMessage="StorageGRID Profile where config should be removed")][Alias("Profile")][String]$ProfileName,
+                HelpMessage="StorageGRID profile where config should be removed")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory=$False,
                 Position=1,
                 ValueFromPipelineByPropertyName=$True,
-                HelpMessage="StorageGRID Profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
+                HelpMessage="StorageGRID profile location if different than .aws/credentials")][String]$ProfileLocation=$SGW_CREDENTIALS_FILE
     )
 
     Process {
@@ -2943,17 +2943,17 @@ function Global:Remove-SgwProfile {
 
 ## accounts ##
 
-# complete as of API 2.2
+# complete as of API 3
 
 <#
     .SYNOPSIS
-    Retrieve all StorageGRID Webscale Accounts
+    Retrieve all StorageGRID Accounts
     .DESCRIPTION
-    Retrieve all StorageGRID Webscale Accounts
+    Retrieve all StorageGRID Accounts
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Limit
     Maximum number of results.
     .PARAMETER Marker
@@ -2971,10 +2971,10 @@ function Global:Get-SgwAccounts {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Maximum number of results.")][Int]$Limit = 0,
@@ -2999,7 +2999,7 @@ function Global:Get-SgwAccounts {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3008,7 +3008,7 @@ function Global:Get-SgwAccounts {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3077,15 +3077,15 @@ function Global:Get-SgwAccounts {
 
 <#
     .SYNOPSIS
-    Create a StorageGRID Webscale Account
+    Create a StorageGRID Account
     .DESCRIPTION
-    Create a StorageGRID Webscale Account
+    Create a StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
-    Name of the StorageGRID Webscale Account to be created.
+    Name of the StorageGRID Account to be created.
     .PARAMETER Capabilities
     Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management).
     .PARAMETER UseAccountIdentitySource
@@ -3116,14 +3116,14 @@ function Global:New-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "Name of the StorageGRID Webscale Account to be created.",
+                HelpMessage = "Name of the StorageGRID Account to be created.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Name,
         [parameter(
@@ -3169,7 +3169,7 @@ function Global:New-SgwAccount {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3178,7 +3178,7 @@ function Global:New-SgwAccount {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -ge 2 -and !$Password) {
             Throw "Password required"
@@ -3187,10 +3187,10 @@ function Global:New-SgwAccount {
             Write-Warning "Quota and password will be ignored in API Version $( $Server.APIVersion )"
         }
         if ($Server.APIVersion -lt 2 -and $UseAccountIdentitySource.isPresent) {
-            Write-Warning "Use Account Services is only Supported from StorageGRID 10.4"
+            Write-Warning "Use of Account Identity Sources is only supported from StorageGRID 10.4"
         }
         if ($Server.APIVersion -lt 2.1 -and $AllowPlatformServices.isPresent) {
-            Write-Warning "Use Account Services is only Supported from StorageGRID 11.0"
+            Write-Warning "Use of Platform Services is only supported from StorageGRID 11.0"
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3247,15 +3247,15 @@ function Global:New-SgwAccount {
 
 <#
     .SYNOPSIS
-    Delete a StorageGRID Webscale Account
+    Delete a StorageGRID Account
     .DESCRIPTION
-    Delete a StorageGRID Webscale Account
+    Delete a StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to delete.
+    ID of a StorageGRID Account to delete.
 #>
 function Global:Remove-SgwAccount {
     [CmdletBinding()]
@@ -3264,14 +3264,14 @@ function Global:Remove-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to delete.",
+                HelpMessage = "ID of a StorageGRID Account to delete.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$Id
     )
@@ -3283,7 +3283,7 @@ function Global:Remove-SgwAccount {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3292,7 +3292,7 @@ function Global:Remove-SgwAccount {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3316,17 +3316,17 @@ function Global:Remove-SgwAccount {
 
 <#
     .SYNOPSIS
-    Retrieve a StorageGRID Webscale Account
+    Retrieve a StorageGRID Account
     .DESCRIPTION
-    Retrieve a StorageGRID Webscale Account
+    Retrieve a StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to get information for.
+    ID of a StorageGRID Account to get information for.
     .PARAMETER Name
-    Name of a StorageGRID Webscale Account to get information for.
+    Name of a StorageGRID Account to get information for.
 #>
 function Global:Get-SgwAccount {
     [CmdletBinding(DefaultParameterSetName = "id")]
@@ -3335,22 +3335,22 @@ function Global:Get-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
                 ParameterSetName = "id",
-                HelpMessage = "ID of a StorageGRID Webscale Account to get information for.",
+                HelpMessage = "ID of a StorageGRID Account to get information for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("AccountId")][String]$Id,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
                 ParameterSetName = "name",
-                HelpMessage = "Name of a StorageGRID Webscale Account to get information for.",
+                HelpMessage = "Name of a StorageGRID Account to get information for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Name
     )
@@ -3362,7 +3362,7 @@ function Global:Get-SgwAccount {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3371,7 +3371,7 @@ function Global:Get-SgwAccount {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -3411,19 +3411,19 @@ function Global:Get-SgwAccount {
 
 <#
     .SYNOPSIS
-    Update a StorageGRID Webscale Account
+    Update a StorageGRID Account
     .DESCRIPTION
-    Update a StorageGRID Webscale Account
+    Update a StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to update.
+    ID of a StorageGRID Account to update.
     .PARAMETER Capabilities
     Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).
     .PARAMETER Name
-    New name of the StorageGRID Webscale Account.
+    New name of the StorageGRID Account.
     .PARAMETER UseAccountIdentitySource
     Use account identity source (supported since StorageGRID 10.4).
     .PARAMETER AllowPlatformServices
@@ -3438,14 +3438,14 @@ function Global:Update-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                HelpMessage = "ID of a StorageGRID Account to update.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
@@ -3455,7 +3455,7 @@ function Global:Update-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "New name of the StorageGRID Webscale Account.")][String]$Name,
+                HelpMessage = "New name of the StorageGRID Account.")][String]$Name,
         [parameter(
                 Mandatory = $False,
                 Position = 5,
@@ -3477,7 +3477,7 @@ function Global:Update-SgwAccount {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3486,7 +3486,7 @@ function Global:Update-SgwAccount {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
 
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
@@ -3549,19 +3549,19 @@ function Global:Update-SgwAccount {
 
 <#
     .SYNOPSIS
-    Replace a StorageGRID Webscale Account
+    Replace a StorageGRID Account
     .DESCRIPTION
-    Replace a StorageGRID Webscale Account
+    Replace a StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to replace.
+    ID of a StorageGRID Account to replace.
     .PARAMETER Capabilities
     Comma separated list of capabilities of the account. Can be swift, S3 and management (e.g. swift,s3 or s3,management ...).
     .PARAMETER Name
-    New name of the StorageGRID Webscale Account.
+    New name of the StorageGRID Account.
     .PARAMETER UseAccountIdentitySource
     Use account identity source (supported since StorageGRID 10.4).
     .PARAMETER AllowPlatformServices
@@ -3576,14 +3576,14 @@ function Global:Replace-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to replace.",
+                HelpMessage = "ID of a StorageGRID Account to replace.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
@@ -3593,7 +3593,7 @@ function Global:Replace-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "New name of the StorageGRID Webscale Account.")][String]$Name,
+                HelpMessage = "New name of the StorageGRID Account.")][String]$Name,
         [parameter(
                 Mandatory = $False,
                 Position = 5,
@@ -3615,7 +3615,7 @@ function Global:Replace-SgwAccount {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3624,7 +3624,7 @@ function Global:Replace-SgwAccount {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
 
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
@@ -3687,15 +3687,15 @@ function Global:Replace-SgwAccount {
 
 <#
     .SYNOPSIS
-    Change Swift Admin Password for StorageGRID Webscale Account
+    Change Swift Admin Password for StorageGRID Account
     .DESCRIPTION
-    Change Swift Admin Password for StorageGRID Webscale Account
+    Change Swift Admin Password for StorageGRID Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to update.
+    ID of a StorageGRID Account to update.
     .PARAMETER OldPassword
     Old Password.
     .PARAMETER NewPassword
@@ -3708,14 +3708,14 @@ function Global:Update-SgwSwiftAdminPassword {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                HelpMessage = "ID of a StorageGRID Account to update.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
@@ -3735,7 +3735,7 @@ function Global:Update-SgwSwiftAdminPassword {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3744,7 +3744,7 @@ function Global:Update-SgwSwiftAdminPassword {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
             Throw "This Cmdlet is only supported with API Version 1.0. Use the new Update-SgwPassword Cmdlet instead!"
@@ -3778,11 +3778,11 @@ function Global:Update-SgwSwiftAdminPassword {
     .DESCRIPTION
     Changes the root user password for the Storage Tenant Account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to update.
+    ID of a StorageGRID Account to update.
     .PARAMETER OldPassword
     Old Password.
     .PARAMETER NewPassword
@@ -3795,14 +3795,14 @@ function Global:Update-SgwPassword {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to update.",
+                HelpMessage = "ID of a StorageGRID Account to update.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id,
         [parameter(
@@ -3822,7 +3822,7 @@ function Global:Update-SgwPassword {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3831,7 +3831,7 @@ function Global:Update-SgwPassword {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Write-Error "This Cmdlet is only supported with API Version 2.0 and later. Use the old Update-SgwSwiftAdminPassword Cmdlet instead!"
@@ -3861,15 +3861,15 @@ function Global:Update-SgwPassword {
 
 <#
     .SYNOPSIS
-    Retrieve StorageGRID Webscale Account Usage Report
+    Retrieve StorageGRID Account Usage Report
     .DESCRIPTION
-    Retrieve StorageGRID Webscale Account Usage Report
+    Retrieve StorageGRID Account Usage Report
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to get usage information for.
+    ID of a StorageGRID Account to get usage information for.
 #>
 function Global:Get-SgwAccountUsage {
     [CmdletBinding()]
@@ -3878,14 +3878,14 @@ function Global:Get-SgwAccountUsage {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to get usage information for.",
+                HelpMessage = "ID of a StorageGRID Account to get usage information for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$id
     )
@@ -3897,7 +3897,7 @@ function Global:Get-SgwAccountUsage {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3906,7 +3906,7 @@ function Global:Get-SgwAccountUsage {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -3946,13 +3946,13 @@ function Global:Get-SgwAccountUsage {
 
 <#
     .SYNOPSIS
-    Retrieve all StorageGRID Webscale Alarms
+    Retrieve all StorageGRID Alarms
     .DESCRIPTION
-    Retrieve all StorageGRID Webscale Alarms
+    Retrieve all StorageGRID Alarms
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER IncludeAcknowledged
     If set, acknowledged alarms are also returned.
     .PARAMETER Limit
@@ -3964,10 +3964,10 @@ function Global:Get-SgwAlarms {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "If set, acknowledged alarms are also returned.")][Switch]$IncludeAcknowledged,
@@ -3983,7 +3983,7 @@ function Global:Get-SgwAlarms {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -3992,7 +3992,7 @@ function Global:Get-SgwAlarms {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -4026,7 +4026,7 @@ function Global:Get-SgwAlarms {
 
 ## audit ##
 
-# complete as of API 2.2
+# complete as of API 3
 
 <#
     .SYNOPSIS
@@ -4034,9 +4034,9 @@ function Global:Get-SgwAlarms {
     .DESCRIPTION
     Gets the audit configuration
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwAudit {
     [CmdletBinding()]
@@ -4044,10 +4044,10 @@ function Global:Get-SgwAudit {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4057,7 +4057,7 @@ function Global:Get-SgwAudit {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4066,7 +4066,7 @@ function Global:Get-SgwAudit {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -4103,9 +4103,9 @@ function Global:Get-SgwAudit {
     .DESCRIPTION
     Replace the audit configuration
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER LevelSystem
     Audit log level for system.
     .PARAMETER LevelStorage
@@ -4123,10 +4123,10 @@ function Global:Replace-SgwAudit {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Audit log level for system.",
@@ -4161,7 +4161,7 @@ function Global:Replace-SgwAudit {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4170,7 +4170,7 @@ function Global:Replace-SgwAudit {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -4213,25 +4213,25 @@ function Global:Replace-SgwAudit {
 
 ## auth ##
 
-# complete as of API 2.2
+# complete as of API 3
 
 <#
     .SYNOPSIS
-    Connect to StorageGRID Webscale Management Server
+    Connect to StorageGRID admin node
     .DESCRIPTION
-    Connect to StorageGRID Webscale Management Server
+    Connect to StorageGRID admin node
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
-    The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
+    The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.
     .PARAMETER Credential
-    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.
+    A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.
     .PARAMETER SkipCertificateCheck
-    If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.
+    If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.
     .PARAMETER Transient
-    If set the global variable `$CurrentOciServer will not be set and the Server must be explicitly specified for all Cmdlets.
+    If set the global variable `$CurrentSgwServer will not be set and the Server must be explicitly specified for all Cmdlets.
     .PARAMETER AccountId
-    Account ID of the StorageGRID Webscale tenant to connect to.
+    Account ID of the StorageGRID tenant to connect to.
     .PARAMETER DisableAutomaticAccessKeyGeneration
     By default StorageGRID automatically generates S3 Access Keys if required to carry out S3 operations. With this switch, automatic S3 Access Key generation will not be done.
     .PARAMETER TemporaryAccessKeyExpirationTime
@@ -4241,7 +4241,7 @@ function Global:Replace-SgwAudit {
     .PARAMETER SwiftEndpointUrl
     Swift Endpoint URL to be used.
     .EXAMPLE
-    Minimum required information to connect with a StorageGRID Webscale Admin Node
+    Minimum required information to connect with a StorageGRID Admin Node
 
     $Name = "admin-node.example.org"
     $Credential = Get-Credential
@@ -4259,7 +4259,7 @@ function Global:Replace-SgwAudit {
     $Credential = Get-Credential"
     Connect-SgwServer -Name $Name -Credential $Credential -Transient
     .EXAMPLE
-    Connect as StorageGRID Webscale tenant
+    Connect as StorageGRID tenant
 
     $Name = "admin-node.example.org"
     $Credential = Get-Credential
@@ -4274,37 +4274,37 @@ function global:Connect-SgwServer {
                 Mandatory = $False,
                 Position = 0,
                 ParameterSetName="profile",
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName="default",
         [parameter(
                 Mandatory = $True,
                 Position = 1,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName="name",
-                HelpMessage = "The name of the StorageGRID Webscale Management Server. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
+                HelpMessage = "The name of the StorageGRID admin node. This value may also be a string representation of an IP address. If not an address, the name must be resolvable to an address.")][String]$Name,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
                 ParameterSetName="name",
-                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID Webscale Management Server.")][System.Management.Automation.PSCredential]$Credential,
+                HelpMessage = "A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.")][System.Management.Automation.PSCredential]$Credential,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "If the StorageGRID Webscale Management Server certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID Webscale Management Server certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
+                HelpMessage = "If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.")][Alias("Insecure")][Switch]$SkipCertificateCheck,
         [parameter(
                 Mandatory = $False,
                 Position = 4,
-                HelpMessage = "Specify -Transient to not set the global variable `$CurrentOciServer.")][Switch]$Transient,
+                HelpMessage = "Specify -Transient to not set the global variable `$CurrentSgwServer.")][Switch]$Transient,
         [parameter(
                 Mandatory = $False,
                 Position = 5,
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Account ID of the StorageGRID Webscale tenant to connect to.")][String]$AccountId,
+                HelpMessage = "Account ID of the StorageGRID tenant to connect to.")][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
@@ -4365,10 +4365,10 @@ function global:Connect-SgwServer {
             $ProxyRegistry = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
             $ProxySettings = Get-ItemProperty -Path $ProxyRegistry
             if ($ProxySettings.ProxyEnable) {
-                Write-Warning "Proxy Server $( $ProxySettings.ProxyServer ) configured in Internet Explorer may be used to connect to the OCI server!"
+                Write-Warning "Proxy Server $( $ProxySettings.ProxyServer ) configured in Internet Explorer may be used to connect to the StorageGRID server!"
             }
             if ($ProxySettings.AutoConfigURL) {
-                Write-Warning "Proxy Server defined in automatic proxy configuration script $( $ProxySettings.AutoConfigURL ) configured in Internet Explorer may be used to connect to the OCI server!"
+                Write-Warning "Proxy Server defined in automatic proxy configuration script $( $ProxySettings.AutoConfigURL ) configured in Internet Explorer may be used to connect to the StorageGRID server!"
             }
         }
 
@@ -4523,11 +4523,11 @@ function global:Connect-SgwServer {
 
 <#
     .SYNOPSIS
-    Disconnect to StorageGRID Webscale Management Server
+    Disconnect from StorageGRID admin node
     .DESCRIPTION
-    Disconnect to StorageGRID Webscale Management Server
+    Disconnect to StorageGRID admin node
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
 #>
 function global:Disconnect-SgwServer {
     [CmdletBinding()]
@@ -4536,7 +4536,7 @@ function global:Disconnect-SgwServer {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
+                HelpMessage = "StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server
     )
 
     Begin {
@@ -4545,7 +4545,7 @@ function global:Disconnect-SgwServer {
             Remove-Variable -Name CurrentSgwServer -Scope Global
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -4567,7 +4567,7 @@ function global:Disconnect-SgwServer {
 
 ## compliance ##
 
-# complete as of API 2.2
+# complete as of API 3.0
 
 <#
     .SYNOPSIS
@@ -4575,9 +4575,9 @@ function global:Disconnect-SgwServer {
     .DESCRIPTION
     Retrieves the global compliance settings
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwCompliance {
     [CmdletBinding()]
@@ -4585,10 +4585,10 @@ function Global:Get-SgwCompliance {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4598,7 +4598,7 @@ function Global:Get-SgwCompliance {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4607,7 +4607,7 @@ function Global:Get-SgwCompliance {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.2) {
             Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
@@ -4642,9 +4642,9 @@ function Global:Get-SgwCompliance {
     .DESCRIPTION
     Enable Grid wide compliance
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Enable-SgwCompliance {
     [CmdletBinding()]
@@ -4652,10 +4652,10 @@ function Global:Enable-SgwCompliance {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4665,7 +4665,7 @@ function Global:Enable-SgwCompliance {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4674,7 +4674,7 @@ function Global:Enable-SgwCompliance {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -4712,7 +4712,7 @@ function Global:Enable-SgwCompliance {
 
 ## config ##
 
-# complete as of API 2.2
+# complete as of API 3.0
 
 <#
     .SYNOPSIS
@@ -4720,9 +4720,9 @@ function Global:Enable-SgwCompliance {
     .DESCRIPTION
     Retrieves global configuration and token information
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwConfig {
     [CmdletBinding()]
@@ -4730,10 +4730,10 @@ function Global:Get-SgwConfig {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4743,7 +4743,7 @@ function Global:Get-SgwConfig {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4752,7 +4752,7 @@ function Global:Get-SgwConfig {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -4784,9 +4784,9 @@ function Global:Get-SgwConfig {
     .DESCRIPTION
     Retrieves the global management API and UI configuration
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwConfigManagement {
     [CmdletBinding()]
@@ -4794,10 +4794,10 @@ function Global:Get-SgwConfigManagement {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4807,7 +4807,7 @@ function Global:Get-SgwConfigManagement {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4816,7 +4816,7 @@ function Global:Get-SgwConfigManagement {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "Cmdlet not supported on server with API Version less than 2.0"
@@ -4848,9 +4848,9 @@ function Global:Get-SgwConfigManagement {
     .DESCRIPTION
     Changes the global management API and UI configuration
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER MinApiVersion
     Minimum API Version.
 #>
@@ -4860,10 +4860,10 @@ function Global:Update-SgwConfigManagement {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Minimum API Version.")][Int][ValidateSet(1, 2)]$MinApiVersion
@@ -4877,7 +4877,7 @@ function Global:Update-SgwConfigManagement {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4886,7 +4886,7 @@ function Global:Update-SgwConfigManagement {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "Cmdlet not supported on server with API Version less than 2.0"
@@ -4922,9 +4922,9 @@ function Global:Update-SgwConfigManagement {
     .DESCRIPTION
     Retrieve StorageGRID Product Version
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwProductVersion {
     [CmdletBinding()]
@@ -4932,10 +4932,10 @@ function Global:Get-SgwProductVersion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -4945,7 +4945,7 @@ function Global:Get-SgwProductVersion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -4954,7 +4954,7 @@ function Global:Get-SgwProductVersion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -4986,9 +4986,9 @@ function Global:Get-SgwProductVersion {
     .DESCRIPTION
     Retrieves the current API version of the management API
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwVersion {
     [CmdletBinding()]
@@ -4996,10 +4996,10 @@ function Global:Get-SgwVersion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -5009,7 +5009,7 @@ function Global:Get-SgwVersion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5018,7 +5018,7 @@ function Global:Get-SgwVersion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -5052,9 +5052,9 @@ function Global:Get-SgwVersion {
     .DESCRIPTION
     Retrieves the major versions of the management API supported by the product release
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwVersions {
     [CmdletBinding()]
@@ -5062,10 +5062,10 @@ function Global:Get-SgwVersions {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -5075,7 +5075,7 @@ function Global:Get-SgwVersions {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5084,7 +5084,7 @@ function Global:Get-SgwVersions {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -5115,9 +5115,9 @@ Set-Alias -Name Get-SgwBucketOwner -Value Get-SgwContainerOwner
     .DESCRIPTION
     Retrieves the Owner of an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Swift Container or S3 Bucket name.
 #>
@@ -5127,10 +5127,10 @@ function Global:Get-SgwContainerOwner {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -5145,7 +5145,7 @@ function Global:Get-SgwContainerOwner {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5154,7 +5154,7 @@ function Global:Get-SgwContainerOwner {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -5178,9 +5178,9 @@ Set-Alias -Name Get-SgwBuckets -Value Get-SgwContainers
     .DESCRIPTION
     Lists the S3 buckets or Swift containers for a tenant account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwContainers {
     [CmdletBinding()]
@@ -5188,10 +5188,10 @@ function Global:Get-SgwContainers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Include complaince and / or region information in response.")][ValidateSet("compliance","region")][String[]]$Include
@@ -5204,7 +5204,7 @@ function Global:Get-SgwContainers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5213,7 +5213,7 @@ function Global:Get-SgwContainers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5257,9 +5257,9 @@ Set-Alias -Name New-SgwBucket -Value New-SgwContainer
     .DESCRIPTION
     Create a bucket for an S3 tenant account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:New-SgwContainer {
     [CmdletBinding()]
@@ -5267,10 +5267,10 @@ function Global:New-SgwContainer {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -5305,7 +5305,7 @@ function Global:New-SgwContainer {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5314,7 +5314,7 @@ function Global:New-SgwContainer {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.2) {
             Throw "Managing Containers is only Supported from StorageGRID 11.1"
@@ -5364,9 +5364,9 @@ Set-Alias -Name Get-SgwBucketCompliance -Value Get-SgwContainerCompliance
     .DESCRIPTION
     Gets the compliance settings for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Swift Container or S3 Bucket name.
 #>
@@ -5376,10 +5376,10 @@ function Global:Get-SgwContainerCompliance {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -5394,7 +5394,7 @@ function Global:Get-SgwContainerCompliance {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5403,7 +5403,7 @@ function Global:Get-SgwContainerCompliance {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.2) {
             Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
@@ -5438,9 +5438,9 @@ Set-Alias -Name Update-SgwBucketCompliance -Value Update-SgwContainerCompliance
     .DESCRIPTION
     Update the compliance settings for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Swift Container or S3 Bucket name.
     .PARAMETER AutoDelete
@@ -5456,10 +5456,10 @@ function Global:Update-SgwContainerCompliance {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -5489,7 +5489,7 @@ function Global:Update-SgwContainerCompliance {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5498,7 +5498,7 @@ function Global:Update-SgwContainerCompliance {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.2) {
             Throw "Managing Container Compliance is only Supported from StorageGRID 11.1"
@@ -5541,9 +5541,9 @@ Set-Alias -Name Get-SgwBucketConsistency -Value Get-SgwContainerConsistency
     .DESCRIPTION
     Gets the consistency level for an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Swift Container or S3 Bucket name.
 #>
@@ -5553,10 +5553,10 @@ function Global:Get-SgwContainerConsistency {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -5571,7 +5571,7 @@ function Global:Get-SgwContainerConsistency {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5580,7 +5580,7 @@ function Global:Get-SgwContainerConsistency {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5615,9 +5615,9 @@ Set-Alias -Name Update-SgwBucketConsistency -Value Update-SgwContainerConsistenc
     .DESCRIPTION
     Updates the consistency level for an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Swift Container or S3 Bucket name.
     .PARAMETER Consistency
@@ -5629,10 +5629,10 @@ function Global:Update-SgwContainerConsistency {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -5650,7 +5650,7 @@ function Global:Update-SgwContainerConsistency {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5659,7 +5659,7 @@ function Global:Update-SgwContainerConsistency {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5697,9 +5697,9 @@ Set-Alias -Name Get-SgwBucketLastAccessTime -Value Get-SgwContainerLastAccessTim
     .DESCRIPTION
     Determines if last access time is enabled for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -5709,10 +5709,10 @@ function Global:Get-SgwContainerLastAccessTime {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -5727,7 +5727,7 @@ function Global:Get-SgwContainerLastAccessTime {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5736,7 +5736,7 @@ function Global:Get-SgwContainerLastAccessTime {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5771,9 +5771,9 @@ Set-Alias -Name Enable-SgwBucketLastAccessTime -Value Enable-SgwContainerLastAcc
     .DESCRIPTION
     Enables last access time updates for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -5783,10 +5783,10 @@ function Global:Enable-SgwContainerLastAccessTime {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -5801,7 +5801,7 @@ function Global:Enable-SgwContainerLastAccessTime {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5810,7 +5810,7 @@ function Global:Enable-SgwContainerLastAccessTime {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5848,9 +5848,9 @@ Set-Alias -Name Disable-SgwBucketLastAccessTime -Value Disable-SgwContainerLastA
     .DESCRIPTION
     Disables last access time updates for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -5860,10 +5860,10 @@ function Global:Disable-SgwContainerLastAccessTime {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -5878,7 +5878,7 @@ function Global:Disable-SgwContainerLastAccessTime {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5887,7 +5887,7 @@ function Global:Disable-SgwContainerLastAccessTime {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -5927,9 +5927,9 @@ Set-Alias -Name Get-SgwContainerMetadataNotificationRules -Value Get-SgwContaine
     .DESCRIPTION
     Gets the metadata notification (search) configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -5939,10 +5939,10 @@ function Global:Get-SgwContainerMetadataNotification {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -5957,7 +5957,7 @@ function Global:Get-SgwContainerMetadataNotification {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -5966,7 +5966,7 @@ function Global:Get-SgwContainerMetadataNotification {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6005,9 +6005,9 @@ Set-Alias -Name Remove-SgwBucketMetadataNotification -Value Remove-SgwContainerM
     .DESCRIPTION
     Removes the metadata notification (search) configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -6017,10 +6017,10 @@ function Global:Remove-SgwContainerMetadataNotification {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -6035,7 +6035,7 @@ function Global:Remove-SgwContainerMetadataNotification {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6044,7 +6044,7 @@ function Global:Remove-SgwContainerMetadataNotification {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6132,7 +6132,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6141,7 +6141,7 @@ function Global:Add-SgwContainerMetadataNotificationRule {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6212,9 +6212,9 @@ Set-Alias -Name Remove-SgwBucketMetadataNotificationRule -Value Remove-SgwContai
     .DESCRIPTION
     Removes a rule for metadata notification (search) configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -6226,10 +6226,10 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -6249,7 +6249,7 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6258,7 +6258,7 @@ function Global:Remove-SgwContainerMetadataNotificationRule {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6318,9 +6318,9 @@ Set-Alias -Name Get-SgwContainerNotificationTopics -Value Get-SgwContainerNotifi
     .DESCRIPTION
     Gets the notification configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -6330,10 +6330,10 @@ function Global:Get-SgwContainerNotification {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -6348,7 +6348,7 @@ function Global:Get-SgwContainerNotification {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6357,7 +6357,7 @@ function Global:Get-SgwContainerNotification {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6397,9 +6397,9 @@ Set-Alias -Name Remove-SgwBucketNotification -Value Remove-SgwContainerNotificat
     .DESCRIPTION
     Remove the notification configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -6409,10 +6409,10 @@ function Global:Remove-SgwContainerNotification {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -6427,7 +6427,7 @@ function Global:Remove-SgwContainerNotification {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6436,7 +6436,7 @@ function Global:Remove-SgwContainerNotification {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6472,9 +6472,9 @@ Set-Alias -Name Add-SgwContainerNotificationRule -Value Add-SgwContainerNotifica
     .DESCRIPTION
     Add a topic to the notification configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -6494,10 +6494,10 @@ function Global:Add-SgwContainerNotificationTopic {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -6529,7 +6529,7 @@ function Global:Add-SgwContainerNotificationTopic {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6538,7 +6538,7 @@ function Global:Add-SgwContainerNotificationTopic {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6665,7 +6665,7 @@ function Global:Remove-SgwContainerNotificationTopic {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6748,9 +6748,9 @@ Set-Alias -Name Get-SgwContainerReplicationRules -Value Get-SgwContainerReplicat
     .DESCRIPTION
     Gets the replication configuration for an S3 bucket
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -6760,10 +6760,10 @@ function Global:Get-SgwContainerReplication {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -6778,7 +6778,7 @@ function Global:Get-SgwContainerReplication {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6787,7 +6787,7 @@ function Global:Get-SgwContainerReplication {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6826,9 +6826,9 @@ Set-Alias -Name Remove-SgwBucketReplication -Value Remove-SgwContainerReplicatio
     .DESCRIPTION
     Removes the replication configuration for an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
 #>
@@ -6838,10 +6838,10 @@ function Global:Remove-SgwContainerReplication {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "S3 Bucket name.",
@@ -6856,7 +6856,7 @@ function Global:Remove-SgwContainerReplication {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6865,7 +6865,7 @@ function Global:Remove-SgwContainerReplication {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -6901,9 +6901,9 @@ Set-Alias -Name Add-SgwBucketReplicationRule -Value Add-SgwContainerReplicationR
     .DESCRIPTION
     Adds a replication configuration rule for an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -6927,10 +6927,10 @@ function Global:Add-SgwContainerReplicationRule {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name to be replicated.",
@@ -6970,7 +6970,7 @@ function Global:Add-SgwContainerReplicationRule {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -6979,7 +6979,7 @@ function Global:Add-SgwContainerReplicationRule {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Containers is only Supported from StorageGRID 11.0"
@@ -7058,9 +7058,9 @@ Set-Alias -Name Remove-SgwBucketReplicationRule -Value Remove-SgwContainerReplic
     .DESCRIPTION
     Removes a replication configuration rule for an S3 bucket or Swift container
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     S3 Bucket name.
     .PARAMETER Id
@@ -7072,10 +7072,10 @@ function Global:Remove-SgwContainerReplicationRule {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Swift Container or S3 Bucket name.",
@@ -7095,7 +7095,7 @@ function Global:Remove-SgwContainerReplicationRule {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7230,9 +7230,9 @@ function Global:Get-SgwDeactivatedFeatures {
     .DESCRIPTION
     Deactivates specific features. If no feature is selected, all features will be enabled again.
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER AlarmAcknowledgment
     Deactivate ability to acknowledge alarms.
     .PARAMETER OtherGridConfiguration
@@ -7266,10 +7266,10 @@ function Global:Update-SgwDeactivatedFeatures {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Deactivate ability to acknowledge alarms.")][Boolean]$AlarmAcknowledgment,
@@ -7318,7 +7318,7 @@ function Global:Update-SgwDeactivatedFeatures {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7327,7 +7327,7 @@ function Global:Update-SgwDeactivatedFeatures {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2) {
             Throw "This Cmdlet is only supported for API Version 2.0 and above"
@@ -7767,9 +7767,9 @@ function Global:Get-SgwDnsServers {
     .DESCRIPTION
     Retrieve StorageGRID DNS Servers
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER DnsServers
     List of IP addresses of the external DNS servers.
 #>
@@ -7779,10 +7779,10 @@ function Global:Replace-SgwDnsServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of IP addresses of the external DNS servers.")][String[]]$DnsServers
@@ -7795,7 +7795,7 @@ function Global:Replace-SgwDnsServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7804,7 +7804,7 @@ function Global:Replace-SgwDnsServers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -7841,9 +7841,9 @@ function Global:Replace-SgwDnsServers {
     .DESCRIPTION
     Gets the list of endpoints
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwEndpoints {
     [CmdletBinding()]
@@ -7851,10 +7851,10 @@ function Global:Get-SgwEndpoints {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -7864,7 +7864,7 @@ function Global:Get-SgwEndpoints {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7873,7 +7873,7 @@ function Global:Get-SgwEndpoints {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
@@ -7906,9 +7906,9 @@ Set-Alias -Name New-SgwEndpoint -Value Add-SgwEndpoint
     .DESCRIPTION
     Creates a new endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER DisplayName
     Display Name of Endpoint.
     .PARAMETER EndpointUri
@@ -7934,10 +7934,10 @@ function Global:Add-SgwEndpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
@@ -7974,7 +7974,7 @@ function Global:Add-SgwEndpoint {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -7983,7 +7983,7 @@ function Global:Add-SgwEndpoint {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
@@ -8048,9 +8048,9 @@ Set-Alias -Name Remove-SgwEsEndpoint -Value Remove-SgwEndpoint
     .DESCRIPTION
     Deletes a single endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
 #>
@@ -8060,10 +8060,10 @@ function Global:Remove-SgwEndpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -8078,7 +8078,7 @@ function Global:Remove-SgwEndpoint {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8087,7 +8087,7 @@ function Global:Remove-SgwEndpoint {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
@@ -8122,9 +8122,9 @@ Set-Alias -Name Get-SgwEsEndpoint -Value Get-SgwEndpoint
     .DESCRIPTION
     Retrieves a single endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
 #>
@@ -8134,10 +8134,10 @@ function Global:Get-SgwEndpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -8152,7 +8152,7 @@ function Global:Get-SgwEndpoint {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8161,7 +8161,7 @@ function Global:Get-SgwEndpoint {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
@@ -8193,9 +8193,9 @@ function Global:Get-SgwEndpoint {
     .DESCRIPTION
     Replaces a single endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
     .PARAMETER DisplayName
@@ -8229,10 +8229,10 @@ function Global:Update-SgwEndpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -8396,7 +8396,7 @@ function Global:Update-SgwEndpoint {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8405,7 +8405,7 @@ function Global:Update-SgwEndpoint {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -lt 2.1) {
             Throw "Managing Endpoints is only Supported from StorageGRID 11.0"
@@ -8491,9 +8491,9 @@ function Global:Update-SgwEndpoint {
     .DESCRIPTION
     Gets the list of S3 endpoints
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwS3Endpoints {
     [CmdletBinding()]
@@ -8501,10 +8501,10 @@ function Global:Get-SgwS3Endpoints {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Process {
@@ -8519,9 +8519,9 @@ Set-Alias -Name New-SgwS3Endpoint -Value Add-SgwS3Endpoint
     .DESCRIPTION
     Creates a new S3 endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER DisplayName
     Display Name of Endpoint.
     .PARAMETER Region
@@ -8547,10 +8547,10 @@ function Global:Add-SgwS3Endpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Display Name of Endpoint.")][String]$DisplayName,
@@ -8575,11 +8575,11 @@ function Global:Add-SgwS3Endpoint {
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndName",
-                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "NameOnly",
-                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$S3Profile = "default",
+                HelpMessage = "StorageGRID profile which has credentials and region to be used for this endpoint.")][String]$S3Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 7,
                 ParameterSetName = "RegionAndName",
@@ -8654,9 +8654,9 @@ function Global:Add-SgwS3Endpoint {
     .DESCRIPTION
     Update S3 endpoint
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
     .PARAMETER DisplayName
@@ -8684,10 +8684,10 @@ function Global:Add-SgwS3Endpoint {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
@@ -8717,11 +8717,11 @@ function Global:Add-SgwS3Endpoint {
         [parameter(Mandatory = $False,
                 Position = 8,
                 ParameterSetName = "RegionAndName",
-                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")]
+                HelpMessage = "StorageGRID profile which has credentials and region to be used for this endpoint.")]
         [parameter(Mandatory = $False,
                 Position = 8,
                 ParameterSetName = "NameOnly",
-                HelpMessage = "StorageGRID Profile which has credentials and region to be used for this endpoint.")][String]$S3Profile = "default",
+                HelpMessage = "StorageGRID profile which has credentials and region to be used for this endpoint.")][String]$S3Profile = "default",
         [parameter(Mandatory = $False,
                 Position = 8,
                 ParameterSetName = "RegionAndName",
@@ -8800,9 +8800,9 @@ function Global:Add-SgwS3Endpoint {
     .DESCRIPTION
     Lists endpoint domain names
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwEndpointDomainNames {
     [CmdletBinding()]
@@ -8810,10 +8810,10 @@ function Global:Get-SgwEndpointDomainNames {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -8823,7 +8823,7 @@ function Global:Get-SgwEndpointDomainNames {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8832,7 +8832,7 @@ function Global:Get-SgwEndpointDomainNames {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -8863,9 +8863,9 @@ Set-Alias -Name New-SgwEndpointDomainNames -Value Set-SgwEndpointDomainNames
     .DESCRIPTION
     Change the endpoint domain names
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER EndpointDomainNames
     List of DNS names to be used as S3/Swift endpoints.
 #>
@@ -8875,10 +8875,10 @@ function Global:Set-SgwEndpointDomainNames {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String[]]$EndpointDomainNames
@@ -8891,7 +8891,7 @@ function Global:Set-SgwEndpointDomainNames {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8900,7 +8900,7 @@ function Global:Set-SgwEndpointDomainNames {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -8931,9 +8931,9 @@ function Global:Set-SgwEndpointDomainNames {
     .DESCRIPTION
     Add an endpoint domain name
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER EndpointDomainName
     DNS name to be used as S3/Swift endpoints.
 #>
@@ -8943,10 +8943,10 @@ function Global:Add-SgwEndpointDomainName {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
@@ -8959,7 +8959,7 @@ function Global:Add-SgwEndpointDomainName {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -8968,7 +8968,7 @@ function Global:Add-SgwEndpointDomainName {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -8989,9 +8989,9 @@ function Global:Add-SgwEndpointDomainName {
     .DESCRIPTION
     Remove an endpoint domain name
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER EndpointDomainName
     DNS Endpoint to be removed.
 #>
@@ -9001,10 +9001,10 @@ function Global:Remove-SgwEndpointDomainName {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of DNS names to be used as S3/Swift endpoints.")][String]$EndpointDomainName
@@ -9017,7 +9017,7 @@ function Global:Remove-SgwEndpointDomainName {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9026,7 +9026,7 @@ function Global:Remove-SgwEndpointDomainName {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9051,9 +9051,9 @@ function Global:Remove-SgwEndpointDomainName {
     .DESCRIPTION
     Lists Erasure Coding profiles
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwEcProfiles {
     [CmdletBinding()]
@@ -9061,10 +9061,10 @@ function Global:Get-SgwEcProfiles {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9074,7 +9074,7 @@ function Global:Get-SgwEcProfiles {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9083,7 +9083,7 @@ function Global:Get-SgwEcProfiles {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9114,9 +9114,9 @@ function Global:Get-SgwEcProfiles {
     .DESCRIPTION
     Lists Erasure Coding schemes
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwEcSchemes {
     [CmdletBinding()]
@@ -9124,10 +9124,10 @@ function Global:Get-SgwEcSchemes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9137,7 +9137,7 @@ function Global:Get-SgwEcSchemes {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9146,7 +9146,7 @@ function Global:Get-SgwEcSchemes {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9179,9 +9179,9 @@ function Global:Get-SgwEcSchemes {
     .DESCRIPTION
     Cancels the expansion procedure and resets all user configuration of expansion grid nodes
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Stop-SgwExpansion {
     [CmdletBinding()]
@@ -9189,10 +9189,10 @@ function Global:Stop-SgwExpansion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9202,7 +9202,7 @@ function Global:Stop-SgwExpansion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9211,7 +9211,7 @@ function Global:Stop-SgwExpansion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9240,9 +9240,9 @@ function Global:Stop-SgwExpansion {
     .DESCRIPTION
     Retrieves the status of the current expansion procedure
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwExpansion {
     [CmdletBinding()]
@@ -9250,10 +9250,10 @@ function Global:Get-SgwExpansion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9263,7 +9263,7 @@ function Global:Get-SgwExpansion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9272,7 +9272,7 @@ function Global:Get-SgwExpansion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9301,9 +9301,9 @@ function Global:Get-SgwExpansion {
     .DESCRIPTION
     Initiates the expansion procedure, allowing configuration of the expansion grid nodes
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Start-SgwExpansion {
     [CmdletBinding()]
@@ -9311,10 +9311,10 @@ function Global:Start-SgwExpansion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9324,7 +9324,7 @@ function Global:Start-SgwExpansion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9333,7 +9333,7 @@ function Global:Start-SgwExpansion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9362,9 +9362,9 @@ function Global:Start-SgwExpansion {
     .DESCRIPTION
     Executes the expansion procedure, adding configured grid nodes to the grid
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Passphrase
     StorageGRID Passphrase
 #>
@@ -9374,10 +9374,10 @@ function Global:Invoke-SgwExpansion {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase
@@ -9390,7 +9390,7 @@ function Global:Invoke-SgwExpansion {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9399,7 +9399,7 @@ function Global:Invoke-SgwExpansion {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9434,9 +9434,9 @@ function Global:Invoke-SgwExpansion {
     .DESCRIPTION
     Retrieves the list of grid nodes available for expansion
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwExpansionNodes {
     [CmdletBinding()]
@@ -9444,10 +9444,10 @@ function Global:Get-SgwExpansionNodes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9457,7 +9457,7 @@ function Global:Get-SgwExpansionNodes {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9466,7 +9466,7 @@ function Global:Get-SgwExpansionNodes {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9511,9 +9511,9 @@ function Global:Get-SgwExpansionNodes {
     .DESCRIPTION
     Retrieves a grid node eligbible for expansion
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ID of a StorageGRID node eligible for expansion.
 #>
@@ -9523,10 +9523,10 @@ function Global:Get-SgwExpansionNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -9542,7 +9542,7 @@ function Global:Get-SgwExpansionNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9551,7 +9551,7 @@ function Global:Get-SgwExpansionNode {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9596,9 +9596,9 @@ function Global:Get-SgwExpansionNode {
     .DESCRIPTION
     Configures a grid node expansion
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:New-SgwExpansionNode {
     [CmdletBinding()]
@@ -9606,10 +9606,10 @@ function Global:New-SgwExpansionNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -9699,7 +9699,7 @@ function Global:New-SgwExpansionNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9708,7 +9708,7 @@ function Global:New-SgwExpansionNode {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9784,9 +9784,9 @@ function Global:New-SgwExpansionNode {
     .DESCRIPTION
     Removes a grid node from all procedures; the grid node may be added back in by rebooting it
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ID of a StorageGRID node eligible for expansion.
 #>
@@ -9796,14 +9796,14 @@ function Global:Remove-SgwExpansionNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale node to remove from expansion.",
+                HelpMessage = "ID of a StorageGRID node to remove from expansion.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$id
     )
@@ -9815,7 +9815,7 @@ function Global:Remove-SgwExpansionNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9824,7 +9824,7 @@ function Global:Remove-SgwExpansionNode {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9853,9 +9853,9 @@ function Global:Remove-SgwExpansionNode {
     .DESCRIPTION
     Resets a grid node's configuration and returns it back to pending state
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ID of a StorageGRID node eligible for expansion.
 #>
@@ -9865,10 +9865,10 @@ function Global:Reset-SgwExpansionNode {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -9884,7 +9884,7 @@ function Global:Reset-SgwExpansionNode {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9893,7 +9893,7 @@ function Global:Reset-SgwExpansionNode {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9926,9 +9926,9 @@ function Global:Reset-SgwExpansionNode {
     .DESCRIPTION
     Retrieves the list of existing and new sites (empty until expansion is started)
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwExpansionSites {
     [CmdletBinding()]
@@ -9936,10 +9936,10 @@ function Global:Get-SgwExpansionSites {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -9949,7 +9949,7 @@ function Global:Get-SgwExpansionSites {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -9958,7 +9958,7 @@ function Global:Get-SgwExpansionSites {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -9987,9 +9987,9 @@ function Global:Get-SgwExpansionSites {
     .DESCRIPTION
     Adds a new site
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     Name of the new site
 #>
@@ -9999,10 +9999,10 @@ function Global:New-SgwExpansionSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -10018,7 +10018,7 @@ function Global:New-SgwExpansionSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10027,7 +10027,7 @@ function Global:New-SgwExpansionSite {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10058,11 +10058,11 @@ function Global:New-SgwExpansionSite {
     .DESCRIPTION
     Delete a site
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale site to remove from expansion.
+    ID of a StorageGRID site to remove from expansion.
 #>
 function Global:Remove-SgwExpansionSite {
     [CmdletBinding()]
@@ -10070,14 +10070,14 @@ function Global:Remove-SgwExpansionSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale site to remove from expansion.",
+                HelpMessage = "ID of a StorageGRID site to remove from expansion.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
@@ -10089,7 +10089,7 @@ function Global:Remove-SgwExpansionSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10098,7 +10098,7 @@ function Global:Remove-SgwExpansionSite {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10127,11 +10127,11 @@ function Global:Remove-SgwExpansionSite {
     .DESCRIPTION
     Retrieve a site
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale site.
+    ID of a StorageGRID site.
 #>
 function Global:Get-SgwExpansionSite {
     [CmdletBinding()]
@@ -10139,14 +10139,14 @@ function Global:Get-SgwExpansionSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale site.",
+                HelpMessage = "ID of a StorageGRID site.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$id
     )
@@ -10158,7 +10158,7 @@ function Global:Get-SgwExpansionSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10167,7 +10167,7 @@ function Global:Get-SgwExpansionSite {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10196,9 +10196,9 @@ function Global:Get-SgwExpansionSite {
     .DESCRIPTION
     Updates the details of a site
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ID of a StorageGRID site to be updated.
     .PARAMETER NewId
@@ -10212,10 +10212,10 @@ function Global:Update-SgwExpansionSite {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -10237,7 +10237,7 @@ function Global:Update-SgwExpansionSite {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10246,7 +10246,7 @@ function Global:Update-SgwExpansionSite {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10292,9 +10292,9 @@ function Global:Update-SgwExpansionSite {
     .DESCRIPTION
     Lists the current Grid Networks
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwGridNetworks {
     [CmdletBinding()]
@@ -10302,10 +10302,10 @@ function Global:Get-SgwGridNetworks {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -10315,7 +10315,7 @@ function Global:Get-SgwGridNetworks {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10324,7 +10324,7 @@ function Global:Get-SgwGridNetworks {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10353,9 +10353,9 @@ function Global:Get-SgwGridNetworks {
     .DESCRIPTION
     Change the Grid Network list
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Subnets
     List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).
     .PARAMETER Passphrase
@@ -10367,10 +10367,10 @@ function Global:Update-SgwGridNetworks {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "List of grid network Subnets in CIDR format (e.g. 10.0.0.0/16).")][String[]]$Subnets,
@@ -10386,7 +10386,7 @@ function Global:Update-SgwGridNetworks {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10395,7 +10395,7 @@ function Global:Update-SgwGridNetworks {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -10433,9 +10433,9 @@ function Global:Update-SgwGridNetworks {
     .DESCRIPTION
     List Groups
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Type
     Filter by group type.
     .PARAMETER Limit
@@ -10454,10 +10454,10 @@ function Global:Get-SgwGroups {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Filter by group type.")][ValidateSet("local","federated")][String]$Type,
@@ -10482,7 +10482,7 @@ function Global:Get-SgwGroups {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10491,7 +10491,7 @@ function Global:Get-SgwGroups {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -10553,9 +10553,9 @@ function Global:Get-SgwGroups {
     .DESCRIPTION
     Creates a new Group
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER DisplayName
     The human-readable name for the Group (required for local Groups and imported automatically for federated Groups).
     .PARAMETER Type
@@ -10604,10 +10604,10 @@ function Global:New-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
@@ -10697,7 +10697,7 @@ function Global:New-SgwGroup {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10706,7 +10706,7 @@ function Global:New-SgwGroup {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -10820,9 +10820,9 @@ function Global:New-SgwGroup {
     .DESCRIPTION
     Retrieves a local Grid Administrator Group by unique name
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER ShortName
     Short name of the group to retrieve.
 #>
@@ -10833,10 +10833,10 @@ function Global:Get-SgwGroupByShortName {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
@@ -10850,7 +10850,7 @@ function Global:Get-SgwGroupByShortName {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10859,7 +10859,7 @@ function Global:Get-SgwGroupByShortName {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -10897,9 +10897,9 @@ function Global:Get-SgwGroupByShortName {
     .DESCRIPTION
     Retrieves a federated Grid Administrator Group by unique name
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER ShortName
     Short name of the federated group to retrieve.
 #>
@@ -10910,10 +10910,10 @@ function Global:Get-SgwFederatedGroupByShortName {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
@@ -10927,7 +10927,7 @@ function Global:Get-SgwFederatedGroupByShortName {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -10936,7 +10936,7 @@ function Global:Get-SgwFederatedGroupByShortName {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -10973,11 +10973,11 @@ New-Alias -Name Delete-SgwGroup -Value Remove-SgwGroup
     .DESCRIPTION
     Deletes a single Group
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Group to delete.
+    ID of a StorageGRID group to delete.
 #>
 function Global:Remove-SgwGroup {
     [CmdletBinding()]
@@ -10986,14 +10986,14 @@ function Global:Remove-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Group to delete.",
+                HelpMessage = "ID of a StorageGRID group to delete.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
@@ -11005,7 +11005,7 @@ function Global:Remove-SgwGroup {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11014,7 +11014,7 @@ function Global:Remove-SgwGroup {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -11046,11 +11046,11 @@ function Global:Remove-SgwGroup {
     .DESCRIPTION
     Retrieves a single Group
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Group to retrieve.
+    ID of a StorageGRID group to retrieve.
 #>
 function Global:Get-SgwGroup {
     [CmdletBinding()]
@@ -11059,14 +11059,14 @@ function Global:Get-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Group to retrieve.",
+                HelpMessage = "ID of a StorageGRID group to retrieve.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$id
     )
@@ -11078,7 +11078,7 @@ function Global:Get-SgwGroup {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11087,7 +11087,7 @@ function Global:Get-SgwGroup {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -11168,10 +11168,10 @@ function Global:Update-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -11260,7 +11260,7 @@ function Global:Update-SgwGroup {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11269,7 +11269,7 @@ function Global:Update-SgwGroup {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -11376,9 +11376,9 @@ function Global:Update-SgwGroup {
     .DESCRIPTION
     Replace a single Grid Administrator Group
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ID of the group to be replaced.
     .PARAMETER DisplayName
@@ -11429,10 +11429,10 @@ function Global:Replace-SgwGroup {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -11529,7 +11529,7 @@ function Global:Replace-SgwGroup {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11538,7 +11538,7 @@ function Global:Replace-SgwGroup {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -11653,15 +11653,15 @@ function Global:Replace-SgwGroup {
 
 <#
     .SYNOPSIS
-    Retrieve groups of a StorageGRID Webscale Account
+    Retrieve groups of a StorageGRID account
     .DESCRIPTION
-    Retrieve groups of a StorageGRID Webscale Account
+    Retrieve groups of a StorageGRID account
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
-    ID of a StorageGRID Webscale Account to get group information for.
+    ID of a StorageGRID account to get group information for.
 #>
 function Global:Get-SgwAccountGroups {
     [CmdletBinding()]
@@ -11670,14 +11670,14 @@ function Global:Get-SgwAccountGroups {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to get group information for.",
+                HelpMessage = "ID of a StorageGRID account to get group information for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Id
     )
@@ -11689,7 +11689,7 @@ function Global:Get-SgwAccountGroups {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11698,7 +11698,7 @@ function Global:Get-SgwAccountGroups {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.APIVersion -gt 1) {
             Throw "This Cmdlet is only supported with API Version 1"
@@ -11726,7 +11726,7 @@ function Global:Get-SgwAccountGroups {
 
 ## health ##
 
-# complete as of API 2.2
+# complete as of API 3
 
 <#
     .SYNOPSIS
@@ -11734,9 +11734,9 @@ function Global:Get-SgwAccountGroups {
     .DESCRIPTION
     Retrieve StorageGRID Health Status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwHealth {
     [CmdletBinding()]
@@ -11744,10 +11744,10 @@ function Global:Get-SgwHealth {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -11757,7 +11757,7 @@ function Global:Get-SgwHealth {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11766,7 +11766,7 @@ function Global:Get-SgwHealth {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -11796,9 +11796,9 @@ Set-Alias -Name Get-SgwTopology -Value Get-SgwTopologyHealth
     .DESCRIPTION
     Retrieve StorageGRID Topology with Health Status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Depth
     Topology depth level to provide (default=node).
 #>
@@ -11808,10 +11808,10 @@ function Global:Get-SgwTopologyHealth {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 0,
                 HelpMessage = "Topology depth level to provide (default=node).")][String][ValidateSet("grid", "site", "node", "component", "subcomponent")]$Depth = "node"
@@ -11824,7 +11824,7 @@ function Global:Get-SgwTopologyHealth {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11833,7 +11833,7 @@ function Global:Get-SgwTopologyHealth {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -11874,9 +11874,9 @@ function Global:Get-SgwTopologyHealth {
     .DESCRIPTION
     Retrieve identity sources
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwIdentitySources {
     [CmdletBinding()]
@@ -11884,10 +11884,10 @@ function Global:Get-SgwIdentitySources {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -11897,7 +11897,7 @@ function Global:Get-SgwIdentitySources {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -11906,7 +11906,7 @@ function Global:Get-SgwIdentitySources {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -11939,9 +11939,9 @@ Set-Alias -Name Update-SgwIdentitySource -Value Set-SgwIdentitySource
     .DESCRIPTION
     Set or update identity source
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     A unique identifier for the identity source (automatically assigned when the identity source is configured)
     .PARAMETER Disable
@@ -11979,10 +11979,10 @@ function Global:Set-SgwIdentitySource {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
@@ -12053,7 +12053,7 @@ function Global:Set-SgwIdentitySource {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12062,7 +12062,7 @@ function Global:Set-SgwIdentitySource {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -12118,9 +12118,9 @@ function Global:Set-SgwIdentitySource {
     .DESCRIPTION
     Request that users and groups from the identity source be synchronized as soon as possible
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Sync-SgwIdentitySources {
     [CmdletBinding()]
@@ -12128,10 +12128,10 @@ function Global:Sync-SgwIdentitySources {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -12141,7 +12141,7 @@ function Global:Sync-SgwIdentitySources {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12150,7 +12150,7 @@ function Global:Sync-SgwIdentitySources {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -12193,10 +12193,10 @@ function Global:Invoke-SgwIlmEvaluate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "The object API that the provided object was evaluated against.")][String][ValidateSet('cdmi', 's3', 'swift')]$API,
@@ -12215,7 +12215,7 @@ function Global:Invoke-SgwIlmEvaluate {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12224,7 +12224,7 @@ function Global:Invoke-SgwIlmEvaluate {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12262,9 +12262,9 @@ function Global:Invoke-SgwIlmEvaluate {
     .DESCRIPTION
     Lists criteria available for creating an ILM rule
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwIlmMetadata {
     [CmdletBinding()]
@@ -12272,10 +12272,10 @@ function Global:Get-SgwIlmMetadata {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -12285,7 +12285,7 @@ function Global:Get-SgwIlmMetadata {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12294,7 +12294,7 @@ function Global:Get-SgwIlmMetadata {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12323,9 +12323,9 @@ function Global:Get-SgwIlmMetadata {
     .DESCRIPTION
     Lists ILM rules
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwIlmRules {
     [CmdletBinding()]
@@ -12333,10 +12333,10 @@ function Global:Get-SgwIlmRules {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -12346,7 +12346,7 @@ function Global:Get-SgwIlmRules {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12355,7 +12355,7 @@ function Global:Get-SgwIlmRules {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12384,9 +12384,9 @@ function Global:Get-SgwIlmRules {
     .DESCRIPTION
     Creates a new ILM rule
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:New-SgwIlmRules {
     [CmdletBinding()]
@@ -12394,10 +12394,10 @@ function Global:New-SgwIlmRules {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "S3 or Swift tenant account to which the ILM rule applies. If omitted, applies to all objects.")][Alias("AccountId")][String]$TenantAccountId,
@@ -12461,7 +12461,7 @@ function Global:New-SgwIlmRules {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12470,7 +12470,7 @@ function Global:New-SgwIlmRules {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12540,9 +12540,9 @@ function Global:New-SgwIlmRules {
     .DESCRIPTION
     Delete an ILM rule
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ILM rule ID
 #>
@@ -12552,10 +12552,10 @@ function Global:Get-SgwIlmRules {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "ILM rule ID.")][String]$Id
@@ -12568,7 +12568,7 @@ function Global:Get-SgwIlmRules {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12577,7 +12577,7 @@ function Global:Get-SgwIlmRules {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12606,9 +12606,9 @@ function Global:Get-SgwIlmRules {
     .DESCRIPTION
     Retrieves a single ILM rule
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Id
     ILM rule ID
 #>
@@ -12618,10 +12618,10 @@ function Global:Get-SgwIlmRules {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "ILM rule ID.")][String]$Id,
@@ -12637,7 +12637,7 @@ function Global:Get-SgwIlmRules {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12646,7 +12646,7 @@ function Global:Get-SgwIlmRules {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12683,9 +12683,9 @@ function Global:Get-SgwIlmRules {
     .DESCRIPTION
     Retrieves the grid license
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwLicense {
     [CmdletBinding()]
@@ -12693,10 +12693,10 @@ function Global:Get-SgwLicense {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -12706,7 +12706,7 @@ function Global:Get-SgwLicense {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12715,7 +12715,7 @@ function Global:Get-SgwLicense {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12744,13 +12744,13 @@ function Global:Get-SgwLicense {
     .DESCRIPTION
     Update the license
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER License
-    StorageGRID Webscale license.
+    StorageGRID license.
     .PARAMETER Passphrase
-    StorageGRID Webscale Passphrase.
+    StorageGRID passphrase.
 #>
 function Global:Update-SgwLicense {
     [CmdletBinding()]
@@ -12758,18 +12758,18 @@ function Global:Update-SgwLicense {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale license.",
+                HelpMessage = "StorageGRID license.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$License,
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase
+                HelpMessage = "StorageGRID passphrase.")][String]$Passphrase
     )
 
     Begin {
@@ -12779,7 +12779,7 @@ function Global:Update-SgwLicense {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12788,7 +12788,7 @@ function Global:Update-SgwLicense {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12828,9 +12828,9 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
     .DESCRIPTION
     Retrieves the log collection procedure status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
     function Global:Get-SgwLogs {
     [CmdletBinding()]
@@ -12838,10 +12838,10 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -12851,7 +12851,7 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12860,7 +12860,7 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -12889,13 +12889,13 @@ Set-Alias -Name Get-SgwLogStatus -Value Get-SgwLogs
     .DESCRIPTION
     Retrieves the log collection procedure status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Passphrase
-    StorageGRID Webscale Passphrase.
+    StorageGRID passphrase.
     .PARAMETER Nodes
-    List of StorageGRID Nodes to collect logs for (Default: all nodes).
+    List of StorageGRID nodes to collect logs for (Default: all nodes).
     .PARAMETER Notes
     A message to send to technical support.
     .PARAMETER RangeStart
@@ -12909,16 +12909,16 @@ function Global:Start-SgwLogCollection {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+                HelpMessage = "StorageGRID passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "List of StorageGRID Nodes to collect logs for (Default: all nodes).")][String[]]$Nodes,
+                HelpMessage = "List of StorageGRID nodes to collect logs for (Default: all nodes).")][String[]]$Nodes,
         [parameter(Mandatory = $False,
                 Position = 4,
                 HelpMessage = "A message to send to technical support.")][String]$Notes,
@@ -12937,7 +12937,7 @@ function Global:Start-SgwLogCollection {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -12946,7 +12946,7 @@ function Global:Start-SgwLogCollection {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13009,9 +13009,9 @@ function Global:Start-SgwLogCollection {
     .DESCRIPTION
     Deletes the previous log collection archive
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Remove-SgwLogCollection {
     [CmdletBinding()]
@@ -13019,10 +13019,10 @@ function Global:Remove-SgwLogCollection {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13032,7 +13032,7 @@ function Global:Remove-SgwLogCollection {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13041,7 +13041,7 @@ function Global:Remove-SgwLogCollection {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13070,9 +13070,9 @@ function Global:Remove-SgwLogCollection {
     .DESCRIPTION
     Download log collection archive after procedure completes
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Path
     Path to store log collection in
 #>
@@ -13082,10 +13082,10 @@ function Global:Get-SgwLogCollection {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Path to store log collection in")][System.IO.DirectoryInfo]$Path
@@ -13098,7 +13098,7 @@ function Global:Get-SgwLogCollection {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13158,9 +13158,9 @@ function Global:Get-SgwLogCollection {
     .DESCRIPTION
     Lists the values for a metric label
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Label
     Label name
 #>
@@ -13170,10 +13170,10 @@ function Global:Get-SgwMetricLabelValue {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "Label name (default: job).")][String]$Label="job"
@@ -13186,7 +13186,7 @@ function Global:Get-SgwMetricLabelValue {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13195,7 +13195,7 @@ function Global:Get-SgwMetricLabelValue {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13224,9 +13224,9 @@ function Global:Get-SgwMetricLabelValue {
     .DESCRIPTION
     Retrieves the metric names
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwMetricNames {
     [CmdletBinding()]
@@ -13234,10 +13234,10 @@ function Global:Get-SgwMetricNames {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13247,7 +13247,7 @@ function Global:Get-SgwMetricNames {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13256,7 +13256,7 @@ function Global:Get-SgwMetricNames {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13285,9 +13285,9 @@ function Global:Get-SgwMetricNames {
     .DESCRIPTION
     Performs an instant metric query at a single point in time
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Query
     Prometheus query string.
     .PARAMETER Time
@@ -13301,10 +13301,10 @@ function Global:Get-SgwMetricQuery {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Prometheus query string.")][String]$Query,
@@ -13323,7 +13323,7 @@ function Global:Get-SgwMetricQuery {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13332,7 +13332,7 @@ function Global:Get-SgwMetricQuery {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13374,9 +13374,9 @@ function Global:Get-SgwMetricQuery {
     .DESCRIPTION
     Performs a metric query over a range of time. The format of metric queries is controlled by Prometheus. See https://prometheus.io/docs/querying/basics
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Query
     Prometheus query string.
     .PARAMETER Time
@@ -13390,10 +13390,10 @@ function Global:Get-SgwMetricQueryRange {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Prometheus query string.")][String]$Query,
@@ -13418,7 +13418,7 @@ function Global:Get-SgwMetricQueryRange {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13427,7 +13427,7 @@ function Global:Get-SgwMetricQueryRange {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13475,9 +13475,9 @@ function Global:Get-SgwMetricQueryRange {
     .DESCRIPTION
     Lists configured external NTP servers
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwNtpServers {
     [CmdletBinding()]
@@ -13485,10 +13485,10 @@ function Global:Get-SgwNtpServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13498,7 +13498,7 @@ function Global:Get-SgwNtpServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13507,7 +13507,7 @@ function Global:Get-SgwNtpServers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13536,13 +13536,13 @@ function Global:Get-SgwNtpServers {
     .DESCRIPTION
     Change the external NTP servers used by the grid
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Servers
     List IP addresses of the external NTP servers.
     .PARAMETER Passphrase
-    StorageGRID Webscale Provisioning Passphrase.
+    StorageGRID Provisioning Passphrase.
 #>
 function Global:Update-SgwNtpServers {
     [CmdletBinding()]
@@ -13550,16 +13550,16 @@ function Global:Update-SgwNtpServers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "List IP addresses of the external NTP servers.")][String[]]$Servers,
         [parameter(Mandatory = $False,
                 Position = 3,
-                HelpMessage = "StorageGRID Webscale Provisioning Passphrase.")][String]$Passphrase
+                HelpMessage = "StorageGRID Provisioning Passphrase.")][String]$Passphrase
     )
 
     Begin {
@@ -13569,7 +13569,7 @@ function Global:Update-SgwNtpServers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13578,7 +13578,7 @@ function Global:Update-SgwNtpServers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13617,9 +13617,9 @@ function Global:Update-SgwNtpServers {
     .DESCRIPTION
     Retrieves metadata for an object
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER ObjectId
     Protocol-specific object identifier: my-bucket/my-object-key, my-container/my-object-name, UUID (all uppercase), CBID (all uppercase) (e.g. S3 bucket/key or Swift container/object).
     .PARAMETER Container
@@ -13635,10 +13635,10 @@ function Global:Get-SgwObjectMetadata {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 ParameterSetName="objectid",
                 Position = 2,
@@ -13669,7 +13669,7 @@ function Global:Get-SgwObjectMetadata {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13678,7 +13678,7 @@ function Global:Get-SgwObjectMetadata {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13722,9 +13722,9 @@ function Global:Get-SgwObjectMetadata {
     .DESCRIPTION
     Lists grid nodes not connected to the grid
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwRecoveryAvailableNodes {
     [CmdletBinding()]
@@ -13732,10 +13732,10 @@ function Global:Get-SgwRecoveryAvailableNodes {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13745,7 +13745,7 @@ function Global:Get-SgwRecoveryAvailableNodes {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13754,7 +13754,7 @@ function Global:Get-SgwRecoveryAvailableNodes {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13783,9 +13783,9 @@ function Global:Get-SgwRecoveryAvailableNodes {
     .DESCRIPTION
     Resets the recovery procedure to the not-started state
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Reset-SgwRecovery {
     [CmdletBinding()]
@@ -13793,10 +13793,10 @@ function Global:Reset-SgwRecovery {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13806,7 +13806,7 @@ function Global:Reset-SgwRecovery {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13815,7 +13815,7 @@ function Global:Reset-SgwRecovery {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13844,9 +13844,9 @@ function Global:Reset-SgwRecovery {
     .DESCRIPTION
     Gets the recovery status
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwRecovery {
     [CmdletBinding()]
@@ -13854,10 +13854,10 @@ function Global:Get-SgwRecovery {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -13867,7 +13867,7 @@ function Global:Get-SgwRecovery {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13876,7 +13876,7 @@ function Global:Get-SgwRecovery {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -13905,17 +13905,17 @@ function Global:Get-SgwRecovery {
     .DESCRIPTION
     Starts the recovery procedure, retrieves configuration file and installs software
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Passphrase
-    StorageGRID Webscale Passphrase.
+    StorageGRID Passphrase.
     .PARAMETER Oid
-    StorageGRID Node OID to recover.
+    StorageGRID node OID to recover.
     .PARAMETER Name
-    StorageGRID Node Name to recover.
+    StorageGRID node Name to recover.
     .PARAMETER Ip
-    StorageGRID Node IP to recover.
+    StorageGRID node IP to recover.
     .PARAMETER ReplacementNode
     Node to replace failed node.
 #>
@@ -13925,26 +13925,26 @@ function Global:Start-SgwRecovery {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Passphrase.")][String]$Passphrase,
+                HelpMessage = "StorageGRID Passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $True,
                 Position = 3,
-                HelpMessage = "StorageGRID Node OID to recover.",
+                HelpMessage = "StorageGRID node OID to recover.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Oid,
         [parameter(Mandatory = $True,
                 Position = 4,
-                HelpMessage = "StorageGRID Node Name to recover.",
+                HelpMessage = "StorageGRID node Name to recover.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Name,
         [parameter(Mandatory = $True,
                 Position = 5,
-                HelpMessage = "StorageGRID Node IP to recover.",
+                HelpMessage = "StorageGRID node IP to recover.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$Ip,
         [parameter(Mandatory = $True,
@@ -13961,7 +13961,7 @@ function Global:Start-SgwRecovery {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -13970,7 +13970,7 @@ function Global:Start-SgwRecovery {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14012,11 +14012,11 @@ function Global:Start-SgwRecovery {
     .DESCRIPTION
     Downloads the Recovery Package
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Passphrase
-    StorageGRID Webscale Provisioning Passphrase.
+    StorageGRID Provisioning Passphrase.
     .PARAMETER Path
     Path to store recovery package
 #>
@@ -14026,13 +14026,13 @@ function Global:Get-SgwRecoveryPackage {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
-                HelpMessage = "StorageGRID Webscale Provisioning Passphrase.")][String]$Passphrase,
+                HelpMessage = "StorageGRID Provisioning Passphrase.")][String]$Passphrase,
         [parameter(Mandatory = $True,
                 Position = 3,
                 HelpMessage = "Path to store recovery package")][System.IO.DirectoryInfo]$Path
@@ -14045,7 +14045,7 @@ function Global:Get-SgwRecoveryPackage {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14054,7 +14054,7 @@ function Global:Get-SgwRecoveryPackage {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14094,9 +14094,9 @@ function Global:Get-SgwRecoveryPackage {
     .DESCRIPTION
     Lists configured regions
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwRegions {
     [CmdletBinding()]
@@ -14104,10 +14104,10 @@ function Global:Get-SgwRegions {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -14117,7 +14117,7 @@ function Global:Get-SgwRegions {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14126,7 +14126,7 @@ function Global:Get-SgwRegions {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -14157,9 +14157,9 @@ function Global:Get-SgwRegions {
     .DESCRIPTION
     Change the regions used by the grid
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Regions
     List of regions. A region can only include letters, numbers, and hyphens.
 #>
@@ -14169,10 +14169,10 @@ function Global:Update-SgwRegions {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "List of regions. A region can only include letters, numbers, and hyphens.")][String[]]$Regions
@@ -14185,7 +14185,7 @@ function Global:Update-SgwRegions {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14194,7 +14194,7 @@ function Global:Update-SgwRegions {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14234,9 +14234,9 @@ function Global:Update-SgwRegions {
     .DESCRIPTION
     Retrieve the management interface server certificate
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwManagementCertificate {
     [CmdletBinding()]
@@ -14244,10 +14244,10 @@ function Global:Get-SgwManagementCertificate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -14257,7 +14257,7 @@ function Global:Get-SgwManagementCertificate {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14266,7 +14266,7 @@ function Global:Get-SgwManagementCertificate {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14299,9 +14299,9 @@ New-Alias -Name Replace-SgwManagementCertificate -Value Update-SgwManagementCert
     .DESCRIPTION
     Update the management interface server certificate
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER ServerCertificate
     X.509 server certificate in PEM-encoding; omit or null if using default certificates.
     .PARAMETER ServerCertificatePath
@@ -14321,10 +14321,10 @@ function Global:Update-SgwManagementCertificate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
@@ -14364,7 +14364,7 @@ function Global:Update-SgwManagementCertificate {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14373,7 +14373,7 @@ function Global:Update-SgwManagementCertificate {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14455,9 +14455,9 @@ function Global:Update-SgwManagementCertificate {
     .DESCRIPTION
     Retrieve the object storage API service endpoints server certificate
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
 #>
 function Global:Get-SgwObjectCertificate {
     [CmdletBinding()]
@@ -14465,10 +14465,10 @@ function Global:Get-SgwObjectCertificate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName
     )
 
     Begin {
@@ -14478,7 +14478,7 @@ function Global:Get-SgwObjectCertificate {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14487,7 +14487,7 @@ function Global:Get-SgwObjectCertificate {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14520,9 +14520,9 @@ New-Alias -Name Replace-SgwObjectCertificate -Value Update-SgwObjectCertificate
     .DESCRIPTION
     Update the object storage API service endpoints server certificate
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER ServerCertificate
     X.509 server certificate in PEM-encoding; omit or null if using default certificates.
     .PARAMETER ServerCertificatePath
@@ -14542,10 +14542,10 @@ function Global:Update-SgwObjectCertificate {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
@@ -14585,7 +14585,7 @@ function Global:Update-SgwObjectCertificate {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14594,7 +14594,7 @@ function Global:Update-SgwObjectCertificate {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if ($Server.AccountId) {
             Throw "Operation not supported when connected as tenant. Use Connect-SgwServer without the AccountId parameter to connect as grid administrator and then rerun this command."
@@ -14680,9 +14680,9 @@ function Global:Update-SgwObjectCertificate {
     .DESCRIPTION
     Retrieve all Users
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Type
     User type
     .PARAMETER Limit
@@ -14700,10 +14700,10 @@ function Global:Get-SgwUsers {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 1,
                 HelpMessage = "User type.")][ValidateSet("local", "federated")][String]$Type,
@@ -14728,7 +14728,7 @@ function Global:Get-SgwUsers {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14737,7 +14737,7 @@ function Global:Get-SgwUsers {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -14798,9 +14798,9 @@ New-Alias -Name Add-SgwUser -Value New-SgwUser
     .DESCRIPTION
     Create a new user
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER FullName
     The human-readable name for the User (required for local Users and imported automatically for federated Users).
     .PARAMETER MemberOf
@@ -14819,10 +14819,10 @@ function Global:New-SgwUser {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 HelpMessage = "The human-readable name for the User (required for local Users and imported automatically for federated Users).")][String]$FullName,
@@ -14848,7 +14848,7 @@ function Global:New-SgwUser {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14857,7 +14857,7 @@ function Global:New-SgwUser {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -14920,9 +14920,9 @@ New-Alias -Name Set-SgwUserPassword -Value Update-SgwUserPassword
     .DESCRIPTION
     Updates or sets a user's password
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Password
     New password for the user.
     .PARAMETER CurrentPassword
@@ -14938,10 +14938,10 @@ function Global:Update-SgwUserPassword {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "New password for the user.")][Alias("NewPassword")][String]$Password,
@@ -14965,7 +14965,7 @@ function Global:Update-SgwUserPassword {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -14974,7 +14974,7 @@ function Global:Update-SgwUserPassword {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -15055,9 +15055,9 @@ function Global:Update-SgwUserPassword {
     .DESCRIPTION
     Retrieve a user
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     User name (unique name or short name).
     .PARAMETER Id
@@ -15069,10 +15069,10 @@ function Global:Get-SgwUser {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $true,
@@ -15090,7 +15090,7 @@ function Global:Get-SgwUser {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15099,7 +15099,7 @@ function Global:Get-SgwUser {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -15157,9 +15157,9 @@ function Global:Get-SgwUser {
     .DESCRIPTION
     Remove a user
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Name
     User name (unique name or short name).
     .PARAMETER Id
@@ -15171,10 +15171,10 @@ function Global:Remove-SgwUser {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $true,
@@ -15192,7 +15192,7 @@ function Global:Remove-SgwUser {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15201,7 +15201,7 @@ function Global:Remove-SgwUser {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -15242,9 +15242,9 @@ function Global:Remove-SgwUser {
     .DESCRIPTION
     Update a user
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER FullName
     The human-readable name for the User (required for local Users and imported automatically for federated Users).
     .PARAMETER MemberOf
@@ -15259,10 +15259,10 @@ function Global:Update-SgwUser {
     PARAM (
         [parameter(Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $true,
@@ -15288,7 +15288,7 @@ function Global:Update-SgwUser {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15297,7 +15297,7 @@ function Global:Update-SgwUser {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
     }
 
@@ -15346,17 +15346,17 @@ function Global:Update-SgwUser {
 Set-Alias -Name Get-SgwAccountS3AccessKeys -Value Get-SgwS3AccessKeys
 <#
     .SYNOPSIS
-    Retrieve StorageGRID Webscale Account S3 Access Keys
+    Retrieve StorageGRID Account S3 Access Keys
     .DESCRIPTION
-    Retrieve StorageGRID Webscale Account S3 Access Keys
+    Retrieve StorageGRID Account S3 Access Keys
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER AccountId
-    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    ID of a StorageGRID Account to get S3 Access Keys for.
     .PARAMETER UserId
-    ID of a StorageGRID Webscale User.
+    ID of a StorageGRID User.
 #>
 function Global:Get-SgwS3AccessKeys {
     [CmdletBinding(DefaultParameterSetName = "none")]
@@ -15365,21 +15365,21 @@ function Global:Get-SgwS3AccessKeys {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
                 ParameterSetName = "account",
-                HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for.",
+                HelpMessage = "ID of a StorageGRID Account to get S3 Access Keys for.",
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
                 ParameterSetName = "user",
-                HelpMessage = "ID of a StorageGRID Webscale User.",
+                HelpMessage = "ID of a StorageGRID User.",
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId
     )
 
@@ -15390,7 +15390,7 @@ function Global:Get-SgwS3AccessKeys {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15399,7 +15399,7 @@ function Global:Get-SgwS3AccessKeys {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
@@ -15440,17 +15440,17 @@ function Global:Get-SgwS3AccessKeys {
 Set-Alias -Name Get-SgwAccountS3AccessKey -Value Get-SgwS3AccessKey
 <#
     .SYNOPSIS
-    Retrieve a StorageGRID Webscale Account S3 Access Key
+    Retrieve a StorageGRID Account S3 Access Key
     .DESCRIPTION
-    Retrieve a StorageGRID Webscale Account S3 Access Key
+    Retrieve a StorageGRID Account S3 Access Key
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER AccountId
-    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    ID of a StorageGRID Account to get S3 Access Keys for.
     .PARAMETER UserId
-    ID of a StorageGRID Webscale User.
+    ID of a StorageGRID User.
     .PARAMETER AccessKey
     Access Key to retrieve.
 #>
@@ -15461,20 +15461,20 @@ function Global:Get-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                HelpMessage = "ID of a StorageGRID Webscale Account to get S3 Access Keys for",
+                HelpMessage = "ID of a StorageGRID Account to get S3 Access Keys for",
                 ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "ID of a StorageGRID Webscale User.",
+                HelpMessage = "ID of a StorageGRID User.",
                 ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
@@ -15491,7 +15491,7 @@ function Global:Get-SgwS3AccessKey {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15500,7 +15500,7 @@ function Global:Get-SgwS3AccessKey {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
@@ -15542,17 +15542,17 @@ function Global:Get-SgwS3AccessKey {
 Set-Alias -Name New-SgwAccountS3AccessKey -Value New-SgwS3AccessKey
 <#
     .SYNOPSIS
-    Create a new StorageGRID Webscale Account S3 Access Key
+    Create a new StorageGRID Account S3 Access Key
     .DESCRIPTION
-    Create a new StorageGRID Webscale Account S3 Access Key
+    Create a new StorageGRID Account S3 Access Key
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER AccountId
-    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    ID of a StorageGRID Account to get S3 Access Keys for.
     .PARAMETER UserId
-    ID of a StorageGRID Webscale User.
+    ID of a StorageGRID User.
     .PARAMETER Expires
     Expiration date of the S3 Access Key.
 #>
@@ -15563,22 +15563,22 @@ function Global:New-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
                 ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Id of the StorageGRID Webscale Account to create new S3 Access Key for.")][String]$AccountId,
+                HelpMessage = "Id of the StorageGRID Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
                 ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "ID of a StorageGRID Webscale User.")][Alias("userUUID")][String]$UserId,
+                HelpMessage = "ID of a StorageGRID User.")][Alias("userUUID")][String]$UserId,
         [parameter(
                 Mandatory = $False,
                 Position = 4,
@@ -15594,7 +15594,7 @@ function Global:New-SgwS3AccessKey {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15603,7 +15603,7 @@ function Global:New-SgwS3AccessKey {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
@@ -15671,17 +15671,17 @@ function Global:New-SgwS3AccessKey {
 Set-Alias -Name Remove-SgwAccountS3AccessKey -Value Remove-SgwS3AccessKey
 <#
     .SYNOPSIS
-    Delete a StorageGRID Webscale Account S3 Access Key
+    Delete a StorageGRID Account S3 Access Key
     .DESCRIPTION
-    Delete a StorageGRID Webscale Account S3 Access Key
+    Delete a StorageGRID Account S3 Access Key
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER AccountId
-    ID of a StorageGRID Webscale Account to get S3 Access Keys for.
+    ID of a StorageGRID Account to get S3 Access Keys for.
     .PARAMETER UserId
-    ID of a StorageGRID Webscale User.
+    ID of a StorageGRID User.
     .PARAMETER AccessKey
     Access Key to delete.
 #>
@@ -15692,20 +15692,20 @@ function Global:Remove-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                HelpMessage = "Id of the StorageGRID Webscale Account to delete S3 Access Key for.",
+                HelpMessage = "Id of the StorageGRID Account to delete S3 Access Key for.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                HelpMessage = "ID of a StorageGRID Webscale User.",
+                HelpMessage = "ID of a StorageGRID User.",
                 ValueFromPipeline = $True,
                 ValueFromPipelineByPropertyName = $True)][Alias("userUUID")][String]$UserId,
         [parameter(
@@ -15723,7 +15723,7 @@ function Global:Remove-SgwS3AccessKey {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15732,7 +15732,7 @@ function Global:Remove-SgwS3AccessKey {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
         if (!$Server.AccountId -and !$Server.SupportedApiVersions.Contains(1)) {
             Throw "This cmdlet requires API Version 1 support if connection to server was not made with a tenant account id. Either use Connect-SgwServer with the AccountId parameter or enable API version 1 with Update-SgwConfigManagement -MinApiVersion 1"
@@ -15781,9 +15781,9 @@ function Global:Remove-SgwS3AccessKey {
     .DESCRIPTION
     Get StorageGRID Report
     .PARAMETER Server
-    StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.
+    StorageGRID admin node. If not specified, global CurrentSgwServer object will be used.
     .PARAMETER ProfileName
-    StorageGRID Profile to use for connection.
+    StorageGRID profile to use for connection.
     .PARAMETER Attribute
     Attribute to report
     .PARAMETER OID
@@ -15804,10 +15804,10 @@ function Global:Get-SgwReport {
         [parameter(
                 Mandatory = $False,
                 Position = 0,
-                HelpMessage = "StorageGRID Webscale Management Server object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
+                HelpMessage = "StorageGRID admin node connection object. If not specified, global CurrentSgwServer object will be used.")][PSCustomObject]$Server,
         [parameter(Mandatory = $False,
                 Position = 1,
-                HelpMessage = "StorageGRID Profile to use for connection.")][Alias("Profile")][String]$ProfileName,
+                HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -15844,7 +15844,7 @@ function Global:Get-SgwReport {
         if ($ProfileName) {
             $Profile = Get-SgwProfile -ProfileName $ProfileName
             if (!$Profile.Name) {
-                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID Server using Connect-SgwServer"
+                Throw "Profile $ProfileName not found. Create a profile using New-SgwProfile or connect to a StorageGRID server using Connect-SgwServer"
             }
             $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.disalble_automatic_access_key_generation -TemporaryAccessKeyExpirationTime $Profile.temporary_access_key_expiration_time -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient
         }
@@ -15853,7 +15853,7 @@ function Global:Get-SgwReport {
             $Server = $Global:CurrentSgwServer
         }
         if (!$Server) {
-            Throw "No StorageGRID Webscale Management Server management server found. Please run Connect-SgwServer to continue."
+            Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
 
         if ($Server.ApiVersion -lt 2.1) {
@@ -15938,11 +15938,11 @@ function Global:Merge-SgwGrids {
         [parameter(
                 Mandatory = $True,
                 Position = 0,
-                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
+                HelpMessage = "Source StorageGRID admin node")][PSCustomObject]$SourceServer,
         [parameter(
                 Mandatory = $True,
                 Position = 1,
-                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
+                HelpMessage = "Destination StorageGRID admin node")][PSCustomObject]$DestinationServer,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
@@ -16034,16 +16034,16 @@ function Global:Copy-SgwAccount {
         [parameter(
                 Mandatory = $True,
                 Position = 0,
-                HelpMessage = "Source StorageGRID Webscale Management Server object")][PSCustomObject]$SourceServer,
+                HelpMessage = "Source StorageGRID admin node")][PSCustomObject]$SourceServer,
         [parameter(
                 Mandatory = $True,
                 Position = 1,
-                HelpMessage = "Destination StorageGRID Webscale Management Server object")][PSCustomObject]$DestinationServer,
+                HelpMessage = "Destination StorageGRID admin node")][PSCustomObject]$DestinationServer,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "Source StorageGRID Webscale Management Account")][PSCustomObject]$AccountId,
+                HelpMessage = "Source StorageGRID Management Account")][PSCustomObject]$AccountId,
         [parameter(
                 Mandatory = $True,
                 Position = 3,
@@ -16116,11 +16116,11 @@ function Global:Copy-SgwBucket {
         [parameter(
                 Mandatory = $True,
                 Position = 0,
-                HelpMessage = "Source StorageGRID Webscale Management profile")][Alias("SourceProfile")][PSCustomObject]$SourceProfileName,
+                HelpMessage = "Source StorageGRID Management profile")][Alias("SourceProfile")][PSCustomObject]$SourceProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 1,
-                HelpMessage = "Destination StorageGRID Webscale Management profile")][Alias("DestinationProfile")][PSCustomObject]$DestinationProfileName,
+                HelpMessage = "Destination StorageGRID Management profile")][Alias("DestinationProfile")][PSCustomObject]$DestinationProfileName,
         [parameter(
                 Mandatory = $True,
                 Position = 2,
