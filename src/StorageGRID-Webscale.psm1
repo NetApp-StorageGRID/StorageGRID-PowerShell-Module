@@ -166,6 +166,9 @@ function ConvertFrom-SgwConfigFile {
         $Content = $Content -replace "\A","["
         $Content = $Content -replace "},?\s*\n?\s*\z","}]"
 
+        # TODO: Implement proper handling of special characters!
+        $Content = $Content -replace '\\','\\'
+
         $Config = ConvertFrom-Json -InputObject $Content
         Write-Output $Config
     }
