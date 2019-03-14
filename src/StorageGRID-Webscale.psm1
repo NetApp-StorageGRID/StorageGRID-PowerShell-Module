@@ -3225,15 +3225,13 @@ function Global:Remove-SgwAccount {
         $Method = "DELETE"
 
         try {
-            $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
+            $null = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
             Write-Verbose "Successfully deleted account with ID $id"
         }
         catch {
             $ResponseBody = ParseErrorForResponseBody $_
             Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
         }
-
-        Write-Output $Response
     }
 }
 
