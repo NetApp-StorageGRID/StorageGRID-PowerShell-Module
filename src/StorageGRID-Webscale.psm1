@@ -2492,8 +2492,8 @@ function Global:Add-SgwProfile {
             $Config | Add-Member -MemberType NoteProperty -Name account_id -Value $AccountId -Force
         }
 
-        if ($DisableAutomaticAccessKeyGeneration) {
-            $Config | Add-Member -MemberType NoteProperty -Name disable_automatic_access_key_generation -Value $DisableAutomaticAccessKeyGeneration -Force
+        if ($DisableAutomaticAccessKeyGeneration -ne $null) {
+            $Config | Add-Member -MemberType NoteProperty -Name disable_automatic_access_key_generation -Value $DisableAutomaticAccessKeyGeneration.IsPresent -Force
         }
 
         if ($TemporaryAccessKeyExpirationTime -and $TemporaryAccessKeyExpirationTime -ne 3600) {
@@ -2597,8 +2597,8 @@ function Global:Get-SgwProfiles {
                 $Output | Add-Member -MemberType NoteProperty -Name AccountId -Value $Config.account_id
             }
 
-            if ($Config.disalble_automatic_access_key_generation) {
-                $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value ([System.Convert]::ToBoolean($Config.disalble_automatic_access_key_generation))
+            if ($Config.disable_automatic_access_key_generation) {
+                $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value ([System.Convert]::ToBoolean($Config.disable_automatic_access_key_generation))
             }
             else {
                 $Output | Add-Member -MemberType NoteProperty -Name DisableAutomaticAccessKeyGeneration -Value $False
@@ -2629,6 +2629,11 @@ function Global:Get-SgwProfiles {
             if ($Config.use_sso -eq "true") {
                 $Output | Add-Member -MemberType NoteProperty -Name UseSso -Value $True
             }
+            else {
+                $Output | Add-Member -MemberType NoteProperty -Name UseSso -Value $False
+            }
+
+            $Output = $Output | Where-Object { $_.Name }
 
             Write-Output $Output
         }
@@ -2800,7 +2805,9 @@ function Global:Get-SgwProfile {
             $Config.UseSso = $False
         }
 
-        Write-Output $Config
+        if ($Config.Name) {
+            Write-Output $Config
+        }
     }
 }
 
