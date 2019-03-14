@@ -180,7 +180,7 @@ function ConvertTo-SgwConfigFile {
 
     PARAM (
         [parameter(
-            Mandatory=$True,
+            Mandatory=$False,
             Position=0,
             HelpMessage="Configs to store in config file")][PSCustomObject]$Configs,
         [parameter(
@@ -2748,7 +2748,8 @@ function Global:Get-SgwProfile {
                 DisableAutomaticAccessKeyGeneration = $DisableAutomaticAccessKeyGeneration;
                 TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime;
                 S3EndpointUrl = $S3EndpointUrl;
-                SwiftEndpointUrl = $SwiftEndpointUrl}
+                SwiftEndpointUrl = $SwiftEndpointUrl;
+                UseSso = $UseSso.IsPresent}
         }
 
         if ($Name) {
