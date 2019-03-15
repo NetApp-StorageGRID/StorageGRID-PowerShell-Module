@@ -4355,8 +4355,6 @@ function global:Connect-SgwServer {
                     $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" } | Select-Object -ExpandProperty Value
                     $Server.Headers["X-Csrf-Token"] = $XCsrfToken
                 }
-        
-                $Server.ApiVersion = $Response.apiVersion
             }
             Catch {
                 $ResponseBody = ParseErrorForResponseBody $_
