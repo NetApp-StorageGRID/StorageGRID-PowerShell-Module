@@ -3120,7 +3120,7 @@ function Global:New-SgwAccount {
         if ($Server.UseSso -and !$GrantRootAccessToGroup) {
             Write-Warning "SSO is enabled, you must specify a group for root access using -GrantRootAccessToGroup"
             Throw "SSO is enabled, you must specify a group for root access using -GrantRootAccessToGroup"
-    }
+        }
     }
 
     Process {
@@ -3703,6 +3703,7 @@ function Global:Update-SgwSwiftAdminPassword {
     }
 }
 
+New-Alias -Name Update-SgwPassword -Value Update-SgwAccountPassword
 <#
     .SYNOPSIS
     Changes the root user password for the Storage Tenant Account
@@ -3719,7 +3720,7 @@ function Global:Update-SgwSwiftAdminPassword {
     .PARAMETER NewPassword
     CNew Password.
 #>
-function Global:Update-SgwPassword {
+function Global:Update-SgwAccountPassword {
     [CmdletBinding()]
 
     PARAM (
@@ -4364,7 +4365,7 @@ function global:Connect-SgwServer {
                 if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" })) {
                     $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" } | Select-Object -ExpandProperty Value
                     $Server.Headers["X-Csrf-Token"] = $XCsrfToken
-                }
+                }        
             }
             Catch {
                 $ResponseBody = ParseErrorForResponseBody $_
