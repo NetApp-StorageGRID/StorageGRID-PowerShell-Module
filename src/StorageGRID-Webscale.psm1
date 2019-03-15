@@ -5071,6 +5071,10 @@ function Global:Get-SgwVersion {
             if ($ResponseBody -match "apiVersion") {
                 $ApiVersion = ($ResponseBody | ConvertFrom-Json).APIVersion
             }
+            elseif ($_.Exception.Message -match "Device not configured") {
+                Write-Warning "Connection failed due to network errors. Please check if you specified the correct hostname and that you can reach the hostname."
+                Throw "$Method to $Uri failed with Exception $( $_.Exception.Message )"
+            }
             else {
                 Write-Warning "Certificate of the server may not be trusted. Use -SkipCertificateCheck switch if you want to skip certificate verification."
                 Throw "$Method to $Uri failed with Exception $( $_.Exception.Message ) `n $responseBody"
