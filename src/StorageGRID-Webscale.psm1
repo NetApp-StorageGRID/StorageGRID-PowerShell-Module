@@ -14749,6 +14749,9 @@ function Global:Get-SgwSnmp {
         if (!$Server) {
             Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
+        if ($Server.APIVersion -lt 3.0) {
+            Throw "SNMP API is only Supported from StorageGRID 11.2"
+        }
     }
 
     Process {
@@ -14842,6 +14845,9 @@ function Global:Set-SgwSnmp {
         }
         if (!$Server) {
             Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
+        }
+        if ($Server.APIVersion -lt 3.0) {
+            Throw "SNMP API is only Supported from StorageGRID 11.2"
         }
     }
 
