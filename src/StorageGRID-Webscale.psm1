@@ -4266,7 +4266,7 @@ function global:Connect-SgwServer {
             if (!$Profile.Name) {
                 Throw "Profile $ProfileName not found and no name specified."
             }
-            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.DisableAutomaticAccessKeyGeneration -TemporaryAccessKeyExpirationTime $Profile.TemporaryAccessKeyExpirationTime -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -UseSso:$Profile.UseSso -Transient:$Transient -UseSso:$Profile.UseSso
+            $Server = Connect-SgwServer -Name $Profile.Name -Credential $Profile.Credential -AccountId $Profile.AccountId -SkipCertificateCheck:$Profile.SkipCertificateCheck -DisableAutomaticAccessKeyGeneration:$Profile.DisableAutomaticAccessKeyGeneration -TemporaryAccessKeyExpirationTime $Profile.TemporaryAccessKeyExpirationTime -S3EndpointUrl $Profile.S3EndpointUrl -SwiftEndpointUrl $Profile.SwiftEndpointUrl -Transient:$Transient -UseSso:$Profile.UseSso
             return $Server
         }
 
@@ -4278,7 +4278,7 @@ function global:Connect-SgwServer {
             BaseUri = "https://$Name/api/v2";
             Session = New-Object -TypeName Microsoft.PowerShell.Commands.WebRequestSession
             Headers = New-Object -TypeName Hashtable
-            ApiVersion = 0;
+            ApiVersion = 0.0;
             SupportedApiVersions = @();
             S3EndpointUrl = $null;
             SwiftEndpointUrl = $null;
@@ -4315,13 +4315,15 @@ function global:Connect-SgwServer {
 
         $Body = ConvertTo-Json -InputObject $Body
 
-        $ApiVersion = (Get-SgwVersion -Server $Server -ErrorAction Stop | Sort-Object | Select-Object -Last 1) -replace "\..*", ""
+        $ApiVersion = Get-SgwVersion -Server $Server -ErrorAction Stop
+        $ApiMajorVersion = ($ApiVersion | Sort-Object | Select-Object -Last 1) -replace "\..*", ""
 
-        if (!$APIVersion) {
+        if (!$ApiMajorVersion) {
             Throw "API Version could not be retrieved via https://$Name/api/versions"
         }
         else {
-            $Server.BaseUri = "https://$Name/api/v$ApiVersion"
+            $Server.BaseUri = "https://$Name/api/v$ApiMajorVersion"
+            $Server.ApiVersion = $ApiVersion
         }
 
         if ($UseSso.IsPresent) {
