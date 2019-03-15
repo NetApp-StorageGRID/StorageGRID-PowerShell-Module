@@ -167,7 +167,7 @@ $BucketAccounting | Export-Csv -Path $HOME\Downloads\BucketAccounting.csv -NoTyp
 
 ## Experimental Accounting of disk usage per tenant and bucket
 
-The following script expects that the S3-Client PowerShell Module is installed and that a connection to a server was established via `Connect-SgwServer`.
+The following script expects that the S3-Client PowerShell Module is installed and that a connection to a server was established via `Connect-SgwServer` and the minimum API Version was set to 1 with `Update-SgwConfigManagement -MinApiVersion 1`.
 
 ```powershell
 $Accounts = Get-SgwAccounts -Capabilities s3
