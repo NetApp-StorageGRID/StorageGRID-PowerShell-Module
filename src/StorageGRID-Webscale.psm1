@@ -3093,8 +3093,8 @@ function Global:New-SgwAccount {
         if (!$Server) {
             Throw "No StorageGRID admin node management server found. Please run Connect-SgwServer to continue."
         }
-        if ($Server.APIVersion -ge 2 -and !$Password) {
-            Throw "Password required"
+        if ($Server.APIVersion -ge 2 -and !$Password -and !$GrantRootAccessToGroup) {
+            Throw "Password or GrantRootAccessToGroup required"
         }
         if ($Server.APIVersion -lt 2 -and ($Quota -or $Password)) {
             Write-Warning "Quota and password will be ignored in API Version $( $Server.APIVersion )"
@@ -3116,6 +3116,11 @@ function Global:New-SgwAccount {
                 Throw "Password does not meet minimum length requirement of 8 characters"
             }
         }
+
+        if ($Server.UseSso -and !$GrantRootAccessToGroup) {
+            Write-Warning "SSO is enabled, you must specify a group for root access using -GrantRootAccessToGroup"
+            Throw "SSO is enabled, you must specify a group for root access using -GrantRootAccessToGroup"
+    }
     }
 
     Process {
@@ -3139,7 +3144,11 @@ function Global:New-SgwAccount {
         }
         if ($Server.ApiVersion -ge 3) {
             if ($GrantRootAccessToGroup) {
-                $Body.grantRootAccessToGroup = $grantRootAccessToGroup
+                $Body.policy.useAccountIdentitySource = $false
+                if ($GrantRootAccessToGroup -notmatch 'federated-group/') {
+                    $GrantRootAccessToGroup = 'federated-group/' + $GrantRootAccessToGroup
+                }
+                $Body.grantRootAccessToGroup = $GrantRootAccessToGroup
             }
         }
 
@@ -4286,7 +4295,8 @@ function global:Connect-SgwServer {
             TemporaryAccessKeyExpirationTime = $TemporaryAccessKeyExpirationTime;
             AccessKeyStore = @{ };
             AccountId = "";
-            TenantPortal = ""
+            TenantPortal = "";
+            UseSso = $False;
         }
 
         if ([environment]::OSVersion.Platform -match "Win") {
@@ -4593,6 +4603,8 @@ function global:Invoke-SgwServerSsoAuthentication {
         $Content = ConvertFrom-Json -InputObject $TokenResponse.Content
         $Server.Headers["Authorization"] = "Bearer $( $Content.data )"
         $Server.Session = $StorageGridSession
+
+        $Server.UseSso = $True
 
         Write-Output $Server
     }
