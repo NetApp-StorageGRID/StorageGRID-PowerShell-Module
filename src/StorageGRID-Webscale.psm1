@@ -3389,11 +3389,11 @@ function Global:Update-SgwAccount {
         [parameter(
                 Mandatory = $False,
                 Position = 5,
-                HelpMessage = "Use account identity source (supported since StorageGRID 10.4).")][Boolean]$UseAccountIdentitySource = $true,
+                HelpMessage = "Use account identity source (supported since StorageGRID 10.4).")][ValidateSet('true','false')][String]$UseAccountIdentitySource,
         [parameter(
                 Mandatory = $False,
                 Position = 6,
-                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][Boolean]$AllowPlatformServices = $false,
+                HelpMessage = "Allow platform services to be used (supported since StorageGRID 11.0).")][ValidateSet('true','false')][String]$AllowPlatformServices,
         [parameter(
                 Mandatory = $False,
                 Position = 7,
@@ -3446,12 +3446,23 @@ function Global:Update-SgwAccount {
         }
 
         if ($Server.APIVersion -ge 2) {
-            $Body.policy = @{ "useAccountIdentitySource" = $UseAccountIdentitySource }
+            if ($UseAccountIdentitySource) {
+                $Body.policy = @{}
+                $Body.policy["useAccountIdentitySource"] = [System.Convert]::ToBoolean($UseAccountIdentitySource)
+            }
             if ($Server.APIVersion -ge 2.1) {
-                $Body.policy["allowPlatformServices"] = $AllowPlatformServices
+                if ($AllowPlatformServices) {
+                    if (!$Body.Poliy) {
+                        $Body.policy = @{}
+                    }
+                    $Body.policy["allowPlatformServices"] = [System.Convert]::ToBoolean($AllowPlatformServices)
+                }
             }
             if ($Quota) {
-                $Body.policy.quotaObjectBytes = $Quota
+                if (!$Body.Poliy) {
+                    $Body.policy = @{}
+                }
+                $Body.policy["quotaObjectBytes"] = $Quota
             }
         }
 
@@ -4434,7 +4445,6 @@ function global:Connect-SgwServer {
                     try {
                         $Response = Invoke-WebRequest -Method Options -Uri "$EndpointDomainName" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 3
                         if ($Response.Headers["x-amz-request-id"]) {
-                            Write-Verbose "Test"
                             $Server.S3EndpointUrl = [System.UriBuilder]::new($EndpointDomainName)
                             break
                         }
