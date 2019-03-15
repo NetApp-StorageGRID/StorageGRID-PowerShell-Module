@@ -167,44 +167,50 @@ $BucketAccounting | Export-Csv -Path $HOME\Downloads\BucketAccounting.csv -NoTyp
 
 ## Experimental Accounting of disk usage per tenant and bucket
 
+The following script expects that the S3-Client PowerShell Module is installed and that a connection to a server was established via `Connect-SgwServer`.
+
 ```powershell
 $Accounts = Get-SgwAccounts -Capabilities s3
 $TenantAccounting = @()
 $BucketAccounting = @()
 foreach ($Account in $Accounts) {
+    Write-Host "Checking account $($Account.Name)"
     $AccountUsage = 0
     $AccountObjectCount = 0
     $Buckets = $Account | Get-S3Buckets
     foreach ($Bucket in $Buckets) {
+        Write-Host "Checking bucket $($Bucket.BucketName)"
         $BucketUsage = 0
         $BucketObjectCount = 0
-        $Objects = $Bucket | Get-S3Objects
-        foreach ($Object in $Objects) {
-            $BucketObjectCount += 1
-            $ObjectMetadata = $Object | Get-SgwObjectMetadata
-            $ReplicaCount = ($ObjectMetadata.locations | ? { $_.type -eq "replicated" }).Count
-            $ErasureCodeDataCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "data" }).Count
-            $ErasureCodeParityCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "parity" }).Count
-            if ($ReplicaCount) {
+        if ($Bucket) {
+            $Objects = $Bucket | Get-S3Objects
+            foreach ($Object in $Objects) {
+                $BucketObjectCount += 1
+                $ObjectMetadata = $Object | Get-SgwObjectMetadata
+                $ReplicaCount = ($ObjectMetadata.locations | ? { $_.type -eq "replicated" }).Count
+                $ErasureCodeDataCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "data" }).Count
+                $ErasureCodeParityCount = ($ObjectMetadata.locations.fragments | ? { $_.type -eq "parity" }).Count
+                if ($ReplicaCount) {
+                    $SizeFactor = $ReplicaCount
+                }
+                elseif ($ErasureCodeDataCount) {
+                    $SizeFactor = ($ErasureCodeDataCount + $ErasureCodeParityCount) / $ErasureCodeDataCount
+                }
+                elseif ($ObjectMetadata.objectSizeBytes -gt 0) {
+                    Write-Warning "No replicas and EC parts found for object ${Bucket.BucketName}/$($Object.Key)"
+                }
                 $SizeFactor = $ReplicaCount
+                if ($ObjectMetadata.diskSizeBytes) {
+                    $BucketUsage += $SizeFactor * $ObjectMetadata.diskSizeBytes
+                }
+                else {
+                    $BucketUsage += $SizeFactor * $ObjectMetadata.objectSizeBytes
+                }
             }
-            elseif ($ErasureCodeDataCount) {
-                $SizeFactor = ($ErasureCodeDataCount + $ErasureCodeParityCount) / $ErasureCodeDataCount
-            }
-            else {
-                Write-Warning "No replicas and EC parts found for object ${Bucket.BucketName}/$($Object.Key)"
-            }
-            $SizeFactor = $ReplicaCount
-            if ($ObjectMetadata.diskSizeBytes) {
-                $BucketUsage += $SizeFactor * $ObjectMetadata.diskSizeBytes
-            }
-            else {
-                $BucketUsage += $SizeFactor * $ObjectMetadata.objectSizeBytes
-            }
+            $BucketAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;BucketName=$Bucket.BucketName;BucketUsage=$BucketUsage;BucketObjectCount=$BucketObjectCount}
+            $AccountUsage += $BucketUsage
+            $AccountObjectCount += $BucketObjectCount
         }
-        $BucketAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;BucketName=$Bucket.BucketName;BucketUsage=$BucketUsage;BucketObjectCount=$BucketObjectCount}
-        $AccountUsage += $BucketUsage
-        $AccountObjectCount += $BucketObjectCount
     }
     $TenantAccounting += [PSCustomObject]@{AccountName=$Account.Name;AccountId=$Account.Id;AccountUsage=$AccountUsage;AccountObjectCount=$AccountObjectCount}
 }
