@@ -14799,7 +14799,7 @@ function Global:Get-SgwSnmp {
     .PARAMETER authtrapenable
     1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)
     .PARAMETER TrapDestinations
-    List of SNMP trap destinations for V1, V2C, and Inform notifications. Need to include type nad host, may include community and port.
+    List of SNMP trap destinations for V1, V2C, and Inform notifications. Need to include type nad host, may include community and port. Example: @{type='trapsink'; host='172.16.10.100'; community='public'; port=162}
 #>
 function Global:Set-SgwSnmp {
     [CmdletBinding()]
@@ -14813,25 +14813,32 @@ function Global:Set-SgwSnmp {
                 HelpMessage = "StorageGRID profile to use for connection.")][Alias("Profile")][String]$ProfileName,
         [parameter(Mandatory = $False,
                 Position = 2,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "IPv4 SNMP community")][String]$rocommunity,
         [parameter(Mandatory = $False,
                 Position = 3,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "IPv6 SNMP community")][String]$rocommunity6,
         [parameter(Mandatory = $False,
                 Position = 4,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "SNMP system location")][String]$sysLocation,
         [parameter(Mandatory = $False,
                 Position = 5,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "SNMP system location")][String]$sysContact,       
         [parameter(Mandatory = $False,
                 Position = 6,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "default trap community")][String]$trapcommunity,  
         [parameter(Mandatory = $False,
                 Position = 7,
+                ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)")][ValidateRange(1,2)][String]$authtrapenable, 
         [parameter(Mandatory = $False,
                 Position = 8,
-                HelpMessage = "List of SNMP trap destinations for V1, V2C, and Inform notifications. Object needs to include type nad host, may include community and port.")][Object[]]$TrapDestinations
+                ValueFromPipelineByPropertyName = $True,
+                HelpMessage = "List of SNMP trap destinations for V1, V2C, and Inform notifications. Object needs to include type nad host, may include community and port. Example: @{type='trapsink'; host='172.16.10.100'; community='public'; port=162}")][Alias("trap_destinations")][PSCustomObject[]]$TrapDestinations
     )
 
     Begin {
