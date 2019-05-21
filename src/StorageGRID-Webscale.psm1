@@ -4534,8 +4534,6 @@ function global:Disconnect-SgwServer {
     A System.Management.Automation.PSCredential object containing the credentials needed to log into the StorageGRID admin node.
     .PARAMETER SkipCertificateCheck
     If the StorageGRID admin node certificate cannot be verified, the connection will fail. Specify -SkipCertificateCheck to skip the validation of the StorageGRID admin node certificate.
-    .PARAMETER AccountId
-    Account ID of the StorageGRID tenant to connect to.
 #>
 function global:Invoke-SgwServerSsoAuthentication {
     [CmdletBinding()]
@@ -4573,7 +4571,12 @@ function global:Invoke-SgwServerSsoAuthentication {
 
         Write-Verbose "Retrieving SAML identity provider URI from StorageGRID admin node"
 
-        $Body = '{"accountId":"$AccountId"}'
+        if ($Server.AccountId) {
+            $Body = "{`"accountId`":`"$($Server.AccountId)`"}"
+        }
+        else {
+            $Body = "{`"accountId`":`"0`"}"
+        }
 
         Write-Verbose "Body: $Body"
 
@@ -4603,8 +4606,9 @@ function global:Invoke-SgwServerSsoAuthentication {
         Write-Verbose "Retrieve StorageGRID token using SAML Response"
 
         try {
+            $Uri = $Server.BaseUri + "/saml-response"
             $Body = "SAMLResponse=" + [System.Net.WebUtility]::UrlEncode($SAMLResponse) + "&RelayState=0"
-            $TokenResponse = Invoke-WebRequest -Method POST -Uri "https://cbc-sg-beta.muccbc.hq.netapp.com/api/saml-response" -Session StorageGridSession -ContentType "application/x-www-form-urlencoded" -Body $Body
+            $TokenResponse = Invoke-WebRequest -Method POST -Uri $Uri -Session StorageGridSession -ContentType "application/x-www-form-urlencoded" -Body $Body
             
         }
         catch {
