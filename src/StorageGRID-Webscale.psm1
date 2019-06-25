@@ -15806,13 +15806,11 @@ function Global:New-SgwS3AccessKey {
         [parameter(
                 Mandatory = $False,
                 Position = 2,
-                ParameterSetName = "account",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "Id of the StorageGRID Account to create new S3 Access Key for.")][String]$AccountId,
         [parameter(
                 Mandatory = $False,
                 Position = 3,
-                ParameterSetName = "user",
                 ValueFromPipelineByPropertyName = $True,
                 HelpMessage = "ID of a StorageGRID User.")][Alias("userUUID")][String]$UserId,
         [parameter(
