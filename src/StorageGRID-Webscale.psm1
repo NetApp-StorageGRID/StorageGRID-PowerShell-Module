@@ -4569,7 +4569,7 @@ function global:Invoke-SgwServerSsoAuthentication {
         Write-Verbose "Authenticating with identity provider"
 
         $Body = "UserName=" + [System.Net.WebUtility]::UrlEncode($Server.Credential.UserName) + "&Password=" + [System.Net.WebUtility]::UrlEncode($Server.Credential.GetNetworkCredential().Password) + "&AuthMethod=FormsAuthentication"
-        $AuthenticationResponse = Invoke-WebRequest -Method POST -Uri $FormAuthenticationUri.Uri -ContentType "application/x-www-form-urlencoded" -Body $Body
+        $AuthenticationResponse = Invoke-WebRequest -Method POST -Uri $FormAuthenticationUri.Uri -ContentType "application/x-www-form-urlencoded" -Body $Body -UseBasicParsing
 
         $SamlResponse = $AuthenticationResponse.InputFields | Where-Object { $_.name -eq "SAMLResponse" } | Select-Object -ExpandProperty value
 
