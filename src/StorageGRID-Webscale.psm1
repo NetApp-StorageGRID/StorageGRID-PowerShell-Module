@@ -15884,7 +15884,7 @@ function Global:New-SgwS3AccessKey {
         $AccessKey = $Response.Json.data
 
         if ($AccessKey.expires) {
-            $AccessKey.expires = [System.TimeZoneInfo]::ConvertTimeFromUtc($AccessKey.expires.ToUniversalTime(), [System.TimeZoneInfo]::Local)
+            $AccessKey.expires = [System.TimeZoneInfo]::ConvertTimeFromUtc(([DateTime]$AccessKey.expires).ToUniversalTime(), [System.TimeZoneInfo]::Local)
         }
 
         if (!$AccessKey) {
