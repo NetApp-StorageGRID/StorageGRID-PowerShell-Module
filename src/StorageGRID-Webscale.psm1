@@ -4541,11 +4541,12 @@ function global:Invoke-SgwServerSsoAuthentication {
         Write-Verbose "Retrieving SAML identity provider URI from StorageGRID admin node"
 
         if ($Server.AccountId) {
-            $Body = "{`"accountId`":`"$($Server.AccountId)`"}"
+            $AccountId = $Server.AccountId
         }
         else {
-            $Body = "{`"accountId`":`"0`"}"
+            $AccountId = 0
         }
+        $Body = "{`"accountId`":`"$AccountId`"}"
 
         Write-Verbose "Body: $Body"
 
@@ -4576,7 +4577,7 @@ function global:Invoke-SgwServerSsoAuthentication {
 
         try {
             $Uri = $Server.BaseUri + "/saml-response"
-            $Body = "SAMLResponse=" + [System.Net.WebUtility]::UrlEncode($SAMLResponse) + "&RelayState=0"
+            $Body = "SAMLResponse=" + [System.Net.WebUtility]::UrlEncode($SAMLResponse) + "&RelayState=" + $AccountId
             $TokenResponse = Invoke-WebRequest -Method POST -Uri $Uri -Session StorageGridSession -ContentType "application/x-www-form-urlencoded" -Body $Body
             
         }
