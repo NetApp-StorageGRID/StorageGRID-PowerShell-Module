@@ -15896,7 +15896,7 @@ function Global:New-SgwS3AccessKey {
         if (!$Server.AccessKeyStore[$AccountId]) {
             $Server.AccessKeyStore[$AccountId] = New-Object System.Collections.ArrayList
         }
-        $Server.AccessKeyStore[$AccountId].Add($AccessKey)
+        $null = $Server.AccessKeyStore[$AccountId].Add($AccessKey)
 
         Write-Output $AccessKey
     }
