@@ -78,7 +78,7 @@ Connect-SgwServer -Name $Name -Credential $Credential -AccountId $AccountId
 
 ## Tenant Management
 
-To create a new S3 tenant use
+To create a new S3 tenant use the following steps.
 
 ```powershell
 $Credential = Get-Credential -UserName root
@@ -129,6 +129,44 @@ Otherwise connect as grid administrator again and then run
 
 ```powershell
 $Account | Remove-SgwAccount
+```
+
+## Creating local groups and users
+
+Local groups and users can be used to grant full or restricted access to the resources of a tenant to e.g. a specific application.
+
+Make sure that you are connected to the tenant as root user or user with privileges to manager users and groups (check the previous section for details).
+
+```powershell
+$Account | Connect-SgwServer -Name $Name -Credential $Credential
+```
+
+If you want to restrict S3 access by denying bucket creation, deletion, policy change and versioning change as well as object version deletion create the following policy
+
+```powershell
+$GroupPolicy = New-AwsPolicy -Principal $null
+$GroupPolicy = $GroupPolicy | Add-AwsPolicyStatement -Principal $null -Effect Deny -Action s3:CreateBucket,s3:DeleteBucket,s3:DeleteBucketPolicy,s3:PutBucketPolicy,s3:PutBucketVersioning,s3:DeleteObjectVersion
+```
+
+Now create a new group with the previously created policy
+
+```powershell
+$Group = New-SgwGroup -UniqueName "mygroup" -Type "local" -S3Policy $GroupPolicy
+```
+
+Users of this group will not be able to log into the tenant portal. If you want to allow Tenant Portal access specify either of the parameters `-RootAccess`,`-ManageAllContainers`,`-ManageOwnS3Credentials`.
+
+If you want to allow full S3 access use the following to create the group
+
+```powershell
+$Group = New-SgwGroup -UniqueName "mygroup" -Type "local" -S3FullAccess
+```
+
+Now create a local user
+
+```powershell
+$UserCredential = Get-Credential -UserName "myuser" -Message "Insert the password for the user"
+$User = $Group | New-SgwUser -UniqueName "myuser" -Password $UserCredential.GetNetworkCredential().Password
 ```
 
 ## Export account usage to CSV
