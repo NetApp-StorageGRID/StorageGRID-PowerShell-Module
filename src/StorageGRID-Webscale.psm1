@@ -4338,14 +4338,14 @@ function global:Connect-SgwServer {
                 else {
                     $Response = Invoke-RestMethod -SessionVariable "Session" -Method POST -Uri "$( $Server.BaseUri )/authorize" -TimeoutSec 10 -ContentType "application/json" -Body $Body -SkipCertificateCheck:$Server.SkipCertificateCheck
                 }
-    
+
                 $Server.Headers["Authorization"] = "Bearer $( $Response.data )"
-    
+
                 $Server.Session = $Session
                 if (($Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" })) {
                     $XCsrfToken = $Server.Session.Cookies.GetCookies($Server.BaseUri) | Where-Object { $_.Name -match "CsrfToken" } | Select-Object -ExpandProperty Value
                     $Server.Headers["X-Csrf-Token"] = $XCsrfToken
-                }        
+                }
             }
             Catch {
                 $ResponseBody = ParseErrorForResponseBody $_
@@ -4579,7 +4579,7 @@ function global:Invoke-SgwServerSsoAuthentication {
             $Uri = $Server.BaseUri + "/saml-response"
             $Body = "SAMLResponse=" + [System.Net.WebUtility]::UrlEncode($SAMLResponse) + "&RelayState=" + $AccountId
             $TokenResponse = Invoke-WebRequest -Method POST -Uri $Uri -Session StorageGridSession -ContentType "application/x-www-form-urlencoded" -Body $Body
-            
+
         }
         catch {
             Throw "SAML Authentication failed. Please check your username and password!"
@@ -8088,9 +8088,11 @@ Set-Alias -Name Remove-SgwEsEndpoint -Value Remove-SgwEndpoint
     StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
+    .PARAMETER DisplayName
+    Endpoint DisplayName
 #>
 function Global:Remove-SgwEndpoint {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="ID")]
 
     PARAM (
         [parameter(Mandatory = $False,
@@ -8102,8 +8104,13 @@ function Global:Remove-SgwEndpoint {
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
+                ParameterSetName = "ID",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$Id
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                ParameterSetName = "DisplayName",
+                HelpMessage = "Endpoint DisplayName.")][String]$DisplayName
     )
 
     Begin {
@@ -8133,8 +8140,16 @@ function Global:Remove-SgwEndpoint {
     }
 
     Process {
-        $Uri = $Server.BaseURI + "/org/endpoints/$Id"
         $Method = "DELETE"
+
+        if ($DisplayName) {
+            $Endpoint = Get-SgwEndpoint -DisplayName $DisplayName
+            if (!$Endpoint.Id) {
+                Throw "Endpoint with DisplayName $DisplayName not found"
+            }
+            $Id = $Endpoint.Id
+        }
+        $Uri = $Server.BaseURI + "/org/endpoints/$Id"
 
         Try {
             $Response = Invoke-SgwRequest -WebSession $Server.Session -Method $Method -Uri $Uri -Headers $Server.Headers -SkipCertificateCheck:$Server.SkipCertificateCheck
@@ -8162,9 +8177,11 @@ Set-Alias -Name Get-SgwEsEndpoint -Value Get-SgwEndpoint
     StorageGRID profile to use for connection.
     .PARAMETER Id
     Endpoint ID.
+    .PARAMETER DisplayName
+    Endpoint DisplayName
 #>
 function Global:Get-SgwEndpoint {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="ID")]
 
     PARAM (
         [parameter(Mandatory = $False,
@@ -8176,8 +8193,13 @@ function Global:Get-SgwEndpoint {
         [parameter(Mandatory = $True,
                 Position = 2,
                 HelpMessage = "Endpoint ID.",
+                ParameterSetName = "ID",
                 ValueFromPipeline = $True,
-                ValueFromPipelineByPropertyName = $True)][String]$Id
+                ValueFromPipelineByPropertyName = $True)][String]$Id,
+        [parameter(Mandatory = $True,
+                Position = 3,
+                ParameterSetName = "DisplayName",
+                HelpMessage = "Endpoint DisplayName.")][String]$DisplayName
     )
 
     Begin {
@@ -8207,6 +8229,14 @@ function Global:Get-SgwEndpoint {
     }
 
     Process {
+        if ($DisplayName) {
+            $Endpoint = Get-SgwEndpoints | Where-Object { $_.DisplayName -eq $DisplayName } | Select-Object -First 1
+            if ($Endpoint.Id) {
+                Write-Output $Endpoint
+            }
+            return
+        }
+
         $Uri = $Server.BaseURI + "/org/endpoints/$Id"
         $Method = "GET"
 
@@ -8221,6 +8251,7 @@ function Global:Get-SgwEndpoint {
         Write-Output $Response.Json.data
     }
 }
+
 
 <#
     .SYNOPSIS
@@ -14825,15 +14856,15 @@ function Global:Set-SgwSnmp {
         [parameter(Mandatory = $False,
                 Position = 5,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "SNMP system location")][String]$sysContact,       
+                HelpMessage = "SNMP system location")][String]$sysContact,
         [parameter(Mandatory = $False,
                 Position = 6,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "default trap community")][String]$trapcommunity,  
+                HelpMessage = "default trap community")][String]$trapcommunity,
         [parameter(Mandatory = $False,
                 Position = 7,
                 ValueFromPipelineByPropertyName = $True,
-                HelpMessage = "1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)")][ValidateRange(1,2)][String]$authtrapenable, 
+                HelpMessage = "1 - enable SNMP authentication traps, 2 - disable SNMP authentication traps (default)")][ValidateRange(1,2)][String]$authtrapenable,
         [parameter(Mandatory = $False,
                 Position = 8,
                 ValueFromPipelineByPropertyName = $True,
